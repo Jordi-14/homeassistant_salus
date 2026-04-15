@@ -1,6 +1,6 @@
 {
   "domain": "salus",
-  "name": "Salus iT600",
+  "name": "Salus iT600 Testing",
   "config_flow": true,
   "documentation": "https://github.com/leonardpitzu/homeassistant_salus",
   "issue_tracker": "https://github.com/leonardpitzu/homeassistant_salus/issues",
