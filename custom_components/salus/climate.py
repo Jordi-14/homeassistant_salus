@@ -33,7 +33,12 @@ RAW_PRESET_ECO = "Eco"
 RAW_PRESET_OFF = "Off"
 
 PRESET_STANDBY = "Standby"
-EXPOSED_PRESET_MODES = [RAW_PRESET_PERMANENT_HOLD, PRESET_STANDBY]
+PRESET_FOLLOW_SALUS_SCHEDULE = "Follow Salus Schedule"
+EXPOSED_PRESET_MODES = [
+    RAW_PRESET_PERMANENT_HOLD,
+    PRESET_STANDBY,
+    PRESET_FOLLOW_SALUS_SCHEDULE,
+]
 
 RAW_TO_HA_FAN_MODE = {
     "Off": FAN_OFF,
@@ -141,7 +146,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         name="sensor",
         update_method=async_update_data,
         # Polling interval. Will only be polled if there are subscribers.
-        update_interval=timedelta(seconds=30),
+        update_interval=timedelta(seconds=10),
     )
     coordinator.salus_raw_climate_props = raw_climate_props
 
@@ -235,14 +240,14 @@ class SalusThermostat(ClimateEntity):
             if hold_type == SQ610_HOLD_PERMANENT:
                 return RAW_PRESET_PERMANENT_HOLD
             if hold_type == SQ610_HOLD_AUTO:
-                return None
+                return PRESET_FOLLOW_SALUS_SCHEDULE
 
         if device.preset_mode == RAW_PRESET_OFF:
             return PRESET_STANDBY
         if device.preset_mode in MANUAL_PRESET_MODES:
             return RAW_PRESET_PERMANENT_HOLD
         if device.preset_mode == RAW_PRESET_FOLLOW_SCHEDULE:
-            return None
+            return PRESET_FOLLOW_SALUS_SCHEDULE
         return device.preset_mode
 
     async def async_update(self):
@@ -495,6 +500,11 @@ class SalusThermostat(ClimateEntity):
                 await self._async_write_sq610_property(SQ610_WRITE_HOLD_TYPE, SQ610_HOLD_PERMANENT)
                 return
             raw_preset_mode = RAW_PRESET_PERMANENT_HOLD
+        elif preset_mode == PRESET_FOLLOW_SALUS_SCHEDULE:
+            if self._is_sq610:
+                await self._async_write_sq610_property(SQ610_WRITE_HOLD_TYPE, SQ610_HOLD_AUTO)
+                return
+            raw_preset_mode = RAW_PRESET_FOLLOW_SCHEDULE
         else:
             _LOGGER.warning("Ignoring unsupported preset mode request for %s: %s", self._idx, preset_mode)
             return

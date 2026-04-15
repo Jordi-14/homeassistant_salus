@@ -1,13 +1,13 @@
 {
   "domain": "salus",
-  "name": "Salus iT600 Testing",
+  "name": "Salus iT600",
   "config_flow": true,
-  "documentation": "https://github.com/leonardpitzu/homeassistant_salus",
-  "issue_tracker": "https://github.com/leonardpitzu/homeassistant_salus/issues",
+  "documentation": "https://github.com/Jordi-14/homeassistant_salus",
+  "issue_tracker": "https://github.com/Jordi-14/homeassistant_salus/issues",
   "requirements": ["pyit600==0.5.1"],
   "dependencies": [],
   "codeowners": [
-    "@leonardpitzu"
+    "@Jordi-14"
   ],
-  "version": "0.5.3"
+  "version": "0.5.5"
 }
