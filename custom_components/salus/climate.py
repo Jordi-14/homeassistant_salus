@@ -6,6 +6,7 @@ import async_timeout
 import voluptuous as vol
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
 from homeassistant.components.climate.const import (
+    HVACAction,
     HVACMode,
     ClimateEntityFeature,
     FAN_OFF,
@@ -56,7 +57,6 @@ MANUAL_PRESET_MODES = {
     RAW_PRESET_ECO,
 }
 
-SQ610_MODE_OFF = 0
 SQ610_MODE_AUTO = 1
 SQ610_MODE_COOL = 3
 SQ610_MODE_HEAT = 4
@@ -66,7 +66,6 @@ SQ610_HOLD_AUTO = 0
 SQ610_HOLD_PERMANENT = 2
 SQ610_HOLD_STANDBY = 7
 
-SQ610_RUNNING_OFF = 0
 SQ610_RUNNING_HEAT = 1
 SQ610_RUNNING_COOL = 2
 
@@ -96,6 +95,23 @@ def _flatten_dict(data):
 
     _walk(data)
     return flattened
+
+
+def _normalize_hvac_action(action):
+    """Map library-specific strings to Home Assistant HVACAction values."""
+    if isinstance(action, HVACAction):
+        return action
+    if action == "off":
+        return HVACAction.OFF
+    if action == "heating":
+        return HVACAction.HEATING
+    if action == "cooling":
+        return HVACAction.COOLING
+    if action in {"idle", "heating (idling)", "cooling (idling)"}:
+        return HVACAction.IDLE
+    if action is not None:
+        _LOGGER.warning("Unknown HVAC action for %s: %s", DOMAIN, action)
+    return None
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -146,7 +162,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         name="sensor",
         update_method=async_update_data,
         # Polling interval. Will only be polled if there are subscribers.
-        update_interval=timedelta(seconds=10),
+        update_interval=timedelta(seconds=30),
     )
     coordinator.salus_raw_climate_props = raw_climate_props
 
@@ -261,7 +277,7 @@ class SalusThermostat(ClimateEntity):
         self.async_on_remove(
             self._coordinator.async_add_listener(self.async_write_ha_state)
         )
-    
+
     @property
     def supported_features(self):
         """Return the list of supported features."""
@@ -344,17 +360,15 @@ class SalusThermostat(ClimateEntity):
             running_state = self._raw_props.get("RunningState")
             system_mode = self._raw_props.get("SystemMode")
             if hold_type == SQ610_HOLD_STANDBY:
-                return "off"
+                return HVACAction.OFF
             if running_state == SQ610_RUNNING_HEAT:
-                return "heating"
+                return HVACAction.HEATING
             if running_state == SQ610_RUNNING_COOL:
-                return "cooling"
-            if system_mode == SQ610_MODE_COOL:
-                return "cooling (idling)"
-            if system_mode in {SQ610_MODE_HEAT, SQ610_MODE_EMERGENCY_HEAT}:
-                return "heating (idling)"
-            return "idle"
-        return self._device.hvac_action
+                return HVACAction.COOLING
+            if system_mode in {SQ610_MODE_COOL, SQ610_MODE_HEAT, SQ610_MODE_EMERGENCY_HEAT}:
+                return HVACAction.IDLE
+            return None
+        return _normalize_hvac_action(self._device.hvac_action)
 
     @property
     def target_temperature(self):
