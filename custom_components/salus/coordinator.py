@@ -14,6 +14,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from salus_it600.exceptions import IT600AuthenticationError, IT600ConnectionError
 from salus_it600.gateway import IT600Gateway
+from salus_it600.device_models import is_sq610_model
 
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 
@@ -42,8 +43,7 @@ class SalusRuntimeData:
 
 def is_sq610_device(device: Any) -> bool:
     """Return whether the device is a Quantum thermostat."""
-    model = getattr(device, "model", None)
-    return isinstance(model, str) and "SQ610" in model.upper()
+    return is_sq610_model(getattr(device, "model", None))
 
 
 def flatten_dict(data: dict[str, Any]) -> dict[str, Any]:

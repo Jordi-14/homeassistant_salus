@@ -19,6 +19,22 @@ from homeassistant.components.climate.const import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
+from salus_it600.device_models import (
+    MODEL_FC600,
+    SQ610_HOLD_AUTO,
+    SQ610_HOLD_PERMANENT,
+    SQ610_HOLD_STANDBY,
+    SQ610_MODE_AUTO,
+    SQ610_MODE_COOL,
+    SQ610_MODE_EMERGENCY_HEAT,
+    SQ610_MODE_HEAT,
+    SQ610_RUNNING_COOL,
+    SQ610_RUNNING_HEAT,
+    SQ610_WRITE_COOLING_SETPOINT,
+    SQ610_WRITE_HEATING_SETPOINT,
+    SQ610_WRITE_HOLD_TYPE,
+    SQ610_WRITE_SYSTEM_MODE,
+)
 
 from .coordinator import SalusData, SalusRuntimeData, is_sq610_device
 from .entity import SalusEntity, async_add_salus_entities
@@ -56,24 +72,6 @@ MANUAL_PRESET_MODES = {
     RAW_PRESET_TEMPORARY_HOLD,
     RAW_PRESET_ECO,
 }
-
-SQ610_MODE_AUTO = 1
-SQ610_MODE_COOL = 3
-SQ610_MODE_HEAT = 4
-SQ610_MODE_EMERGENCY_HEAT = 5
-
-SQ610_HOLD_AUTO = 0
-SQ610_HOLD_PERMANENT = 2
-SQ610_HOLD_STANDBY = 7
-
-SQ610_RUNNING_HEAT = 1
-SQ610_RUNNING_COOL = 2
-
-SQ610_WRITE_HEATING_SETPOINT = "SetHeatingSetpoint_x100"
-SQ610_WRITE_COOLING_SETPOINT = "SetCoolingSetpoint_x100"
-SQ610_WRITE_HOLD_TYPE = "SetHoldType"
-SQ610_WRITE_SYSTEM_MODE = "SetSystemMode"
-
 
 def _normalize_hvac_action(action: Any) -> HVACAction | None:
     """Map library-specific strings to Home Assistant HVACAction values."""
@@ -140,7 +138,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             device
             and (
                 self._is_sq610
-                or device.model == "FC600"
+                or device.model == MODEL_FC600
                 or HVACMode.COOL in (device.hvac_modes or [])
                 or device.fan_modes is not None
                 or self._raw_props.get("SystemMode")
