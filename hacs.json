@@ -1,6 +1,7 @@
 {
   "name": "Salus iT600",
   "render_readme": true,
+  "homeassistant": "2024.8.0",
   "iot_class": "Local Polling",
   "domains": ["climate", "binary_sensor", "switch", "cover", "sensor"]
 }
