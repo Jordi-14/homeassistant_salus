@@ -1,4 +1,37 @@
-"""Coordinator for Salus iT600 gateway data."""
+"""Coordinator for Salus iT600 gateway data.
+
+This module implements the DataUpdateCoordinator pattern for polling the Salus iT600
+gateway at regular intervals (default 10 seconds) and aggregating device state into a
+single SalusData snapshot.
+
+Architecture:
+    poll_status() flow:
+    1. Coordinator schedules _async_update_data() every 10 seconds
+    2. _async_update_data() locks gateway (prevents concurrent requests)
+    3. gateway.poll_status() fetches all device types (climate, binary_sensor, etc.)
+    4. Device type lists extracted and packaged into SalusData dataclass
+    5. SQ610 raw props fetched separately (protocol quirk workaround)
+    6. Coordinator notifies all listening platforms (climate, switch, etc.)
+    7. Platforms' _handle_coordinator_update() callback triggered
+    8. Entities update their UI representation from coordinator.data
+
+Data Flow:
+    SalusData (immutable snapshot):
+    - climate_devices: dict[unique_id] → ClimateDevice
+    - binary_sensor_devices: dict[unique_id] → BinarySensorDevice
+    - switch_devices: dict[unique_id] → SwitchDevice
+    - cover_devices: dict[unique_id] → CoverDevice
+    - sensor_devices: dict[unique_id] → SensorDevice
+    - raw_climate_props: dict[unique_id] → SQ610-specific raw payload fields
+
+All platforms access coordinator.data to get current device state. When data changes,
+platforms are notified and entities read from the new snapshot.
+
+Error Handling:
+    - IT600AuthenticationError: Raised on config entry auth failure (EUID mismatch)
+    - IT600ConnectionError/TimeoutError: Raised as UpdateFailed (recoverable)
+    - Exception: Logged with warning for raw SQ610 props (non-blocking fallback)
+"""
 
 from __future__ import annotations
 
@@ -23,7 +56,21 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class SalusData:
-    """Latest device snapshots from a Salus gateway."""
+    """Latest device snapshots from a Salus gateway.
+    
+    Immutable snapshot of all device states as of the last coordinator update.
+    Shared by all platforms and entities for this config entry.
+    
+    Attributes:
+        climate_devices: Climate entities (thermostats, fan coils) by unique_id
+        binary_sensor_devices: Binary sensors (doors, windows, etc.) by unique_id
+        switch_devices: Switches (relays) by unique_id
+        cover_devices: Covers (blinds) by unique_id
+        sensor_devices: Sensors (temperature, humidity) by unique_id
+        raw_climate_props: SQ610 Quantum thermostat raw protocol fields (workaround for
+            protocol quirks like humidity in SunnySetpoint_x100). Maps unique_id → dict
+            of flattened payload fields not exposed by salus_it600 models.
+    """
 
     climate_devices: dict[str, Any]
     binary_sensor_devices: dict[str, Any]
@@ -47,7 +94,22 @@ def is_sq610_device(device: Any) -> bool:
 
 
 def flatten_dict(data: dict[str, Any]) -> dict[str, Any]:
-    """Flatten nested gateway payload dictionaries into a single key/value map."""
+    """Flatten nested gateway payload dictionaries into a single key/value map.
+    
+    Used for SQ610 raw properties where we need to extract fields from nested
+    payload sections without knowing the full structure. Recursively walks all
+    dict values and collects leaf values (non-dict) at top level.
+    
+    Example:
+        Input: {"sIT600TH": {"Humidity_x100": 550}, "Data": {"UniID": "device-1"}}
+        Output: {"Humidity_x100": 550, "UniID": "device-1"}
+    
+    Args:
+        data: Possibly nested gateway payload dict
+    
+    Returns:
+        Flattened dict with all leaf values at top level
+    """
     flattened: dict[str, Any] = {}
 
     def _walk(value: Any) -> None:
@@ -115,7 +177,28 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         self,
         climate_devices: dict[str, Any],
     ) -> dict[str, dict[str, Any]]:
-        """Fetch raw SQ610 properties not exposed by salus_it600 models."""
+        """Fetch raw SQ610 properties not exposed by salus_it600 models.
+        
+        SQ610 Quantum thermostats have unusual protocol quirks:
+        - Humidity stored in SunnySetpoint_x100 field (not standard humidity field)
+        - Write property names differ from read property names
+        - Dual setpoints (heating vs cooling) based on system mode
+        
+        salus_it600.gateway.py handles most quirks internally, but this integration
+        needs raw payload access for certain SQ610-specific features (e.g., custom
+        preset mapping). This method makes an additional encrypted request to fetch
+        raw SQ610 device data and flatten it for use by climate.py.
+        
+        Non-blocking: If this call fails, it logs a warning and returns last known
+        values or empty dict. The main poll_status() succeeds regardless.
+        
+        Args:
+            climate_devices: Climate devices from coordinator.data to check for SQ610
+        
+        Returns:
+            dict[unique_id] → flattened raw payload fields for SQ610 devices,
+            or previous values if fetch fails
+        """
         sq610_devices = [
             device for device in climate_devices.values() if is_sq610_device(device)
         ]
