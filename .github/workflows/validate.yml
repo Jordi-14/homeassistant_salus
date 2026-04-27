@@ -11,6 +11,24 @@ permissions:
   contents: read
 
 jobs:
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate manifest JSON
+        run: python -m json.tool custom_components/salus/manifest.json
+
+      - name: Compile custom component
+        run: python -m compileall -q custom_components
+
   hassfest:
     name: Hassfest
     runs-on: ubuntu-latest

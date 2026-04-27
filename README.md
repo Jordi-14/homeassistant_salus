@@ -21,6 +21,16 @@ Minimum supported Home Assistant version: `2024.8.0`.
 Copy `custom_components/salus` from this repository to
 `/config/custom_components/salus`, then restart Home Assistant.
 
+## Migration Notes
+
+Version `0.6.0` switches the integration from the unmaintained `pyit600`
+dependency to `salus-it600-client==0.1.0`. Existing Home Assistant config
+entries continue to use the same `salus` integration domain, so normal HACS
+updates should only require a restart.
+
+Custom Python code outside this integration that imports `pyit600` should be
+updated to import from `salus_it600` instead.
+
 ## Configuration
 
 1. In Home Assistant, go to `Settings -> Devices & services`.
