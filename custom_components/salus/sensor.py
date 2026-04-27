@@ -1,131 +1,57 @@
-"""Support for (temperature, not thermostat) sensors."""
-from datetime import timedelta
-import logging
-import async_timeout
+"""Support for Salus temperature sensors."""
 
-import voluptuous as vol
-from homeassistant.helpers.entity import Entity
-from homeassistant.components.sensor import PLATFORM_SCHEMA
+from __future__ import annotations
 
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_TOKEN
-)
+from typing import Any
 
-import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .coordinator import SalusData, SalusRuntimeData
+from .entity import SalusEntity, async_add_salus_entities
 
-_LOGGER = logging.getLogger(__name__)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_TOKEN): cv.string,
-    }
-)
+PARALLEL_UPDATES = 0
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities,
+) -> None:
     """Set up Salus sensors from a config entry."""
+    runtime_data: SalusRuntimeData = config_entry.runtime_data
+    coordinator = runtime_data.coordinator
 
-    gateway = hass.data[DOMAIN][config_entry.entry_id]
-
-    async def async_update_data():
-        """Fetch data from API endpoint.
-
-        This is the place to pre-process the data to lookup tables
-        so entities can quickly look up their data.
-        """
-        async with async_timeout.timeout(10):
-            await gateway.poll_status()
-            return gateway.get_sensor_devices()
-
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        # Name of the data. For logging purposes.
-        name="sensor",
-        update_method=async_update_data,
-        # Polling interval. Will only be polled if there are subscribers.
-        update_interval=timedelta(seconds=10),
+    async_add_salus_entities(
+        config_entry,
+        coordinator,
+        async_add_entities,
+        lambda device_id: SalusSensor(coordinator, device_id),
+        lambda data: data.sensor_devices,
     )
 
-    # Fetch initial data so we have data when entities subscribe
-    await coordinator.async_refresh()
 
-    async_add_entities(SalusSensor(coordinator, idx, gateway) for idx
-                       in coordinator.data)
-
-
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the sensor platform."""
-    pass
-
-
-class SalusSensor(Entity):
-    """Representation of a sensor."""
-
-    def __init__(self, coordinator, idx, gateway):
-        """Initialize the sensor."""
-        self._coordinator = coordinator
-        self._idx = idx
-        self._gateway = gateway
-
-    async def async_update(self):
-        """Update the entity.
-        Only used by the generic entity update service.
-        """
-        await self._coordinator.async_request_refresh()
-
-    async def async_added_to_hass(self):
-        """When entity is added to hass."""
-        self.async_on_remove(
-            self._coordinator.async_add_listener(self.async_write_ha_state)
-        )
-
-    def available(self):
-        """Return if entity is available."""
-        return self._coordinator.data.get(self._idx).available
+class SalusSensor(SalusEntity, SensorEntity):
+    """Representation of a Salus sensor."""
 
     @property
-    def device_info(self):
-        """Return the device info."""
-        return {
-            "name": self._coordinator.data.get(self._idx).name,
-            "identifiers": {("salus", self._coordinator.data.get(self._idx).unique_id)},
-            "manufacturer": self._coordinator.data.get(self._idx).manufacturer,
-            "model": self._coordinator.data.get(self._idx).model,
-            "sw_version": self._coordinator.data.get(self._idx).sw_version
-        }
+    def _device(self) -> Any | None:
+        """Return the current sensor snapshot."""
+        data: SalusData | None = self.coordinator.data
+        return None if data is None else data.sensor_devices.get(self._device_id)
 
     @property
-    def unique_id(self):
-        """Return the unique id."""
-        return self._coordinator.data.get(self._idx).unique_id
+    def native_value(self) -> Any:
+        """Return the sensor value."""
+        return None if self._device is None else self._device.state
 
     @property
-    def should_poll(self):
-        """No need to poll. Coordinator notifies entity of updates."""
-        return False
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self._coordinator.data.get(self._idx).name
-
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._coordinator.data.get(self._idx).state
-
-    @property
-    def unit_of_measurement(self):
+    def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement of this entity, if any."""
-        return self._coordinator.data.get(self._idx).unit_of_measurement
+        return None if self._device is None else self._device.unit_of_measurement
 
     @property
-    def device_class(self):
+    def device_class(self) -> str | None:
         """Return the device class of the sensor."""
-        return self._coordinator.data.get(self._idx).device_class
+        return None if self._device is None else self._device.device_class

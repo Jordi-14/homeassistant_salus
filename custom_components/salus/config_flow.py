@@ -1,5 +1,9 @@
-"""Config flow to configure Salus iT600 component."""
-import logging
+"""Config flow for the Salus iT600 integration."""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any
 
 import voluptuous as vol
 
@@ -9,39 +13,40 @@ from homeassistant.const import CONF_HOST, CONF_NAME, CONF_TOKEN
 from pyit600.exceptions import IT600AuthenticationError, IT600ConnectionError
 from pyit600.gateway import IT600Gateway
 
-# pylint: disable=unused-import
 from .const import DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
 
 CONF_FLOW_TYPE = "config_flow_device"
 CONF_USER = "user"
 DEFAULT_GATEWAY_NAME = "Salus iT600 Gateway"
 
-GATEWAY_SETTINGS = {
-    vol.Required(CONF_HOST): str,
-    vol.Required(CONF_TOKEN): vol.All(str, vol.Length(min=16, max=16)),
-    vol.Optional(CONF_NAME, default=DEFAULT_GATEWAY_NAME): str,
-}
+GATEWAY_SETTINGS = vol.Schema(
+    {
+        vol.Required(CONF_HOST): str,
+        vol.Required(CONF_TOKEN): vol.All(str, vol.Length(min=16, max=16)),
+        vol.Optional(CONF_NAME, default=DEFAULT_GATEWAY_NAME): str,
+    }
+)
 
 
 class SalusFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a Salus config flow."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ):
         """Handle a flow initialized by the user to configure a gateway."""
-        errors = {}
+        errors: dict[str, str] = {}
         if user_input is not None:
-            token = user_input[CONF_TOKEN]
-            host = user_input[CONF_HOST]
+            host = user_input[CONF_HOST].strip()
+            token = user_input[CONF_TOKEN].strip()
 
-            # Try to connect to a Salus Gateway.
             gateway = IT600Gateway(host=host, euid=token)
             try:
-                unique_id = await gateway.connect()
+                async with asyncio.timeout(10):
+                    unique_id = await gateway.connect()
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
@@ -57,7 +62,11 @@ class SalusFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "connect_error"
             except IT600AuthenticationError:
                 errors["base"] = "auth_error"
+            except TimeoutError:
+                errors["base"] = "connect_error"
 
-        schema = vol.Schema(GATEWAY_SETTINGS)
-
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=GATEWAY_SETTINGS,
+            errors=errors,
+        )

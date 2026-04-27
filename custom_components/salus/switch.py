@@ -1,130 +1,64 @@
-"""Support for switch (smart plug/relay/roller shutter) devices."""
-from datetime import timedelta
-import logging
-import async_timeout
+"""Support for Salus switch devices."""
 
-import voluptuous as vol
-from homeassistant.components.switch import PLATFORM_SCHEMA, SwitchEntity
+from __future__ import annotations
 
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_TOKEN
-)
+from typing import Any
 
-import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.components.switch import SwitchEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .coordinator import SalusData, SalusRuntimeData
+from .entity import SalusEntity, async_add_salus_entities
 
-_LOGGER = logging.getLogger(__name__)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_TOKEN): cv.string,
-    }
-)
+PARALLEL_UPDATES = 1
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities,
+) -> None:
     """Set up Salus switches from a config entry."""
+    runtime_data: SalusRuntimeData = config_entry.runtime_data
+    coordinator = runtime_data.coordinator
 
-    gateway = hass.data[DOMAIN][config_entry.entry_id]
-
-    async def async_update_data():
-        """Fetch data from API endpoint.
-
-        This is the place to pre-process the data to lookup tables
-        so entities can quickly look up their data.
-        """
-        async with async_timeout.timeout(10):
-            await gateway.poll_status()
-            return gateway.get_switch_devices()
-
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        # Name of the data. For logging purposes.
-        name="sensor",
-        update_method=async_update_data,
-        # Polling interval. Will only be polled if there are subscribers.
-        update_interval=timedelta(seconds=10),
+    async_add_salus_entities(
+        config_entry,
+        coordinator,
+        async_add_entities,
+        lambda device_id: SalusSwitch(coordinator, device_id),
+        lambda data: data.switch_devices,
     )
 
-    # Fetch initial data so we have data when entities subscribe
-    await coordinator.async_refresh()
 
-    async_add_entities(SalusSwitch(coordinator, idx, gateway) for idx
-                       in coordinator.data)
-
-
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the switch platform."""
-    pass
-
-
-class SalusSwitch(SwitchEntity):
-    """Representation of a switch."""
-
-    def __init__(self, coordinator, idx, gateway):
-        """Initialize the sensor."""
-        self._coordinator = coordinator
-        self._idx = idx
-        self._gateway = gateway
-
-    async def async_update(self):
-        """Update the entity.
-        Only used by the generic entity update service.
-        """
-        await self._coordinator.async_request_refresh()
-
-    async def async_added_to_hass(self):
-        """When entity is added to hass."""
-        self.async_on_remove(
-            self._coordinator.async_add_listener(self.async_write_ha_state)
-        )
-
-    def available(self):
-        """Return if entity is available."""
-        return self._coordinator.data.get(self._idx).available
+class SalusSwitch(SalusEntity, SwitchEntity):
+    """Representation of a Salus switch."""
 
     @property
-    def device_info(self):
-        """Return the device info."""
-        return {
-            "name": self._coordinator.data.get(self._idx).name,
-            "identifiers": {("salus", self._coordinator.data.get(self._idx).unique_id)},
-            "manufacturer": self._coordinator.data.get(self._idx).manufacturer,
-            "model": self._coordinator.data.get(self._idx).model,
-            "sw_version": self._coordinator.data.get(self._idx).sw_version
-        }
+    def _device(self) -> Any | None:
+        """Return the current switch snapshot."""
+        data: SalusData | None = self.coordinator.data
+        return None if data is None else data.switch_devices.get(self._device_id)
 
     @property
-    def unique_id(self):
-        """Return the unique id."""
-        return self._coordinator.data.get(self._idx).unique_id
+    def device_class(self) -> str | None:
+        """Return the device class of the switch."""
+        return None if self._device is None else self._device.device_class
 
     @property
-    def should_poll(self):
-        """No need to poll. Coordinator notifies entity of updates."""
-        return False
+    def is_on(self) -> bool | None:
+        """Return true if the switch is on."""
+        return None if self._device is None else self._device.is_on
 
-    @property
-    def device_class(self):
-        """Return the device class of the sensor."""
-        return self._coordinator.data.get(self._idx).device_class
-
-    @property
-    def is_on(self):
-        """Return true if it is on."""
-        return self._coordinator.data.get(self._idx).is_on
-
-    async def async_turn_on(self, **kwargs):
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
-        await self._gateway.turn_on_switch_device(self._idx)
-        await self._coordinator.async_request_refresh()
+        async with self.coordinator.gateway_lock:
+            await self.coordinator.gateway.turn_on_switch_device(self._device_id)
+        await self.coordinator.async_request_refresh()
 
-    async def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
-        await self._gateway.turn_off_switch_device(self._idx)
-        await self._coordinator.async_request_refresh()
+        async with self.coordinator.gateway_lock:
+            await self.coordinator.gateway.turn_off_switch_device(self._device_id)
+        await self.coordinator.async_request_refresh()
