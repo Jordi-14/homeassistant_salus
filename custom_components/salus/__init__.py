@@ -16,13 +16,11 @@ from salus_it600.gateway import IT600Gateway
 
 from .const import CONNECT_RETRIES, CONNECT_RETRY_DELAY, DOMAIN, PLATFORMS
 from .coordinator import SalusDataUpdateCoordinator, SalusRuntimeData
-from .salus_it600_compat import patch_gateway
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Salus iT600 from a config entry."""
     gateway = IT600Gateway(host=entry.data[CONF_HOST], euid=entry.data[CONF_TOKEN])
-    patch_gateway(gateway)
 
     await _async_connect_gateway(gateway)
 

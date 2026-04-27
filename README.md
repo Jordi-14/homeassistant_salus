@@ -93,10 +93,9 @@ This fork uses `salus-it600-client`, a maintained successor of the original
 unmaintained `pyit600` distribution while preserving the original MIT license
 and attribution.
 
-The integration keeps a small compatibility patch for `salus-it600-client`
-because some Salus payloads omit fields that Home Assistant still needs to load
-thermostats reliably. Those private API calls should be removed only after the
-underlying library exposes equivalent public methods.
+Gateway protocol handling, payload compatibility, commands, and device models
+live in `salus-it600-client`. This integration keeps the Home Assistant config
+flow, coordinator, and entity platform code.
 
 ## Code Origin
 
