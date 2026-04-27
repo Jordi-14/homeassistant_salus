@@ -10,7 +10,7 @@
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/Jordi-14/homeassistant_salus/issues",
-  "loggers": ["pyit600"],
-  "requirements": ["pyit600==0.5.1"],
+  "loggers": ["salus_it600"],
+  "requirements": ["salus-it600-client==0.1.0"],
   "version": "0.6.0"
 }

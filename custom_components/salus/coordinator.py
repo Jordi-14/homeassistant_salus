@@ -12,8 +12,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from pyit600.exceptions import IT600AuthenticationError, IT600ConnectionError
-from pyit600.gateway import IT600Gateway
+from salus_it600.exceptions import IT600AuthenticationError, IT600ConnectionError
+from salus_it600.gateway import IT600Gateway
 
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 
@@ -115,7 +115,7 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         self,
         climate_devices: dict[str, Any],
     ) -> dict[str, dict[str, Any]]:
-        """Fetch raw SQ610 properties not exposed by pyit600 models."""
+        """Fetch raw SQ610 properties not exposed by salus_it600 models."""
         sq610_devices = [
             device for device in climate_devices.values() if is_sq610_device(device)
         ]

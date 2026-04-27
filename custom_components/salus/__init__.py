@@ -11,12 +11,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
-from pyit600.exceptions import IT600AuthenticationError, IT600ConnectionError
-from pyit600.gateway import IT600Gateway
+from salus_it600.exceptions import IT600AuthenticationError, IT600ConnectionError
+from salus_it600.gateway import IT600Gateway
 
 from .const import CONNECT_RETRIES, CONNECT_RETRY_DELAY, DOMAIN, PLATFORMS
 from .coordinator import SalusDataUpdateCoordinator, SalusRuntimeData
-from .pyit600_compat import patch_gateway
+from .salus_it600_compat import patch_gateway
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

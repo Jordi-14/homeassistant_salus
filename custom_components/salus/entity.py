@@ -32,7 +32,7 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
 
     @property
     def _device(self) -> Any | None:
-        """Return the current pyit600 device snapshot."""
+        """Return the current Salus device snapshot."""
         raise NotImplementedError
 
     @property

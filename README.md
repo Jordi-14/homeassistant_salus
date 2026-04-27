@@ -33,7 +33,7 @@ port, for example `001E5E0D32906128`.
 
 ## Supported Devices
 
-Device support comes from the underlying `pyit600` library.
+Device support comes from the underlying `salus-it600-client` library.
 
 Known supported categories:
 
@@ -88,10 +88,15 @@ Check that Local WiFi Mode is enabled:
 
 ## Maintenance Notes
 
-The integration keeps a small compatibility patch for `pyit600` because some
-Salus payloads omit fields that Home Assistant still needs to load thermostats
-reliably. Those private API calls should be removed only after the underlying
-library exposes equivalent public methods.
+This fork uses `salus-it600-client`, a maintained successor of the original
+`pyit600` library. The package was renamed to avoid conflicts with the
+unmaintained `pyit600` distribution while preserving the original MIT license
+and attribution.
+
+The integration keeps a small compatibility patch for `salus-it600-client`
+because some Salus payloads omit fields that Home Assistant still needs to load
+thermostats reliably. Those private API calls should be removed only after the
+underlying library exposes equivalent public methods.
 
 ## Code Origin
 

@@ -1,4 +1,4 @@
-"""Compatibility patches for pyit600 gateway payload variations."""
+"""Compatibility patches for salus_it600 gateway payload variations."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import logging
 from types import MethodType
 from typing import Any
 
-from pyit600.const import (
+from salus_it600.const import (
     CURRENT_HVAC_COOL,
     CURRENT_HVAC_COOL_IDLE,
     CURRENT_HVAC_HEAT,
@@ -33,7 +33,7 @@ from pyit600.const import (
     SUPPORT_TARGET_TEMPERATURE,
     TEMP_CELSIUS,
 )
-from pyit600.models import ClimateDevice
+from salus_it600.models import ClimateDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ async def _refresh_climate_devices_with_missing_hold_type(
     devices: list[dict[str, Any]],
     send_callback: bool = False,
 ) -> None:
-    """Refresh pyit600 climate devices while tolerating missing HoldType."""
+    """Refresh salus_it600 climate devices while tolerating missing HoldType."""
     local_devices = {}
 
     if devices:
@@ -252,7 +252,7 @@ async def _refresh_climate_devices_with_missing_hold_type(
 
 
 def patch_gateway(gateway: Any) -> None:
-    """Patch pyit600 for Salus payloads that omit HoldType."""
+    """Patch salus_it600 for Salus payloads that omit HoldType."""
     gateway._refresh_climate_devices = MethodType(  # noqa: SLF001
         _refresh_climate_devices_with_missing_hold_type,
         gateway,

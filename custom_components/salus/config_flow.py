@@ -10,8 +10,8 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_TOKEN
 
-from pyit600.exceptions import IT600AuthenticationError, IT600ConnectionError
-from pyit600.gateway import IT600Gateway
+from salus_it600.exceptions import IT600AuthenticationError, IT600ConnectionError
+from salus_it600.gateway import IT600Gateway
 
 from .const import DOMAIN
 
