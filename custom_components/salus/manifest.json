@@ -1,16 +1,16 @@
 {
   "domain": "salus",
   "name": "Salus iT600",
-  "config_flow": true,
-  "documentation": "https://github.com/Jordi-14/homeassistant_salus",
-  "issue_tracker": "https://github.com/Jordi-14/homeassistant_salus/issues",
-  "integration_type": "hub",
-  "iot_class": "local_polling",
-  "requirements": ["pyit600==0.5.1"],
-  "dependencies": [],
-  "loggers": ["pyit600"],
   "codeowners": [
     "@Jordi-14"
   ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/Jordi-14/homeassistant_salus",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Jordi-14/homeassistant_salus/issues",
+  "loggers": ["pyit600"],
+  "requirements": ["pyit600==0.5.1"],
   "version": "0.6.0"
 }
