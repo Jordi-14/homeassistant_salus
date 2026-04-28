@@ -126,8 +126,10 @@ class ClimateEntityFeature(IntFlag):
     """Minimal ClimateEntityFeature stand-in."""
 
     TARGET_TEMPERATURE = 1
-    PRESET_MODE = 2
-    FAN_MODE = 4
+    FAN_MODE = 8
+    PRESET_MODE = 16
+    TURN_OFF = 128
+    TURN_ON = 256
 
 
 class VolInvalid(Exception):

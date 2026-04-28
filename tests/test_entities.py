@@ -12,6 +12,7 @@ install()
 
 from custom_components.salus.coordinator import SalusData  # noqa: E402
 from custom_components.salus.cover import SalusCover  # noqa: E402
+from custom_components.salus.climate import SalusThermostat  # noqa: E402
 from custom_components.salus.switch import SalusSwitch  # noqa: E402
 
 
@@ -85,6 +86,9 @@ class FakeCoordinator:
 
 
 class TestCommandEntities(unittest.IsolatedAsyncioTestCase):
+    async def test_climate_turn_on_off_backwards_compatibility_is_disabled(self) -> None:
+        self.assertFalse(SalusThermostat._enable_turn_on_off_backwards_compatibility)
+
     async def test_switch_commands_write_gateway_and_debounce_refresh(self) -> None:
         coordinator = FakeCoordinator()
         entity = SalusSwitch(coordinator, "switch-1")

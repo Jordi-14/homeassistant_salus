@@ -63,6 +63,10 @@ MANUAL_PRESET_MODES = {
     RAW_PRESET_TEMPORARY_HOLD,
     RAW_PRESET_ECO,
 }
+TURN_ON_OFF_FEATURES = (
+    getattr(ClimateEntityFeature, "TURN_ON", ClimateEntityFeature(0))
+    | getattr(ClimateEntityFeature, "TURN_OFF", ClimateEntityFeature(0))
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -277,7 +281,9 @@ def _supported_features(device: Any | None) -> ClimateEntityFeature:
         return ClimateEntityFeature(0)
 
     supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.PRESET_MODE
+        | TURN_ON_OFF_FEATURES
     )
     if not is_sq610_device(device) and device.fan_modes is not None:
         supported_features |= ClimateEntityFeature.FAN_MODE

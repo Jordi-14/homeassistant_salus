@@ -65,6 +65,8 @@ async def async_setup_entry(
 class SalusThermostat(SalusEntity, ClimateEntity):
     """Representation of a Salus thermostat."""
 
+    _enable_turn_on_off_backwards_compatibility = False
+
     @property
     def _device(self) -> Any | None:
         """Return the latest thermostat snapshot from the coordinator."""

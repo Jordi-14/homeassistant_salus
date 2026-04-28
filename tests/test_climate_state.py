@@ -136,6 +136,17 @@ class TestClimateViewState(unittest.TestCase):
         self.assertEqual(PRESET_STANDBY, state.preset_mode)
         self.assertEqual([HVACMode.HEAT], state.hvac_modes)
 
+    def test_supported_features_include_modern_turn_on_off_flags(self) -> None:
+        state = build_climate_view_state(_device(), {})
+
+        self.assertEqual(
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.PRESET_MODE
+            | ClimateEntityFeature.TURN_ON
+            | ClimateEntityFeature.TURN_OFF,
+            state.supported_features,
+        )
+
     def test_fc600_fan_modes_are_exposed(self) -> None:
         state = build_climate_view_state(
             _device(
