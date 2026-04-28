@@ -122,6 +122,20 @@ class FakeCoordinator:
                     parent_unique_id="switch-1",
                     entity_category=None,
                 ),
+                "standalone-1_temp": SimpleNamespace(
+                    available=True,
+                    unique_id="standalone-1_temp",
+                    name="Standalone Temperature",
+                    manufacturer="SALUS",
+                    model="PS600",
+                    sw_version=None,
+                    data={"UniID": "standalone-1"},
+                    state=21.5,
+                    unit_of_measurement="°C",
+                    device_class="temperature",
+                    parent_unique_id=None,
+                    entity_category=None,
+                ),
                 "climate-1_battery": SimpleNamespace(
                     available=True,
                     unique_id="climate-1_battery",
@@ -190,6 +204,22 @@ class TestCommandEntities(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("diagnostic", entity.entity_category)
         self.assertEqual(
             {"identifiers": {(DOMAIN, "climate-1")}},
+            entity.device_info,
+        )
+
+    async def test_primary_standalone_sensor_uses_physical_device_id(self) -> None:
+        coordinator = FakeCoordinator()
+        entity = SalusSensor(coordinator, "standalone-1_temp")
+
+        self.assertEqual(
+            {
+                "identifiers": {(DOMAIN, "standalone-1")},
+                "manufacturer": "SALUS",
+                "model": "PS600",
+                "name": "Standalone Temperature",
+                "sw_version": None,
+                "via_device": (DOMAIN, "gateway"),
+            },
             entity.device_info,
         )
 
