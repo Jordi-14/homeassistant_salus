@@ -83,6 +83,10 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         if device is None:
             return None
 
+        parent_unique_id = getattr(device, "parent_unique_id", None)
+        if parent_unique_id:
+            return {"identifiers": {(DOMAIN, parent_unique_id)}}
+
         unique_id = getattr(device, "unique_id", self._device_id)
         device_info: DeviceInfo = {
             "identifiers": {(DOMAIN, unique_id)},

@@ -11,7 +11,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
-from salus_it600.exceptions import IT600AuthenticationError, IT600ConnectionError
+from salus_it600.exceptions import (
+    IT600AuthenticationError,
+    IT600ConnectionError,
+    IT600UnsupportedFirmwareError,
+)
 from salus_it600.gateway import IT600Gateway
 
 from .const import CONNECT_RETRIES, CONNECT_RETRY_DELAY, DOMAIN, PLATFORMS
@@ -51,6 +55,10 @@ async def _async_connect_gateway(gateway: IT600Gateway) -> None:
             return
         except IT600AuthenticationError as ex:
             raise ConfigEntryAuthFailed("Invalid Salus gateway EUID") from ex
+        except IT600UnsupportedFirmwareError as ex:
+            raise ConfigEntryNotReady(
+                "Salus gateway firmware uses an unsupported protocol"
+            ) from ex
         except (IT600ConnectionError, TimeoutError) as ex:
             last_error = ex
             if attempt < CONNECT_RETRIES - 1:

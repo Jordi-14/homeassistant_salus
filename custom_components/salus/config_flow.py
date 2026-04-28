@@ -12,10 +12,20 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_TOKEN
 
-from salus_it600.exceptions import IT600AuthenticationError, IT600ConnectionError
+from salus_it600.exceptions import (
+    IT600AuthenticationError,
+    IT600ConnectionError,
+    IT600UnsupportedFirmwareError,
+)
 from salus_it600.gateway import IT600Gateway
 
-from .const import DOMAIN
+from .const import (
+    CONF_POLL_FAILURE_THRESHOLD,
+    DEFAULT_POLL_FAILURE_THRESHOLD,
+    DOMAIN,
+    MAX_POLL_FAILURE_THRESHOLD,
+    MIN_POLL_FAILURE_THRESHOLD,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +72,13 @@ class SalusFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    @staticmethod
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> SalusOptionsFlowHandler:
+        """Create the options flow for this config entry."""
+        return SalusOptionsFlowHandler(config_entry)
+
     async def async_step_user(
         self,
         user_input: dict[str, Any] | None = None,
@@ -80,6 +97,8 @@ class SalusFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "connect_error"
             except IT600AuthenticationError:
                 errors["base"] = "auth_error"
+            except IT600UnsupportedFirmwareError:
+                errors["base"] = "unsupported_firmware"
             except TimeoutError:
                 errors["base"] = "connect_error"
             except Exception:
@@ -105,4 +124,54 @@ class SalusFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=GATEWAY_SETTINGS,
             errors=errors,
+        )
+
+
+class SalusOptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle Salus config entry options."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize the options flow."""
+        self.config_entry = config_entry
+
+    def _options_schema(self) -> vol.Schema:
+        """Return the options schema with current values as defaults."""
+        current_threshold = self.config_entry.options.get(
+            CONF_POLL_FAILURE_THRESHOLD,
+            DEFAULT_POLL_FAILURE_THRESHOLD,
+        )
+
+        return vol.Schema(
+            {
+                vol.Optional(
+                    CONF_POLL_FAILURE_THRESHOLD,
+                    default=current_threshold,
+                ): vol.All(
+                    int,
+                    vol.Range(
+                        min=MIN_POLL_FAILURE_THRESHOLD,
+                        max=MAX_POLL_FAILURE_THRESHOLD,
+                    ),
+                ),
+            }
+        )
+
+    async def async_step_init(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ):
+        """Manage Salus options."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_POLL_FAILURE_THRESHOLD: int(
+                        user_input[CONF_POLL_FAILURE_THRESHOLD]
+                    ),
+                },
+            )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self._options_schema(),
         )

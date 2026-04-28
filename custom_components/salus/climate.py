@@ -188,13 +188,17 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         if device is None:
             return {}
 
-        return {
+        attributes = {
             "salus_raw_hvac_mode": device.hvac_mode,
             "salus_raw_preset_mode": device.preset_mode,
             "salus_raw_system_mode": self._raw_props.get("SystemMode"),
             "salus_raw_running_state": self._raw_props.get("RunningState"),
             "salus_raw_hold_type": self._raw_props.get("HoldType"),
         }
+        extra = getattr(device, "extra_state_attributes", None)
+        if isinstance(extra, dict):
+            attributes.update(extra)
+        return attributes
 
     async def _async_write_sq610_property(self, prop: str, value: int) -> None:
         """Write a raw SQ610 property directly through the gateway API."""
