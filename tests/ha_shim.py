@@ -158,6 +158,20 @@ def _callback(func: Any) -> Any:
     return func
 
 
+def _async_redact_data(data: Any, to_redact: set[str]) -> Any:
+    """Minimal diagnostics redaction helper."""
+    if isinstance(data, dict):
+        return {
+            key: "**REDACTED**"
+            if key in to_redact
+            else _async_redact_data(value, to_redact)
+            for key, value in data.items()
+        }
+    if isinstance(data, list):
+        return [_async_redact_data(value, to_redact) for value in data]
+    return data
+
+
 def install() -> None:
     """Install the shim modules into sys.modules."""
     homeassistant = types.ModuleType("homeassistant")
@@ -165,6 +179,7 @@ def install() -> None:
     binary_sensor = types.ModuleType("homeassistant.components.binary_sensor")
     climate = types.ModuleType("homeassistant.components.climate")
     climate_const = types.ModuleType("homeassistant.components.climate.const")
+    diagnostics = types.ModuleType("homeassistant.components.diagnostics")
     cover = types.ModuleType("homeassistant.components.cover")
     sensor = types.ModuleType("homeassistant.components.sensor")
     switch = types.ModuleType("homeassistant.components.switch")
@@ -188,6 +203,7 @@ def install() -> None:
     climate_const.ClimateEntityFeature = ClimateEntityFeature
     climate_const.HVACAction = HVACAction
     climate_const.HVACMode = HVACMode
+    diagnostics.async_redact_data = _async_redact_data
     cover.ATTR_POSITION = "position"
     cover.CoverEntity = type("CoverEntity", (), {})
     sensor.SensorEntity = type("SensorEntity", (), {})
@@ -231,6 +247,7 @@ def install() -> None:
     sys.modules["homeassistant.components.binary_sensor"] = binary_sensor
     sys.modules["homeassistant.components.climate"] = climate
     sys.modules["homeassistant.components.climate.const"] = climate_const
+    sys.modules["homeassistant.components.diagnostics"] = diagnostics
     sys.modules["homeassistant.components.cover"] = cover
     sys.modules["homeassistant.components.sensor"] = sensor
     sys.modules["homeassistant.components.switch"] = switch
