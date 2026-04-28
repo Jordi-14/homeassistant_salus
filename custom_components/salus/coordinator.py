@@ -45,7 +45,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from salus_it600.exceptions import IT600AuthenticationError, IT600ConnectionError
+from salus_it600.exceptions import (
+    IT600AuthenticationError,
+    IT600CommandError,
+    IT600ConnectionError,
+)
 from salus_it600.gateway import IT600Gateway
 from salus_it600.device_models import is_sq610_model
 
@@ -91,39 +95,6 @@ class SalusRuntimeData:
 def is_sq610_device(device: Any) -> bool:
     """Return whether the device is a Quantum thermostat."""
     return is_sq610_model(getattr(device, "model", None))
-
-
-def flatten_dict(data: dict[str, Any]) -> dict[str, Any]:
-    """Flatten nested gateway payload dictionaries into a single key/value map.
-    
-    Used for SQ610 raw properties where we need to extract fields from nested
-    payload sections without knowing the full structure. Recursively walks all
-    dict values and collects leaf values (non-dict) at top level.
-    
-    Example:
-        Input: {"sIT600TH": {"Humidity_x100": 550}, "Data": {"UniID": "device-1"}}
-        Output: {"Humidity_x100": 550, "UniID": "device-1"}
-    
-    Args:
-        data: Possibly nested gateway payload dict
-    
-    Returns:
-        Flattened dict with all leaf values at top level
-    """
-    flattened: dict[str, Any] = {}
-
-    def _walk(value: Any) -> None:
-        if not isinstance(value, dict):
-            return
-
-        for nested_key, nested_value in value.items():
-            if isinstance(nested_value, dict):
-                _walk(nested_value)
-            else:
-                flattened[nested_key] = nested_value
-
-    _walk(data)
-    return flattened
 
 
 class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
@@ -206,24 +177,19 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
             return {}
 
         try:
-            response = await self.gateway._make_encrypted_request(  # noqa: SLF001
-                "read",
-                {
-                    "requestAttr": "deviceid",
-                    "id": [{"data": device.data} for device in sq610_devices],
-                },
+            return await self.gateway.fetch_sq610_properties(
+                [device.unique_id for device in sq610_devices],
             )
-        except Exception:  # noqa: BLE001
+        except (IT600CommandError, IT600ConnectionError, TimeoutError) as ex:
             _LOGGER.warning(
-                "Failed to read raw SQ610 climate properties; using last known values",
-                exc_info=True,
+                "Failed to read raw SQ610 climate properties: %s; "
+                "using last known values",
+                ex,
             )
             return self.data.raw_climate_props if self.data is not None else {}
-
-        raw_climate_props = {}
-        for device_status in response.get("id", []):
-            unique_id = device_status.get("data", {}).get("UniID")
-            if unique_id is not None:
-                raw_climate_props[unique_id] = flatten_dict(device_status)
-
-        return raw_climate_props
+        except Exception:
+            _LOGGER.exception(
+                "Unexpected error while reading raw SQ610 climate properties; "
+                "using last known values",
+            )
+            return self.data.raw_climate_props if self.data is not None else {}

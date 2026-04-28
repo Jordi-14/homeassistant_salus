@@ -352,19 +352,10 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             return
 
         async with self.coordinator.gateway_lock:
-            await self.coordinator.gateway._make_encrypted_request(  # noqa: SLF001
-                "write",
-                {
-                    "requestAttr": "write",
-                    "id": [
-                        {
-                            "data": device.data,
-                            "sIT600TH": {
-                                prop: value,
-                            },
-                        }
-                    ],
-                },
+            await self.coordinator.gateway.write_sq610_property(
+                self._device_id,
+                prop,
+                value,
             )
         await self.coordinator.async_request_refresh()
 
