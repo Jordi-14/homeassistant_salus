@@ -106,12 +106,12 @@ def async_add_salus_entities(
     devices_getter: Callable[[SalusData], Mapping[str, Any]],
 ) -> None:
     """Add existing and newly discovered Salus entities for one platform.
-    
+
     Reusable helper for all platform setup functions. Handles:
     - Creating entities for devices already known at setup
     - Listening for coordinator updates and creating entities for newly discovered devices
     - Preventing duplicate entity creation
-    
+
     Usage in a platform (e.g., switch.py):
         async def async_setup_entry(hass, config_entry, async_add_entities):
             coordinator = config_entry.runtime_data.coordinator
@@ -122,7 +122,7 @@ def async_add_salus_entities(
                 entity_factory=lambda device_id: SalusSwitch(coordinator, device_id),
                 devices_getter=lambda data: data.switch_devices,
             )
-    
+
     Args:
         config_entry: Home Assistant config entry (used for unload cleanup)
         coordinator: Data coordinator with device snapshots
@@ -143,7 +143,11 @@ def async_add_salus_entities(
             return
 
         known_devices.update(new_device_ids)
-        async_add_entities([entity_factory(device_id) for device_id in sorted(new_device_ids)])
+        async_add_entities(
+            [entity_factory(device_id) for device_id in sorted(new_device_ids)]
+        )
 
     _async_add_new_entities()
-    config_entry.async_on_unload(coordinator.async_add_listener(_async_add_new_entities))
+    config_entry.async_on_unload(
+        coordinator.async_add_listener(_async_add_new_entities)
+    )

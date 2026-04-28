@@ -41,6 +41,8 @@ def _device(**overrides: Any) -> SimpleNamespace:
         "hvac_action": "idle",
         "hvac_modes": [HVAC_MODE_HEAT],
         "preset_mode": PRESET_FOLLOW_SCHEDULE,
+        "current_temperature": 20.0,
+        "current_humidity": None,
         "target_temperature": 21.0,
         "fan_mode": None,
         "fan_modes": None,
@@ -67,6 +69,42 @@ class TestClimateViewState(unittest.TestCase):
         self.assertEqual(HVACAction.COOLING, state.hvac_action)
         self.assertEqual(22.5, state.target_temperature)
         self.assertEqual(RAW_PRESET_PERMANENT_HOLD, state.preset_mode)
+
+    def test_sq610_current_temperature_uses_raw_temperature_measurement(self) -> None:
+        state = build_climate_view_state(
+            _device(model="SQ610RF", current_temperature=20.0),
+            {
+                "HoldType": SQ610_HOLD_PERMANENT,
+                "MeasuredValue_x100": 2235,
+                "HeatingSetpoint_x100": 2100,
+            },
+        )
+
+        self.assertEqual(22.35, state.current_temperature)
+
+    def test_sq610_humidity_uses_raw_percent_value(self) -> None:
+        state = build_climate_view_state(
+            _device(model="SQ610RF", current_humidity=0.63),
+            {
+                "HoldType": SQ610_HOLD_PERMANENT,
+                "SunnySetpoint_x100": 63,
+                "HeatingSetpoint_x100": 2100,
+            },
+        )
+
+        self.assertEqual(63.0, state.current_humidity)
+
+    def test_sq610_humidity_accepts_x100_value(self) -> None:
+        state = build_climate_view_state(
+            _device(model="SQ610RF"),
+            {
+                "HoldType": SQ610_HOLD_PERMANENT,
+                "SunnySetpoint_x100": 4550,
+                "HeatingSetpoint_x100": 2100,
+            },
+        )
+
+        self.assertEqual(45.5, state.current_humidity)
 
     def test_sq610_standby_maps_to_off_action_and_standby_preset(self) -> None:
         state = build_climate_view_state(

@@ -26,19 +26,19 @@ DEFAULT_GATEWAY_NAME = "Salus iT600 Gateway"
 
 def _valid_euid(value: str) -> str:
     """Validate and normalize a Salus gateway EUID.
-    
+
     EUID (Extended Unique ID) is the 16-character hexadecimal identifier printed
     on the bottom of the Salus UGE600 gateway. Used for authentication with the
     local gateway API.
-    
+
     Accepts input in any case and normalizes to uppercase.
-    
+
     Args:
         value: User-provided EUID string
-    
+
     Returns:
         Normalized uppercase EUID
-    
+
     Raises:
         vol.Invalid: If not exactly 16 hex characters
     """

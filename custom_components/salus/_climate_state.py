@@ -17,6 +17,7 @@ from homeassistant.components.climate.const import (
     HVACAction,
     HVACMode,
 )
+from salus_it600.const import TEMPERATURE_SCALE
 from salus_it600.device_models import (
     MODEL_FC600,
     SQ610_HOLD_AUTO,
@@ -70,6 +71,8 @@ class ClimateViewState:
 
     supports_cooling: bool
     supported_features: ClimateEntityFeature
+    current_temperature: float | None
+    current_humidity: float | None
     hvac_mode: HVACMode
     hvac_modes: list[HVACMode]
     hvac_action: HVACAction | None
@@ -95,6 +98,8 @@ def build_climate_view_state(
     return ClimateViewState(
         supports_cooling=supports_cooling,
         supported_features=_supported_features(device),
+        current_temperature=_current_temperature(device, raw_props),
+        current_humidity=_current_humidity(device, raw_props),
         hvac_mode=hvac_mode,
         hvac_modes=[HVACMode.HEAT, HVACMode.COOL]
         if supports_cooling
@@ -106,6 +111,75 @@ def build_climate_view_state(
         fan_mode=_fan_mode(device),
         fan_modes=_fan_modes(device),
     )
+
+
+def _numeric_value(value: Any) -> float | None:
+    """Return a numeric payload value, rejecting bools and non-numeric values."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    return None
+
+
+def _temperature_from_x100(*values: Any) -> float | None:
+    """Return the first available x100 temperature value in Celsius."""
+    for value in values:
+        numeric_value = _numeric_value(value)
+        if numeric_value is not None:
+            return numeric_value / TEMPERATURE_SCALE
+    return None
+
+
+def _humidity_percent(raw_humidity: Any) -> float | None:
+    """Return SQ610 humidity as a percent, accepting raw percent and x100 forms."""
+    humidity = _numeric_value(raw_humidity)
+    if humidity is None:
+        return None
+
+    if humidity > 100:
+        humidity /= TEMPERATURE_SCALE
+
+    if 0 <= humidity <= 100:
+        return humidity
+
+    _LOGGER.warning("Ignoring implausible SQ610 humidity value: %s", raw_humidity)
+    return None
+
+
+def _current_temperature(
+    device: Any | None,
+    raw_props: Mapping[str, Any],
+) -> float | None:
+    """Return the best current-temperature value for a thermostat."""
+    if device is None:
+        return None
+
+    if is_sq610_device(device):
+        raw_temperature = _temperature_from_x100(
+            raw_props.get("LocalTemperature_x100"),
+            raw_props.get("MeasuredValue_x100"),
+        )
+        if raw_temperature is not None:
+            return raw_temperature
+
+    return getattr(device, "current_temperature", None)
+
+
+def _current_humidity(
+    device: Any | None,
+    raw_props: Mapping[str, Any],
+) -> float | None:
+    """Return the best current-humidity value for a thermostat."""
+    if device is None:
+        return None
+
+    if is_sq610_device(device):
+        raw_humidity = _humidity_percent(raw_props.get("SunnySetpoint_x100"))
+        if raw_humidity is not None:
+            return raw_humidity
+
+    return getattr(device, "current_humidity", None)
 
 
 def _normalize_hvac_action(action: Any) -> HVACAction | None:

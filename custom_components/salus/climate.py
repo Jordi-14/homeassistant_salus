@@ -117,12 +117,12 @@ class SalusThermostat(SalusEntity, ClimateEntity):
     @property
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
-        return None if self._device is None else self._device.current_temperature
+        return self._view.current_temperature
 
     @property
     def current_humidity(self) -> float | None:
         """Return the current humidity."""
-        return None if self._device is None else self._device.current_humidity
+        return self._view.current_humidity
 
     @property
     def hvac_mode(self) -> HVACMode:

@@ -61,10 +61,10 @@ _LOGGER = logging.getLogger(__name__)
 @dataclass(slots=True)
 class SalusData:
     """Latest device snapshots from a Salus gateway.
-    
+
     Immutable snapshot of all device states as of the last coordinator update.
     Shared by all platforms and entities for this config entry.
-    
+
     Attributes:
         climate_devices: Climate entities (thermostats, fan coils) by unique_id
         binary_sensor_devices: Binary sensors (doors, windows, etc.) by unique_id
@@ -184,23 +184,23 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         climate_devices: dict[str, Any],
     ) -> dict[str, dict[str, Any]]:
         """Fetch raw SQ610 properties not exposed by salus_it600 models.
-        
+
         SQ610 Quantum thermostats have unusual protocol quirks:
         - Humidity stored in SunnySetpoint_x100 field (not standard humidity field)
         - Write property names differ from read property names
         - Dual setpoints (heating vs cooling) based on system mode
-        
+
         salus_it600.gateway.py handles most quirks internally, but this integration
         needs raw payload access for certain SQ610-specific features (e.g., custom
         preset mapping). This method makes an additional encrypted request to fetch
         raw SQ610 device data and flatten it for use by climate.py.
-        
+
         Non-blocking: If this call fails, it logs a warning and returns last known
         values or empty dict. The main poll_status() succeeds regardless.
-        
+
         Args:
             climate_devices: Climate devices from coordinator.data to check for SQ610
-        
+
         Returns:
             dict[unique_id] → flattened raw payload fields for SQ610 devices,
             or previous values if fetch fails

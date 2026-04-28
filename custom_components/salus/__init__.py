@@ -65,11 +65,11 @@ def _async_register_gateway_device(
     gateway_info: Any,
 ) -> None:
     """Register the Salus gateway device.
-    
+
     Creates a Home Assistant device for the gateway itself (parent device for
     all Salus entities). This allows grouping all entities under one device in
     the UI, and provides gateway info (model, firmware version).
-    
+
     Args:
         hass: Home Assistant instance
         entry: Config entry for this integration instance
