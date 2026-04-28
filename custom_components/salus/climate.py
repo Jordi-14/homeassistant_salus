@@ -7,11 +7,6 @@ from typing import Any
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
-    FAN_AUTO,
-    FAN_HIGH,
-    FAN_LOW,
-    FAN_MEDIUM,
-    FAN_OFF,
     ClimateEntityFeature,
     HVACAction,
     HVACMode,
@@ -20,74 +15,33 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
 from salus_it600.device_models import (
-    MODEL_FC600,
     SQ610_HOLD_AUTO,
     SQ610_HOLD_PERMANENT,
     SQ610_HOLD_STANDBY,
-    SQ610_MODE_AUTO,
     SQ610_MODE_COOL,
-    SQ610_MODE_EMERGENCY_HEAT,
     SQ610_MODE_HEAT,
-    SQ610_RUNNING_COOL,
-    SQ610_RUNNING_HEAT,
     SQ610_WRITE_COOLING_SETPOINT,
     SQ610_WRITE_HEATING_SETPOINT,
     SQ610_WRITE_HOLD_TYPE,
     SQ610_WRITE_SYSTEM_MODE,
 )
 
+from ._climate_state import (
+    HA_TO_RAW_FAN_MODE,
+    PRESET_FOLLOW_SALUS_SCHEDULE,
+    PRESET_STANDBY,
+    RAW_PRESET_FOLLOW_SCHEDULE,
+    RAW_PRESET_OFF,
+    RAW_PRESET_PERMANENT_HOLD,
+    ClimateViewState,
+    build_climate_view_state,
+)
 from .coordinator import SalusData, SalusRuntimeData, is_sq610_device
 from .entity import SalusEntity, async_add_salus_entities
 
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
-
-RAW_PRESET_FOLLOW_SCHEDULE = "Follow Schedule"
-RAW_PRESET_PERMANENT_HOLD = "Permanent Hold"
-RAW_PRESET_TEMPORARY_HOLD = "Temporary Hold"
-RAW_PRESET_ECO = "Eco"
-RAW_PRESET_OFF = "Off"
-
-PRESET_STANDBY = "Standby"
-PRESET_FOLLOW_SALUS_SCHEDULE = "Follow Salus Schedule"
-EXPOSED_PRESET_MODES = [
-    RAW_PRESET_PERMANENT_HOLD,
-    PRESET_STANDBY,
-    PRESET_FOLLOW_SALUS_SCHEDULE,
-]
-
-RAW_TO_HA_FAN_MODE = {
-    "Off": FAN_OFF,
-    "Auto": FAN_AUTO,
-    "Low": FAN_LOW,
-    "Medium": FAN_MEDIUM,
-    "High": FAN_HIGH,
-}
-HA_TO_RAW_FAN_MODE = {value: key for key, value in RAW_TO_HA_FAN_MODE.items()}
-
-COOLING_ACTIONS = {"cooling", "cooling (idling)"}
-MANUAL_PRESET_MODES = {
-    RAW_PRESET_PERMANENT_HOLD,
-    RAW_PRESET_TEMPORARY_HOLD,
-    RAW_PRESET_ECO,
-}
-
-def _normalize_hvac_action(action: Any) -> HVACAction | None:
-    """Map library-specific strings to Home Assistant HVACAction values."""
-    if isinstance(action, HVACAction):
-        return action
-    if action == "off":
-        return HVACAction.OFF
-    if action == "heating":
-        return HVACAction.HEATING
-    if action == "cooling":
-        return HVACAction.COOLING
-    if action in {"idle", "heating (idling)", "cooling (idling)"}:
-        return HVACAction.IDLE
-    if action is not None:
-        _LOGGER.warning("Unknown Salus HVAC action: %s", action)
-    return None
 
 
 async def async_setup_entry(
@@ -131,87 +85,24 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         return is_sq610_device(self._device)
 
     @property
+    def _view(self) -> ClimateViewState:
+        """Return the Home Assistant-facing climate view state."""
+        return build_climate_view_state(self._device, self._raw_props)
+
+    @property
     def _supports_cooling(self) -> bool:
         """Return whether the thermostat exposes a separate cooling mode."""
-        device = self._device
-        return bool(
-            device
-            and (
-                self._is_sq610
-                or device.model == MODEL_FC600
-                or HVACMode.COOL in (device.hvac_modes or [])
-                or device.fan_modes is not None
-                or self._raw_props.get("SystemMode")
-                in {SQ610_MODE_COOL, SQ610_MODE_HEAT, SQ610_MODE_AUTO}
-                or self._raw_props.get("CoolingSetpoint_x100") is not None
-            )
-        )
+        return self._view.supports_cooling
 
     @property
     def _effective_hvac_mode(self) -> HVACMode:
         """Return the Salus system mode we want to expose in Home Assistant."""
-        device = self._device
-        if device is None:
-            return HVACMode.HEAT
-
-        if self._is_sq610:
-            system_mode = self._raw_props.get("SystemMode")
-            running_state = self._raw_props.get("RunningState")
-            if system_mode == SQ610_MODE_COOL or running_state == SQ610_RUNNING_COOL:
-                return HVACMode.COOL
-            if (
-                system_mode in {SQ610_MODE_HEAT, SQ610_MODE_EMERGENCY_HEAT}
-                or running_state == SQ610_RUNNING_HEAT
-            ):
-                return HVACMode.HEAT
-            return HVACMode.HEAT
-
-        if device.hvac_mode == HVACMode.COOL:
-            return HVACMode.COOL
-        if device.hvac_mode == HVACMode.HEAT:
-            return HVACMode.HEAT
-        if self._supports_cooling and device.hvac_action in COOLING_ACTIONS:
-            return HVACMode.COOL
-        return HVACMode.HEAT
-
-    @property
-    def _effective_preset_mode(self) -> str | None:
-        """Collapse Salus hold states into the smaller HA control surface."""
-        device = self._device
-        if device is None:
-            return None
-
-        if self._is_sq610:
-            hold_type = self._raw_props.get("HoldType")
-            if hold_type == SQ610_HOLD_STANDBY:
-                return PRESET_STANDBY
-            if hold_type == SQ610_HOLD_PERMANENT:
-                return RAW_PRESET_PERMANENT_HOLD
-            if hold_type == SQ610_HOLD_AUTO:
-                return PRESET_FOLLOW_SALUS_SCHEDULE
-
-        if device.preset_mode == RAW_PRESET_OFF:
-            return PRESET_STANDBY
-        if device.preset_mode in MANUAL_PRESET_MODES:
-            return RAW_PRESET_PERMANENT_HOLD
-        if device.preset_mode == RAW_PRESET_FOLLOW_SCHEDULE:
-            return PRESET_FOLLOW_SALUS_SCHEDULE
-        return device.preset_mode
+        return self._view.hvac_mode
 
     @property
     def supported_features(self) -> ClimateEntityFeature:
         """Return the list of supported features."""
-        device = self._device
-        if device is None:
-            return ClimateEntityFeature(0)
-
-        supported_features = (
-            ClimateEntityFeature.TARGET_TEMPERATURE
-            | ClimateEntityFeature.PRESET_MODE
-        )
-        if not self._is_sq610 and device.fan_modes is not None:
-            supported_features |= ClimateEntityFeature.FAN_MODE
-        return supported_features
+        return self._view.supported_features
 
     @property
     def temperature_unit(self) -> str | None:
@@ -241,51 +132,17 @@ class SalusThermostat(SalusEntity, ClimateEntity):
     @property
     def hvac_modes(self) -> list[HVACMode]:
         """Return the supported operation modes."""
-        if self._supports_cooling:
-            return [HVACMode.HEAT, HVACMode.COOL]
-        return [HVACMode.HEAT]
+        return self._view.hvac_modes
 
     @property
     def hvac_action(self) -> HVACAction | None:
         """Return the current HVAC action if supported."""
-        if self._is_sq610:
-            hold_type = self._raw_props.get("HoldType")
-            running_state = self._raw_props.get("RunningState")
-            system_mode = self._raw_props.get("SystemMode")
-            if hold_type == SQ610_HOLD_STANDBY:
-                return HVACAction.OFF
-            if running_state == SQ610_RUNNING_HEAT:
-                return HVACAction.HEATING
-            if running_state == SQ610_RUNNING_COOL:
-                return HVACAction.COOLING
-            if system_mode in {
-                SQ610_MODE_COOL,
-                SQ610_MODE_HEAT,
-                SQ610_MODE_EMERGENCY_HEAT,
-            }:
-                return HVACAction.IDLE
-            return None
-
-        return None if self._device is None else _normalize_hvac_action(
-            self._device.hvac_action
-        )
+        return self._view.hvac_action
 
     @property
     def target_temperature(self) -> float | None:
         """Return the temperature the thermostat tries to reach."""
-        device = self._device
-        if device is None:
-            return None
-
-        if self._is_sq610:
-            raw_value = (
-                self._raw_props.get("CoolingSetpoint_x100")
-                if self._effective_hvac_mode == HVACMode.COOL
-                else self._raw_props.get("HeatingSetpoint_x100")
-            )
-            if raw_value is not None:
-                return raw_value / 100
-        return device.target_temperature
+        return self._view.target_temperature
 
     @property
     def max_temp(self) -> float | None:
@@ -300,30 +157,22 @@ class SalusThermostat(SalusEntity, ClimateEntity):
     @property
     def preset_mode(self) -> str | None:
         """Return the active preset mode."""
-        return self._effective_preset_mode
+        return self._view.preset_mode
 
     @property
     def preset_modes(self) -> list[str]:
         """Return supported preset modes."""
-        return EXPOSED_PRESET_MODES
+        return self._view.preset_modes
 
     @property
     def fan_mode(self) -> str | None:
         """Return the active fan mode."""
-        if self._is_sq610 or self._device is None:
-            return None
-        return RAW_TO_HA_FAN_MODE.get(self._device.fan_mode)
+        return self._view.fan_mode
 
     @property
     def fan_modes(self) -> list[str] | None:
         """Return supported fan modes."""
-        if self._is_sq610 or self._device is None or self._device.fan_modes is None:
-            return None
-        return [
-            RAW_TO_HA_FAN_MODE[fan_mode]
-            for fan_mode in self._device.fan_modes
-            if fan_mode in RAW_TO_HA_FAN_MODE
-        ]
+        return self._view.fan_modes
 
     @property
     def locked(self) -> bool | None:
@@ -357,7 +206,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                 prop,
                 value,
             )
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
@@ -380,7 +229,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                 self._device_id,
                 temperature,
             )
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan speed."""
@@ -401,7 +250,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                 self._device_id,
                 mode,
             )
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set operation mode."""
@@ -437,7 +286,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                 self._device_id,
                 hvac_mode,
             )
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set the exposed Salus hold mode."""
@@ -478,7 +327,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                 self._device_id,
                 raw_preset_mode,
             )
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()
 
     async def async_turn_on(self) -> None:
         """Turn the thermostat on by resuming manual hold."""

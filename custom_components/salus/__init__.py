@@ -89,6 +89,9 @@ def _async_register_gateway_device(
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    runtime_data: SalusRuntimeData = entry.runtime_data
+    runtime_data.coordinator.async_cancel_debounced_refresh()
+
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
