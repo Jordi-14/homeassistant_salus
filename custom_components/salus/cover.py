@@ -75,13 +75,13 @@ class SalusCover(SalusEntity, CoverEntity):
         """Open the cover."""
         async with self.coordinator.gateway_lock:
             await self.coordinator.gateway.open_cover(self._device_id)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
         async with self.coordinator.gateway_lock:
             await self.coordinator.gateway.close_cover(self._device_id)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Move the cover to a specific position."""
@@ -91,4 +91,4 @@ class SalusCover(SalusEntity, CoverEntity):
 
         async with self.coordinator.gateway_lock:
             await self.coordinator.gateway.set_cover_position(self._device_id, position)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()

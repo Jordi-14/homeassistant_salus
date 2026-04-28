@@ -55,10 +55,10 @@ class SalusSwitch(SalusEntity, SwitchEntity):
         """Turn the switch on."""
         async with self.coordinator.gateway_lock:
             await self.coordinator.gateway.turn_on_switch_device(self._device_id)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
         async with self.coordinator.gateway_lock:
             await self.coordinator.gateway.turn_off_switch_device(self._device_id)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_request_debounced_refresh()

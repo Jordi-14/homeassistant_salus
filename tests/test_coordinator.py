@@ -1,88 +1,15 @@
-"""Coordinator tests using a small Home Assistant compatibility shim."""
+"""Coordinator tests."""
 
 from __future__ import annotations
 
-import sys
-import types
+import asyncio
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-CLIENT_ROOT = Path(__file__).resolve().parents[2] / "salus-it600-client"
-sys.path.insert(0, str(CLIENT_ROOT))
+from tests.ha_shim import ConfigEntryAuthFailed, UpdateFailed, install
 
-
-class ConfigEntryAuthFailed(Exception):
-    """Test stand-in for Home Assistant's ConfigEntryAuthFailed."""
-
-
-class ConfigEntryNotReady(Exception):
-    """Test stand-in for Home Assistant's ConfigEntryNotReady."""
-
-
-class UpdateFailed(Exception):
-    """Test stand-in for Home Assistant's UpdateFailed."""
-
-
-class DataUpdateCoordinator:
-    """Minimal DataUpdateCoordinator stand-in for coordinator unit tests."""
-
-    def __class_getitem__(cls, _item: Any) -> type[DataUpdateCoordinator]:
-        return cls
-
-    def __init__(self, *_args: Any, **_kwargs: Any) -> None:
-        self.data = None
-
-
-class Platform:
-    """Minimal Home Assistant Platform enum stand-in."""
-
-    CLIMATE = "climate"
-    BINARY_SENSOR = "binary_sensor"
-    SWITCH = "switch"
-    COVER = "cover"
-    SENSOR = "sensor"
-
-
-def _install_homeassistant_shim() -> None:
-    homeassistant = types.ModuleType("homeassistant")
-    config_entries = types.ModuleType("homeassistant.config_entries")
-    core = types.ModuleType("homeassistant.core")
-    const = types.ModuleType("homeassistant.const")
-    exceptions = types.ModuleType("homeassistant.exceptions")
-    helpers = types.ModuleType("homeassistant.helpers")
-    device_registry = types.ModuleType("homeassistant.helpers.device_registry")
-    update_coordinator = types.ModuleType("homeassistant.helpers.update_coordinator")
-
-    config_entries.ConfigEntry = type("ConfigEntry", (), {})
-    core.HomeAssistant = type("HomeAssistant", (), {})
-    const.CONF_HOST = "host"
-    const.CONF_TOKEN = "token"
-    const.Platform = Platform
-    exceptions.ConfigEntryAuthFailed = ConfigEntryAuthFailed
-    exceptions.ConfigEntryNotReady = ConfigEntryNotReady
-    device_registry.CONNECTION_NETWORK_MAC = "mac"
-    device_registry.async_get = lambda _hass: SimpleNamespace(
-        async_get_or_create=lambda **_kwargs: None
-    )
-    update_coordinator.DataUpdateCoordinator = DataUpdateCoordinator
-    update_coordinator.UpdateFailed = UpdateFailed
-
-    sys.modules.setdefault("homeassistant", homeassistant)
-    sys.modules.setdefault("homeassistant.config_entries", config_entries)
-    sys.modules.setdefault("homeassistant.core", core)
-    sys.modules.setdefault("homeassistant.const", const)
-    sys.modules.setdefault("homeassistant.exceptions", exceptions)
-    sys.modules.setdefault("homeassistant.helpers", helpers)
-    sys.modules.setdefault("homeassistant.helpers.device_registry", device_registry)
-    sys.modules.setdefault(
-        "homeassistant.helpers.update_coordinator",
-        update_coordinator,
-    )
-
-
-_install_homeassistant_shim()
+install()
 
 from custom_components.salus.coordinator import (  # noqa: E402
     SalusData,
@@ -160,7 +87,10 @@ class TestSalusDataUpdateCoordinator(unittest.IsolatedAsyncioTestCase):
 
         data = await coordinator._async_update_data()
 
-        self.assertEqual({"sq610-1": gateway.climate_devices["sq610-1"]}, data.climate_devices)
+        self.assertEqual(
+            {"sq610-1": gateway.climate_devices["sq610-1"]},
+            data.climate_devices,
+        )
         self.assertEqual({"sq610-1": {"SystemMode": 3}}, data.raw_climate_props)
         self.assertEqual(["sq610-1"], gateway.raw_fetch_ids)
 
@@ -199,6 +129,34 @@ class TestSalusDataUpdateCoordinator(unittest.IsolatedAsyncioTestCase):
             )
 
         self.assertEqual({"sq610-1": {"SystemMode": 4}}, raw_props)
+
+    async def test_debounced_refresh_coalesces_rapid_requests(self) -> None:
+        coordinator = _coordinator(FakeGateway())
+        coordinator._refresh_debounce_delay = 0
+
+        await coordinator.async_request_debounced_refresh()
+        await coordinator.async_request_debounced_refresh()
+        await coordinator.async_request_debounced_refresh()
+
+        self.assertIsNotNone(coordinator._debounced_refresh_task)
+        await coordinator._debounced_refresh_task
+        await asyncio.sleep(0)
+
+        self.assertEqual(1, coordinator.refresh_count)
+        self.assertIsNone(coordinator._debounced_refresh_task)
+
+    async def test_cancel_debounced_refresh_clears_pending_task(self) -> None:
+        coordinator = _coordinator(FakeGateway())
+        coordinator._refresh_debounce_delay = 60
+
+        await coordinator.async_request_debounced_refresh()
+        self.assertIsNotNone(coordinator._debounced_refresh_task)
+
+        coordinator.async_cancel_debounced_refresh()
+        await asyncio.sleep(0)
+
+        self.assertIsNone(coordinator._debounced_refresh_task)
+        self.assertEqual(0, coordinator.refresh_count)
 
 
 if __name__ == "__main__":

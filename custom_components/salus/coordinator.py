@@ -53,7 +53,7 @@ from salus_it600.exceptions import (
 from salus_it600.gateway import IT600Gateway
 from salus_it600.device_models import is_sq610_model
 
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import DEFAULT_REFRESH_DEBOUNCE, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -117,6 +117,41 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         self.gateway = gateway
         self.gateway_lock = asyncio.Lock()
         self.gateway_id: str | None = None
+        self._refresh_debounce_delay = DEFAULT_REFRESH_DEBOUNCE
+        self._debounced_refresh_task: asyncio.Task[None] | None = None
+
+    async def async_request_debounced_refresh(self) -> None:
+        """Request one refresh after collapsing rapid write-triggered requests."""
+        if (
+            self._debounced_refresh_task is not None
+            and not self._debounced_refresh_task.done()
+        ):
+            return
+
+        self._debounced_refresh_task = asyncio.create_task(
+            self._async_debounced_refresh()
+        )
+
+    async def _async_debounced_refresh(self) -> None:
+        """Run the delayed refresh task."""
+        try:
+            await asyncio.sleep(self._refresh_debounce_delay)
+            await self.async_request_refresh()
+        except Exception:
+            _LOGGER.exception("Debounced Salus refresh failed")
+        finally:
+            current_task = asyncio.current_task()
+            if self._debounced_refresh_task is current_task:
+                self._debounced_refresh_task = None
+
+    def async_cancel_debounced_refresh(self) -> None:
+        """Cancel a pending debounced refresh task, if one exists."""
+        if (
+            self._debounced_refresh_task is not None
+            and not self._debounced_refresh_task.done()
+        ):
+            self._debounced_refresh_task.cancel()
+        self._debounced_refresh_task = None
 
     async def _async_update_data(self) -> SalusData:
         """Fetch all Salus device data from the gateway."""
