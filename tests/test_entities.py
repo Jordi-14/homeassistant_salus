@@ -13,7 +13,11 @@ install()
 from custom_components.salus.coordinator import SalusData  # noqa: E402
 from custom_components.salus.cover import SalusCover  # noqa: E402
 from custom_components.salus.climate import SalusThermostat  # noqa: E402
+from custom_components.salus.binary_sensor import SalusBinarySensor  # noqa: E402
+from custom_components.salus.lock import SalusThermostatLock  # noqa: E402
+from custom_components.salus.sensor import SalusSensor  # noqa: E402
 from custom_components.salus.switch import SalusSwitch  # noqa: E402
+from custom_components.salus.const import DOMAIN  # noqa: E402
 
 
 class FakeGateway:
@@ -37,6 +41,9 @@ class FakeGateway:
     async def set_cover_position(self, device_id: str, position: int) -> None:
         self.calls.append(("set_cover_position", device_id, position))
 
+    async def set_climate_device_locked(self, device_id: str, locked: bool) -> None:
+        self.calls.append(("set_climate_locked", device_id, int(locked)))
+
 
 class FakeCoordinator:
     """Coordinator fake for command entity tests."""
@@ -47,8 +54,32 @@ class FakeCoordinator:
         self.gateway_id = "gateway"
         self.refresh_requests = 0
         self.data = SalusData(
-            climate_devices={},
-            binary_sensor_devices={},
+            climate_devices={
+                "climate-1": SimpleNamespace(
+                    available=True,
+                    unique_id="climate-1",
+                    name="Thermostat",
+                    manufacturer="SALUS",
+                    model="SQ610RF",
+                    sw_version=None,
+                    locked=False,
+                )
+            },
+            binary_sensor_devices={
+                "climate-1_problem": SimpleNamespace(
+                    available=True,
+                    unique_id="climate-1_problem",
+                    name="Thermostat Problem",
+                    manufacturer="SALUS",
+                    model="SQ610RF",
+                    sw_version=None,
+                    is_on=True,
+                    device_class="problem",
+                    parent_unique_id="climate-1",
+                    entity_category="diagnostic",
+                    extra_state_attributes={"errors": ["Floor sensor overheating"]},
+                )
+            },
             switch_devices={
                 "switch-1": SimpleNamespace(
                     available=True,
@@ -77,7 +108,48 @@ class FakeCoordinator:
                     is_closed=False,
                 )
             },
-            sensor_devices={},
+            sensor_devices={
+                "switch-1_power": SimpleNamespace(
+                    available=True,
+                    unique_id="switch-1_power",
+                    name="Switch Power",
+                    manufacturer="SALUS",
+                    model="SPE600",
+                    sw_version=None,
+                    state=42,
+                    unit_of_measurement="W",
+                    device_class="power",
+                    parent_unique_id="switch-1",
+                    entity_category=None,
+                ),
+                "standalone-1_temp": SimpleNamespace(
+                    available=True,
+                    unique_id="standalone-1_temp",
+                    name="Standalone Temperature",
+                    manufacturer="SALUS",
+                    model="PS600",
+                    sw_version=None,
+                    data={"UniID": "standalone-1"},
+                    state=21.5,
+                    unit_of_measurement="°C",
+                    device_class="temperature",
+                    parent_unique_id=None,
+                    entity_category=None,
+                ),
+                "climate-1_battery": SimpleNamespace(
+                    available=True,
+                    unique_id="climate-1_battery",
+                    name="Thermostat Battery",
+                    manufacturer="SALUS",
+                    model="SQ610RF",
+                    sw_version=None,
+                    state=75,
+                    unit_of_measurement="%",
+                    device_class="battery",
+                    parent_unique_id="climate-1",
+                    entity_category="diagnostic",
+                ),
+            },
             raw_climate_props={},
         )
 
@@ -122,6 +194,68 @@ class TestCommandEntities(unittest.IsolatedAsyncioTestCase):
             coordinator.gateway.calls,
         )
         self.assertEqual(3, coordinator.refresh_requests)
+
+    async def test_sensor_child_entity_uses_parent_device_and_category(self) -> None:
+        coordinator = FakeCoordinator()
+        entity = SalusSensor(coordinator, "climate-1_battery")
+
+        self.assertEqual(75, entity.native_value)
+        self.assertEqual("battery", entity.device_class)
+        self.assertEqual("diagnostic", entity.entity_category)
+        self.assertEqual(
+            {"identifiers": {(DOMAIN, "climate-1")}},
+            entity.device_info,
+        )
+
+    async def test_primary_standalone_sensor_uses_physical_device_id(self) -> None:
+        coordinator = FakeCoordinator()
+        entity = SalusSensor(coordinator, "standalone-1_temp")
+
+        self.assertEqual(
+            {
+                "identifiers": {(DOMAIN, "standalone-1")},
+                "manufacturer": "SALUS",
+                "model": "PS600",
+                "name": "Standalone Temperature",
+                "sw_version": None,
+                "via_device": (DOMAIN, "gateway"),
+            },
+            entity.device_info,
+        )
+
+    async def test_binary_child_entity_uses_parent_device_and_attributes(self) -> None:
+        coordinator = FakeCoordinator()
+        entity = SalusBinarySensor(coordinator, "climate-1_problem")
+
+        self.assertTrue(entity.is_on)
+        self.assertEqual("problem", entity.device_class)
+        self.assertEqual("diagnostic", entity.entity_category)
+        self.assertEqual(
+            {"errors": ["Floor sensor overheating"]},
+            entity.extra_state_attributes,
+        )
+        self.assertEqual(
+            {"identifiers": {(DOMAIN, "climate-1")}},
+            entity.device_info,
+        )
+
+    async def test_lock_commands_write_gateway_and_debounce_refresh(self) -> None:
+        coordinator = FakeCoordinator()
+        entity = SalusThermostatLock(coordinator, "climate-1")
+
+        self.assertFalse(entity.is_locked)
+        self.assertEqual("climate-1_lock", entity._attr_unique_id)
+        await entity.async_lock()
+        await entity.async_unlock()
+
+        self.assertEqual(
+            [
+                ("set_climate_locked", "climate-1", 1),
+                ("set_climate_locked", "climate-1", 0),
+            ],
+            coordinator.gateway.calls,
+        )
+        self.assertEqual(2, coordinator.refresh_requests)
 
 
 if __name__ == "__main__":

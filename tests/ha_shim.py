@@ -94,6 +94,16 @@ class ConfigFlow:
         return {"type": "form", **kwargs}
 
 
+class OptionsFlow:
+    """Minimal OptionsFlow stand-in."""
+
+    def async_create_entry(self, **kwargs: Any) -> dict[str, Any]:
+        return {"type": "create_entry", **kwargs}
+
+    def async_show_form(self, **kwargs: Any) -> dict[str, Any]:
+        return {"type": "form", **kwargs}
+
+
 class Platform:
     """Minimal Home Assistant Platform enum stand-in."""
 
@@ -102,6 +112,14 @@ class Platform:
     SWITCH = "switch"
     COVER = "cover"
     SENSOR = "sensor"
+    LOCK = "lock"
+
+
+class EntityCategory(StrEnum):
+    """Minimal EntityCategory stand-in."""
+
+    CONFIG = "config"
+    DIAGNOSTIC = "diagnostic"
 
 
 class HVACMode(StrEnum):
@@ -156,6 +174,20 @@ def _vol_all(*validators: Any) -> Any:
     return _validate
 
 
+def _vol_range(**kwargs: Any) -> Any:
+    minimum = kwargs.get("min")
+    maximum = kwargs.get("max")
+
+    def _validate(value: Any) -> Any:
+        if minimum is not None and value < minimum:
+            raise VolInvalid("value is below minimum")
+        if maximum is not None and value > maximum:
+            raise VolInvalid("value is above maximum")
+        return value
+
+    return _validate
+
+
 def _callback(func: Any) -> Any:
     return func
 
@@ -183,6 +215,7 @@ def install() -> None:
     climate_const = types.ModuleType("homeassistant.components.climate.const")
     diagnostics = types.ModuleType("homeassistant.components.diagnostics")
     cover = types.ModuleType("homeassistant.components.cover")
+    lock = types.ModuleType("homeassistant.components.lock")
     sensor = types.ModuleType("homeassistant.components.sensor")
     switch = types.ModuleType("homeassistant.components.switch")
     config_entries = types.ModuleType("homeassistant.config_entries")
@@ -208,17 +241,20 @@ def install() -> None:
     diagnostics.async_redact_data = _async_redact_data
     cover.ATTR_POSITION = "position"
     cover.CoverEntity = type("CoverEntity", (), {})
+    lock.LockEntity = type("LockEntity", (), {})
     sensor.SensorEntity = type("SensorEntity", (), {})
     switch.SwitchEntity = type("SwitchEntity", (), {})
 
     config_entries.ConfigEntry = type("ConfigEntry", (), {})
     config_entries.ConfigFlow = ConfigFlow
+    config_entries.OptionsFlow = OptionsFlow
     core.HomeAssistant = type("HomeAssistant", (), {})
     core.callback = _callback
     const.ATTR_TEMPERATURE = "temperature"
     const.CONF_HOST = "host"
     const.CONF_NAME = "name"
     const.CONF_TOKEN = "token"
+    const.EntityCategory = EntityCategory
     const.Platform = Platform
     exceptions.ConfigEntryAuthFailed = ConfigEntryAuthFailed
     exceptions.ConfigEntryNotReady = ConfigEntryNotReady
@@ -234,6 +270,7 @@ def install() -> None:
     voluptuous.All = _vol_all
     voluptuous.Invalid = VolInvalid
     voluptuous.Optional = _vol_key
+    voluptuous.Range = _vol_range
     voluptuous.Required = _vol_key
     voluptuous.Schema = VolSchema
 
@@ -251,6 +288,7 @@ def install() -> None:
     sys.modules["homeassistant.components.climate.const"] = climate_const
     sys.modules["homeassistant.components.diagnostics"] = diagnostics
     sys.modules["homeassistant.components.cover"] = cover
+    sys.modules["homeassistant.components.lock"] = lock
     sys.modules["homeassistant.components.sensor"] = sensor
     sys.modules["homeassistant.components.switch"] = switch
     sys.modules["homeassistant.config_entries"] = config_entries

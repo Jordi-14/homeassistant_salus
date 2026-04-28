@@ -55,7 +55,13 @@ from salus_it600.exceptions import (
 from salus_it600.gateway import IT600Gateway
 from salus_it600.device_models import is_sq610_model
 
-from .const import DEFAULT_REFRESH_DEBOUNCE, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_POLL_FAILURE_THRESHOLD,
+    DEFAULT_POLL_FAILURE_THRESHOLD,
+    DEFAULT_REFRESH_DEBOUNCE,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -234,6 +240,7 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
             config_entry=config_entry,
         )
         self.gateway = gateway
+        self._config_entry = config_entry
         self.gateway_lock = asyncio.Lock()
         self.gateway_id: str | None = None
         self._refresh_debounce_delay = DEFAULT_REFRESH_DEBOUNCE
@@ -243,7 +250,9 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
 
     def gateway_diagnostics(self) -> dict[str, Any]:
         """Return gateway health diagnostics."""
-        return self._gateway_health.as_diagnostics()
+        diagnostics = self._gateway_health.as_diagnostics()
+        diagnostics["poll_failure_threshold"] = self._poll_failure_threshold()
+        return diagnostics
 
     def device_availability_diagnostics(self) -> dict[str, dict[str, Any]]:
         """Return device availability history diagnostics."""
@@ -315,10 +324,40 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
             raise ConfigEntryAuthFailed("Invalid Salus gateway EUID") from ex
         except (IT600ConnectionError, TimeoutError) as ex:
             self._record_update_failure(ex)
+            cached_data = self.data
+            threshold = self._poll_failure_threshold()
+            if (
+                cached_data is not None
+                and threshold > 0
+                and self._gateway_health.consecutive_update_failures < threshold
+            ):
+                _LOGGER.debug(
+                    "Keeping last Salus data after poll failure %s/%s: %s",
+                    self._gateway_health.consecutive_update_failures,
+                    threshold,
+                    ex,
+                )
+                return cached_data
             raise UpdateFailed(f"Salus gateway is unavailable: {ex}") from ex
         except Exception as ex:
             self._record_update_failure(ex)
             raise
+
+    def _poll_failure_threshold(self) -> int:
+        """Return configured consecutive poll failures before marking unavailable."""
+        options = getattr(self._config_entry, "options", {})
+        try:
+            return max(
+                0,
+                int(
+                    options.get(
+                        CONF_POLL_FAILURE_THRESHOLD,
+                        DEFAULT_POLL_FAILURE_THRESHOLD,
+                    )
+                ),
+            )
+        except (TypeError, ValueError):
+            return DEFAULT_POLL_FAILURE_THRESHOLD
 
     def _record_update_success(self) -> None:
         """Record a successful coordinator update."""

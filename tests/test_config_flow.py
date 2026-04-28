@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 from typing import Any
 
 from tests.ha_shim import install
@@ -14,6 +15,7 @@ from homeassistant.const import CONF_HOST, CONF_NAME, CONF_TOKEN  # noqa: E402
 from salus_it600.exceptions import (  # noqa: E402
     IT600AuthenticationError,
     IT600ConnectionError,
+    IT600UnsupportedFirmwareError,
 )
 
 
@@ -84,6 +86,16 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("auth_error", result["errors"]["base"])
         self.assertTrue(FakeGateway.instances[0].closed)
 
+    async def test_user_step_unsupported_firmware_returns_form_error(self) -> None:
+        FakeGateway.connect_error = IT600UnsupportedFirmwareError("protocol")
+        flow = config_flow.SalusFlowHandler()
+
+        result = await flow.async_step_user(_input())
+
+        self.assertEqual("form", result["type"])
+        self.assertEqual("unsupported_firmware", result["errors"]["base"])
+        self.assertTrue(FakeGateway.instances[0].closed)
+
     def test_valid_euid_normalizes_case(self) -> None:
         self.assertEqual(
             "001E5E0D32906128",
@@ -93,6 +105,37 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
     def test_valid_euid_rejects_invalid_values(self) -> None:
         with self.assertRaises(config_flow.vol.Invalid):
             config_flow._valid_euid("not-valid")
+
+    def test_get_options_flow_returns_options_handler(self) -> None:
+        config_entry = SimpleNamespace(options={})
+
+        flow = config_flow.SalusFlowHandler.async_get_options_flow(config_entry)
+
+        self.assertIsInstance(flow, config_flow.SalusOptionsFlowHandler)
+        self.assertIs(config_entry, flow.config_entry)
+
+    async def test_options_flow_shows_form(self) -> None:
+        flow = config_flow.SalusOptionsFlowHandler(
+            SimpleNamespace(options={config_flow.CONF_POLL_FAILURE_THRESHOLD: 5})
+        )
+
+        result = await flow.async_step_init()
+
+        self.assertEqual("form", result["type"])
+        self.assertEqual("init", result["step_id"])
+
+    async def test_options_flow_saves_threshold(self) -> None:
+        flow = config_flow.SalusOptionsFlowHandler(SimpleNamespace(options={}))
+
+        result = await flow.async_step_init(
+            {config_flow.CONF_POLL_FAILURE_THRESHOLD: 7}
+        )
+
+        self.assertEqual("create_entry", result["type"])
+        self.assertEqual(
+            {config_flow.CONF_POLL_FAILURE_THRESHOLD: 7},
+            result["data"],
+        )
 
 
 if __name__ == "__main__":

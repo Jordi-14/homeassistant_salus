@@ -11,6 +11,7 @@ from tests.ha_shim import ConfigEntryAuthFailed, UpdateFailed, install
 
 install()
 
+from custom_components.salus.const import CONF_POLL_FAILURE_THRESHOLD  # noqa: E402
 from custom_components.salus.coordinator import (  # noqa: E402
     SalusData,
     SalusDataUpdateCoordinator,
@@ -74,10 +75,13 @@ class FakeGateway:
         return self.raw_props
 
 
-def _coordinator(gateway: FakeGateway) -> SalusDataUpdateCoordinator:
+def _coordinator(
+    gateway: FakeGateway,
+    options: dict[str, Any] | None = None,
+) -> SalusDataUpdateCoordinator:
     return SalusDataUpdateCoordinator(
         hass=object(),
-        config_entry=object(),
+        config_entry=SimpleNamespace(options=options or {}),
         gateway=gateway,
     )
 
@@ -136,6 +140,39 @@ class TestSalusDataUpdateCoordinator(unittest.IsolatedAsyncioTestCase):
             "IT600ConnectionError: offline",
             coordinator.gateway_diagnostics()["last_update_error"],
         )
+
+    async def test_connection_failures_keep_last_data_until_threshold(self) -> None:
+        gateway = FakeGateway()
+        coordinator = _coordinator(gateway)
+        coordinator.data = await coordinator._async_update_data()
+
+        gateway.poll_error = IT600ConnectionError("offline")
+
+        self.assertIs(coordinator.data, await coordinator._async_update_data())
+        self.assertIs(coordinator.data, await coordinator._async_update_data())
+        with self.assertRaises(UpdateFailed):
+            await coordinator._async_update_data()
+
+        gateway_health = coordinator.gateway_diagnostics()
+        self.assertEqual(3, gateway_health["consecutive_update_failures"])
+        self.assertEqual(3, gateway_health["poll_failure_threshold"])
+
+    async def test_zero_poll_failure_threshold_marks_unavailable_immediately(self) -> None:
+        gateway = FakeGateway()
+        coordinator = _coordinator(
+            gateway,
+            options={CONF_POLL_FAILURE_THRESHOLD: 0},
+        )
+        coordinator.data = await coordinator._async_update_data()
+
+        gateway.poll_error = IT600ConnectionError("offline")
+
+        with self.assertRaises(UpdateFailed):
+            await coordinator._async_update_data()
+
+        gateway_health = coordinator.gateway_diagnostics()
+        self.assertEqual(1, gateway_health["consecutive_update_failures"])
+        self.assertEqual(0, gateway_health["poll_failure_threshold"])
 
     async def test_raw_sq610_failure_uses_last_known_values(self) -> None:
         gateway = FakeGateway()

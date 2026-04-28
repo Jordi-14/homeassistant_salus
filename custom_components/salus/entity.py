@@ -76,6 +76,10 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
             and bool(getattr(device, "available", True))
         )
 
+    def _device_info_unique_id(self, device: Any) -> str:
+        """Return the device-registry identifier for a primary entity."""
+        return getattr(device, "unique_id", self._device_id)
+
     @property
     def device_info(self) -> DeviceInfo | None:
         """Return the device info."""
@@ -83,7 +87,11 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         if device is None:
             return None
 
-        unique_id = getattr(device, "unique_id", self._device_id)
+        parent_unique_id = getattr(device, "parent_unique_id", None)
+        if parent_unique_id:
+            return {"identifiers": {(DOMAIN, parent_unique_id)}}
+
+        unique_id = self._device_info_unique_id(device)
         device_info: DeviceInfo = {
             "identifiers": {(DOMAIN, unique_id)},
             "name": getattr(device, "name", unique_id),

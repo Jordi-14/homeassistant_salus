@@ -6,6 +6,7 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 
 from .coordinator import SalusData, SalusRuntimeData
@@ -41,6 +42,15 @@ class SalusSensor(SalusEntity, SensorEntity):
         data: SalusData | None = self.coordinator.data
         return None if data is None else data.sensor_devices.get(self._device_id)
 
+    def _device_info_unique_id(self, device: Any) -> str:
+        """Group primary standalone sensors under their physical Salus device."""
+        device_data = getattr(device, "data", None)
+        if isinstance(device_data, dict):
+            unique_id = device_data.get("UniID")
+            if isinstance(unique_id, str):
+                return unique_id
+        return super()._device_info_unique_id(device)
+
     @property
     def native_value(self) -> Any:
         """Return the sensor value."""
@@ -55,3 +65,12 @@ class SalusSensor(SalusEntity, SensorEntity):
     def device_class(self) -> str | None:
         """Return the device class of the sensor."""
         return None if self._device is None else self._device.device_class
+
+    @property
+    def entity_category(self) -> EntityCategory | None:
+        """Return the entity category for diagnostic/config child sensors."""
+        if self._device is None:
+            return None
+        if getattr(self._device, "entity_category", None) == "diagnostic":
+            return EntityCategory.DIAGNOSTIC
+        return None
