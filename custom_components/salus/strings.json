@@ -47,9 +47,10 @@
     "step": {
       "init": {
         "title": "Salus options",
-        "description": "Tune how the integration handles transient gateway polling failures.",
+        "description": "Tune gateway polling and post-command refresh behavior.",
         "data": {
-          "poll_failure_threshold": "Poll failures before marking unavailable"
+          "poll_failure_threshold": "Poll failures before marking unavailable",
+          "post_command_refresh_delay": "Post-command settle refresh delay (seconds)"
         }
       }
     }

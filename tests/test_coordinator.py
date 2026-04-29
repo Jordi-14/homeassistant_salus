@@ -15,6 +15,7 @@ from homeassistant.const import CONF_HOST  # noqa: E402
 
 from custom_components.salus.const import (  # noqa: E402
     CONF_POLL_FAILURE_THRESHOLD,
+    CONF_POST_COMMAND_REFRESH_DELAY,
     DOMAIN,
 )
 from custom_components.salus.coordinator import (  # noqa: E402
@@ -236,8 +237,11 @@ class TestSalusDataUpdateCoordinator(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, device_health["consecutive_missed_refreshes"])
 
     async def test_debounced_refresh_coalesces_rapid_requests(self) -> None:
-        coordinator = _coordinator(FakeGateway())
-        coordinator._refresh_debounce_delay = 0
+        coordinator = _coordinator(
+            FakeGateway(),
+            options={CONF_POST_COMMAND_REFRESH_DELAY: 0},
+        )
+        coordinator._fast_refresh_delay = 0
 
         await coordinator.async_request_debounced_refresh()
         await coordinator.async_request_debounced_refresh()
@@ -250,9 +254,43 @@ class TestSalusDataUpdateCoordinator(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, coordinator.refresh_count)
         self.assertIsNone(coordinator._debounced_refresh_task)
 
+    async def test_debounced_refresh_runs_settle_refresh(self) -> None:
+        coordinator = _coordinator(
+            FakeGateway(),
+            options={CONF_POST_COMMAND_REFRESH_DELAY: 0.01},
+        )
+        coordinator._fast_refresh_delay = 0
+
+        await coordinator.async_request_debounced_refresh()
+
+        self.assertIsNotNone(coordinator._debounced_refresh_task)
+        await coordinator._debounced_refresh_task
+
+        self.assertEqual(2, coordinator.refresh_count)
+        gateway_health = coordinator.gateway_diagnostics()
+        self.assertEqual(0.01, gateway_health["post_command_refresh_delay_seconds"])
+        self.assertEqual(20, gateway_health["scan_interval_seconds"])
+
+    async def test_debounced_refresh_uses_latest_request_time(self) -> None:
+        coordinator = _coordinator(
+            FakeGateway(),
+            options={CONF_POST_COMMAND_REFRESH_DELAY: 0},
+        )
+        coordinator._fast_refresh_delay = 0.02
+
+        await coordinator.async_request_debounced_refresh()
+        await asyncio.sleep(0.01)
+        first_task = coordinator._debounced_refresh_task
+        await coordinator.async_request_debounced_refresh()
+
+        self.assertIs(first_task, coordinator._debounced_refresh_task)
+        await coordinator._debounced_refresh_task
+
+        self.assertEqual(1, coordinator.refresh_count)
+
     async def test_cancel_debounced_refresh_clears_pending_task(self) -> None:
         coordinator = _coordinator(FakeGateway())
-        coordinator._refresh_debounce_delay = 60
+        coordinator._fast_refresh_delay = 60
 
         await coordinator.async_request_debounced_refresh()
         self.assertIsNotNone(coordinator._debounced_refresh_task)

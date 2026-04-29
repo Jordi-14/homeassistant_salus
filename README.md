@@ -73,8 +73,13 @@ configured in the Salus app.
 
 ## Data Updates
 
-This is a local polling integration. Gateway data is refreshed every 10 seconds
+This is a local polling integration. Gateway data is refreshed every 20 seconds
 through one shared coordinator, then reused by all entity platforms.
+
+After a Home Assistant command, such as changing a thermostat target
+temperature or turning on a switch, the integration requests an additional fast
+refresh after 0.5 seconds and a second settle refresh after 3 seconds by default.
+The settle refresh delay can be changed from the integration options.
 
 ## Troubleshooting
 
@@ -132,7 +137,7 @@ For support requests, include:
 
 ## Architecture Overview
 
-This integration uses the **DataUpdateCoordinator** pattern to poll the Salus gateway every 10 seconds and share device snapshots with all entity platforms:
+This integration uses the **DataUpdateCoordinator** pattern to poll the Salus gateway every 20 seconds and share device snapshots with all entity platforms:
 
 ```
 Home Assistant Setup
@@ -142,7 +147,7 @@ config_flow.py: User enters gateway IP + EUID
 __init__.py: Connects to gateway, creates coordinator + runtime_data
     ↓
 coordinator.py (DataUpdateCoordinator)
-    ├─ Every 10 seconds:
+    ├─ Every 20 seconds:
     │  ├─ gateway.poll_status() ← Fetches all device types
     │  ├─ Extract devices by type (climate, binary_sensor, switch, etc.)
     │  ├─ SQ610 raw props fetch (protocol quirk workaround)

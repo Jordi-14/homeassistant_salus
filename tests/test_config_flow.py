@@ -130,7 +130,12 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
 
     async def test_options_flow_shows_form(self) -> None:
         flow = config_flow.SalusOptionsFlowHandler(
-            SimpleNamespace(options={config_flow.CONF_POLL_FAILURE_THRESHOLD: 5})
+            SimpleNamespace(
+                options={
+                    config_flow.CONF_POLL_FAILURE_THRESHOLD: 5,
+                    config_flow.CONF_POST_COMMAND_REFRESH_DELAY: 4.0,
+                }
+            )
         )
 
         result = await flow.async_step_init()
@@ -138,16 +143,22 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("form", result["type"])
         self.assertEqual("init", result["step_id"])
 
-    async def test_options_flow_saves_threshold(self) -> None:
+    async def test_options_flow_saves_refresh_options(self) -> None:
         flow = config_flow.SalusOptionsFlowHandler(SimpleNamespace(options={}))
 
         result = await flow.async_step_init(
-            {config_flow.CONF_POLL_FAILURE_THRESHOLD: 7}
+            {
+                config_flow.CONF_POLL_FAILURE_THRESHOLD: 7,
+                config_flow.CONF_POST_COMMAND_REFRESH_DELAY: 4.5,
+            }
         )
 
         self.assertEqual("create_entry", result["type"])
         self.assertEqual(
-            {config_flow.CONF_POLL_FAILURE_THRESHOLD: 7},
+            {
+                config_flow.CONF_POLL_FAILURE_THRESHOLD: 7,
+                config_flow.CONF_POST_COMMAND_REFRESH_DELAY: 4.5,
+            },
             result["data"],
         )
 

@@ -204,6 +204,13 @@ def _vol_all(*validators: Any) -> Any:
     return _validate
 
 
+def _vol_coerce(target_type: Any) -> Any:
+    def _validate(value: Any) -> Any:
+        return target_type(value)
+
+    return _validate
+
+
 def _vol_range(**kwargs: Any) -> Any:
     minimum = kwargs.get("min")
     maximum = kwargs.get("max")
@@ -318,6 +325,7 @@ def install() -> None:
     update_coordinator.UpdateFailed = UpdateFailed
 
     voluptuous.All = _vol_all
+    voluptuous.Coerce = _vol_coerce
     voluptuous.Invalid = VolInvalid
     voluptuous.Optional = _vol_key
     voluptuous.Range = _vol_range

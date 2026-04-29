@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.7 - 2026-04-29
+
+User experience:
+
+- Increase normal gateway polling to 20 seconds.
+- Keep a fast post-command refresh at 0.5 seconds and add a configurable settle
+  refresh, defaulting to 3 seconds, so command changes are rechecked after the
+  gateway has had time to update.
+
 ## 0.7.6 - 2026-04-29
 
 P3 command reliability:
