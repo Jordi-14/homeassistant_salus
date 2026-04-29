@@ -126,7 +126,7 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
         flow = config_flow.SalusFlowHandler.async_get_options_flow(config_entry)
 
         self.assertIsInstance(flow, config_flow.SalusOptionsFlowHandler)
-        self.assertIs(config_entry, flow.config_entry)
+        self.assertIs(config_entry, flow._config_entry)
 
     async def test_options_flow_shows_form(self) -> None:
         flow = config_flow.SalusOptionsFlowHandler(
@@ -150,6 +150,21 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
             {config_flow.CONF_POLL_FAILURE_THRESHOLD: 7},
             result["data"],
         )
+
+    async def test_user_step_invalid_euid_returns_field_error(self) -> None:
+        flow = config_flow.SalusFlowHandler()
+
+        result = await flow.async_step_user(
+            {
+                CONF_HOST: "192.0.2.10",
+                CONF_TOKEN: "too-short",
+                CONF_NAME: "Gateway",
+            }
+        )
+
+        self.assertEqual("form", result["type"])
+        self.assertEqual("invalid_euid", result["errors"][CONF_TOKEN])
+        self.assertEqual([], FakeGateway.instances)
 
     async def test_reconfigure_updates_existing_entry(self) -> None:
         entry = _entry()
@@ -188,6 +203,24 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("connect_error", result["errors"]["base"])
         self.assertEqual("192.0.2.10", entry.data[CONF_HOST])
         self.assertTrue(FakeGateway.instances[0].closed)
+
+    async def test_reconfigure_invalid_euid_returns_field_error(self) -> None:
+        entry = _entry()
+        flow = config_flow.SalusFlowHandler()
+        flow.reconfigure_entry = entry
+
+        result = await flow.async_step_reconfigure(
+            {
+                CONF_HOST: "192.0.2.11",
+                CONF_TOKEN: "invalid",
+            }
+        )
+
+        self.assertEqual("form", result["type"])
+        self.assertEqual("reconfigure", result["step_id"])
+        self.assertEqual("invalid_euid", result["errors"][CONF_TOKEN])
+        self.assertEqual("192.0.2.10", entry.data[CONF_HOST])
+        self.assertEqual([], FakeGateway.instances)
 
     async def test_reauth_updates_existing_entry(self) -> None:
         entry = _entry()

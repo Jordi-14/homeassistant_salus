@@ -83,10 +83,7 @@ def _gateway_settings_schema(
     defaults = defaults or {}
     schema: dict[Any, Any] = {
         _required_field(CONF_HOST, defaults.get(CONF_HOST)): str,
-        _required_field(CONF_TOKEN, defaults.get(CONF_TOKEN)): vol.All(
-            str,
-            _valid_euid,
-        ),
+        _required_field(CONF_TOKEN, defaults.get(CONF_TOKEN)): str,
     }
     if include_name:
         schema[_optional_field(
@@ -141,22 +138,26 @@ class SalusFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle a flow initialized by the user to configure a gateway."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            host, token = _normalized_credentials(user_input)
-            unique_id, error = await _async_validate_gateway(host, token)
-            if error is not None:
-                errors["base"] = error
-            elif unique_id is not None:
-                await self.async_set_unique_id(unique_id)
-                self._abort_if_unique_id_configured()
-                return self.async_create_entry(
-                    title=user_input[CONF_NAME],
-                    data={
-                        CONF_FLOW_TYPE: CONF_USER,
-                        CONF_HOST: host,
-                        CONF_TOKEN: token,
-                        CONF_MAC: unique_id,
-                    },
-                )
+            try:
+                host, token = _normalized_credentials(user_input)
+            except vol.Invalid:
+                errors[CONF_TOKEN] = "invalid_euid"
+            else:
+                unique_id, error = await _async_validate_gateway(host, token)
+                if error is not None:
+                    errors["base"] = error
+                elif unique_id is not None:
+                    await self.async_set_unique_id(unique_id)
+                    self._abort_if_unique_id_configured()
+                    return self.async_create_entry(
+                        title=user_input[CONF_NAME],
+                        data={
+                            CONF_FLOW_TYPE: CONF_USER,
+                            CONF_HOST: host,
+                            CONF_TOKEN: token,
+                            CONF_MAC: unique_id,
+                        },
+                    )
 
         return self.async_show_form(
             step_id="user",
@@ -203,21 +204,25 @@ class SalusFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Validate input and update an existing config entry."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            host, token = _normalized_credentials(user_input)
-            unique_id, error = await _async_validate_gateway(host, token)
-            if error is not None:
-                errors["base"] = error
-            elif unique_id is not None:
-                await self.async_set_unique_id(unique_id)
-                self._abort_if_unique_id_mismatch(reason="wrong_gateway")
-                return self.async_update_reload_and_abort(
-                    entry,
-                    data_updates={
-                        CONF_HOST: host,
-                        CONF_TOKEN: token,
-                        CONF_MAC: unique_id,
-                    },
-                )
+            try:
+                host, token = _normalized_credentials(user_input)
+            except vol.Invalid:
+                errors[CONF_TOKEN] = "invalid_euid"
+            else:
+                unique_id, error = await _async_validate_gateway(host, token)
+                if error is not None:
+                    errors["base"] = error
+                elif unique_id is not None:
+                    await self.async_set_unique_id(unique_id)
+                    self._abort_if_unique_id_mismatch(reason="wrong_gateway")
+                    return self.async_update_reload_and_abort(
+                        entry,
+                        data_updates={
+                            CONF_HOST: host,
+                            CONF_TOKEN: token,
+                            CONF_MAC: unique_id,
+                        },
+                    )
 
         return self.async_show_form(
             step_id=step_id,
@@ -234,11 +239,11 @@ class SalusOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize the options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
 
     def _options_schema(self) -> vol.Schema:
         """Return the options schema with current values as defaults."""
-        current_threshold = self.config_entry.options.get(
+        current_threshold = self._config_entry.options.get(
             CONF_POLL_FAILURE_THRESHOLD,
             DEFAULT_POLL_FAILURE_THRESHOLD,
         )

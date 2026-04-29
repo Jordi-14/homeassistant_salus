@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.7.4 - 2026-04-29
+
+Bug fixes:
+
+- Fix the Home Assistant options/reconfigure flow crashing with
+  `Config flow could not be loaded` on newer Home Assistant versions.
+- Move EUID validation out of the displayed form schema so Home Assistant can
+  serialize the config flow form.
+- Store the options config entry privately because Home Assistant now exposes
+  `config_entry` as a read-only property on options flows.
+
+## 0.7.3 - 2026-04-29
 
 P3 product quality:
 
