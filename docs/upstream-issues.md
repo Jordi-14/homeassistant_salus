@@ -2,6 +2,12 @@
 
 Exported with GitHub CLI.
 
+This is a maintainer backlog and historical reference for issues left in the
+upstream Home Assistant integration. It is intentionally not a normal support
+document. Use it when looking for old bug reports, device requests, gateway
+firmware problems, or collaboration context that may still be useful for future
+work.
+
 ---
 
 ## #85: Can UGE600 stay offline with this integration?
