@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.7.2 - 2026-04-29
+
+P2 maintainability:
+
+- Use semantic SQ610 client write methods from the Home Assistant climate entity
+  instead of passing raw gateway property names from the integration layer.
+- Add command tests for the SQ610 setpoint, HVAC mode, preset, and turn-off
+  paths.
+- Add a release checklist step for Home Assistant API deprecation review.
+- Require `salus-it600-client 0.4.2`.
+
+## 0.7.1 - 2026-04-29
 
 P1 near-term hardening:
 

@@ -14,17 +14,6 @@ from homeassistant.components.climate.const import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
-from salus_it600.device_models import (
-    SQ610_HOLD_AUTO,
-    SQ610_HOLD_PERMANENT,
-    SQ610_HOLD_STANDBY,
-    SQ610_MODE_COOL,
-    SQ610_MODE_HEAT,
-    SQ610_WRITE_COOLING_SETPOINT,
-    SQ610_WRITE_HEATING_SETPOINT,
-    SQ610_WRITE_HOLD_TYPE,
-    SQ610_WRITE_SYSTEM_MODE,
-)
 
 from ._climate_state import (
     HA_TO_RAW_FAN_MODE,
@@ -200,18 +189,12 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             attributes.update(extra)
         return attributes
 
-    async def _async_write_sq610_property(self, prop: str, value: int) -> None:
-        """Write a raw SQ610 property directly through the gateway API."""
+    async def _async_request_debounced_refresh_after_sq610_write(self) -> None:
+        """Request a debounced refresh after an SQ610 command."""
         device = self._device
         if device is None:
             return
 
-        async with self.coordinator.gateway_lock:
-            await self.coordinator.gateway.write_sq610_property(
-                self._device_id,
-                prop,
-                value,
-            )
         await self.coordinator.async_request_debounced_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
@@ -221,13 +204,13 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             return
 
         if self._is_sq610:
-            prop = (
-                SQ610_WRITE_COOLING_SETPOINT
-                if self._effective_hvac_mode == HVACMode.COOL
-                else SQ610_WRITE_HEATING_SETPOINT
-            )
-            rounded_temperature = int(round(temperature * 2) / 2 * 100)
-            await self._async_write_sq610_property(prop, rounded_temperature)
+            async with self.coordinator.gateway_lock:
+                await self.coordinator.gateway.set_sq610_device_temperature(
+                    self._device_id,
+                    temperature,
+                    cooling=self._effective_hvac_mode == HVACMode.COOL,
+                )
+            await self._async_request_debounced_refresh_after_sq610_write()
             return
 
         async with self.coordinator.gateway_lock:
@@ -278,10 +261,12 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             return
 
         if self._is_sq610:
-            system_mode = (
-                SQ610_MODE_COOL if hvac_mode == HVACMode.COOL else SQ610_MODE_HEAT
-            )
-            await self._async_write_sq610_property(SQ610_WRITE_SYSTEM_MODE, system_mode)
+            async with self.coordinator.gateway_lock:
+                await self.coordinator.gateway.set_sq610_device_hvac_mode(
+                    self._device_id,
+                    hvac_mode,
+                )
+            await self._async_request_debounced_refresh_after_sq610_write()
             return
 
         if not self._supports_cooling:
@@ -298,26 +283,32 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         """Set the exposed Salus hold mode."""
         if preset_mode == PRESET_STANDBY:
             if self._is_sq610:
-                await self._async_write_sq610_property(
-                    SQ610_WRITE_HOLD_TYPE,
-                    SQ610_HOLD_STANDBY,
-                )
+                async with self.coordinator.gateway_lock:
+                    await self.coordinator.gateway.set_sq610_device_preset(
+                        self._device_id,
+                        RAW_PRESET_OFF,
+                    )
+                await self._async_request_debounced_refresh_after_sq610_write()
                 return
             raw_preset_mode = RAW_PRESET_OFF
         elif preset_mode == RAW_PRESET_PERMANENT_HOLD:
             if self._is_sq610:
-                await self._async_write_sq610_property(
-                    SQ610_WRITE_HOLD_TYPE,
-                    SQ610_HOLD_PERMANENT,
-                )
+                async with self.coordinator.gateway_lock:
+                    await self.coordinator.gateway.set_sq610_device_preset(
+                        self._device_id,
+                        RAW_PRESET_PERMANENT_HOLD,
+                    )
+                await self._async_request_debounced_refresh_after_sq610_write()
                 return
             raw_preset_mode = RAW_PRESET_PERMANENT_HOLD
         elif preset_mode == PRESET_FOLLOW_SALUS_SCHEDULE:
             if self._is_sq610:
-                await self._async_write_sq610_property(
-                    SQ610_WRITE_HOLD_TYPE,
-                    SQ610_HOLD_AUTO,
-                )
+                async with self.coordinator.gateway_lock:
+                    await self.coordinator.gateway.set_sq610_device_preset(
+                        self._device_id,
+                        RAW_PRESET_FOLLOW_SCHEDULE,
+                    )
+                await self._async_request_debounced_refresh_after_sq610_write()
                 return
             raw_preset_mode = RAW_PRESET_FOLLOW_SCHEDULE
         else:
