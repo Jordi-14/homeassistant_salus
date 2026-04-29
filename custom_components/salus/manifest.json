@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/Jordi-14/homeassistant_salus/issues",
   "loggers": ["salus_it600"],
   "requirements": ["salus-it600-client==0.4.2"],
-  "version": "0.7.2"
+  "version": "0.7.3"
 }
