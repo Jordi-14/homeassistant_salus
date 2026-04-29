@@ -33,13 +33,15 @@ Extending for New Platforms:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from salus_it600.exceptions import IT600CommandError, IT600ConnectionError
 
 from .const import DOMAIN
 from .coordinator import SalusData, SalusDataUpdateCoordinator
@@ -65,6 +67,20 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
     def _device(self) -> Any | None:
         """Return the current Salus device snapshot."""
         raise NotImplementedError
+
+    async def _async_run_gateway_command(
+        self,
+        action: str,
+        command: Callable[[], Awaitable[None]],
+    ) -> None:
+        """Run one gateway command and convert client failures to HA service errors."""
+        try:
+            async with self.coordinator.gateway_lock:
+                await command()
+        except (IT600CommandError, IT600ConnectionError) as ex:
+            raise HomeAssistantError(
+                f"Failed to {action} for Salus device {self._device_id}: {ex}"
+            ) from ex
 
     @property
     def available(self) -> bool:

@@ -204,20 +204,24 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             return
 
         if self._is_sq610:
-            async with self.coordinator.gateway_lock:
-                await self.coordinator.gateway.set_sq610_device_temperature(
+            await self._async_run_gateway_command(
+                "set SQ610 target temperature",
+                lambda: self.coordinator.gateway.set_sq610_device_temperature(
                     self._device_id,
                     temperature,
                     cooling=self._effective_hvac_mode == HVACMode.COOL,
-                )
+                ),
+            )
             await self._async_request_debounced_refresh_after_sq610_write()
             return
 
-        async with self.coordinator.gateway_lock:
-            await self.coordinator.gateway.set_climate_device_temperature(
+        await self._async_run_gateway_command(
+            "set target temperature",
+            lambda: self.coordinator.gateway.set_climate_device_temperature(
                 self._device_id,
                 temperature,
-            )
+            ),
+        )
         await self.coordinator.async_request_debounced_refresh()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
@@ -234,11 +238,13 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             )
             return
 
-        async with self.coordinator.gateway_lock:
-            await self.coordinator.gateway.set_climate_device_fan_mode(
+        await self._async_run_gateway_command(
+            "set fan mode",
+            lambda: self.coordinator.gateway.set_climate_device_fan_mode(
                 self._device_id,
                 mode,
-            )
+            ),
+        )
         await self.coordinator.async_request_debounced_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -261,53 +267,63 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             return
 
         if self._is_sq610:
-            async with self.coordinator.gateway_lock:
-                await self.coordinator.gateway.set_sq610_device_hvac_mode(
+            await self._async_run_gateway_command(
+                "set SQ610 HVAC mode",
+                lambda: self.coordinator.gateway.set_sq610_device_hvac_mode(
                     self._device_id,
                     hvac_mode,
-                )
+                ),
+            )
             await self._async_request_debounced_refresh_after_sq610_write()
             return
 
         if not self._supports_cooling:
             return
 
-        async with self.coordinator.gateway_lock:
-            await self.coordinator.gateway.set_climate_device_mode(
+        await self._async_run_gateway_command(
+            "set HVAC mode",
+            lambda: self.coordinator.gateway.set_climate_device_mode(
                 self._device_id,
                 hvac_mode,
-            )
+            ),
+        )
         await self.coordinator.async_request_debounced_refresh()
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set the exposed Salus hold mode."""
         if preset_mode == PRESET_STANDBY:
             if self._is_sq610:
-                async with self.coordinator.gateway_lock:
-                    await self.coordinator.gateway.set_sq610_device_preset(
+                await self._async_run_gateway_command(
+                    "set SQ610 preset",
+                    lambda: self.coordinator.gateway.set_sq610_device_preset(
                         self._device_id,
                         RAW_PRESET_OFF,
-                    )
+                    ),
+                )
                 await self._async_request_debounced_refresh_after_sq610_write()
                 return
             raw_preset_mode = RAW_PRESET_OFF
         elif preset_mode == RAW_PRESET_PERMANENT_HOLD:
             if self._is_sq610:
-                async with self.coordinator.gateway_lock:
-                    await self.coordinator.gateway.set_sq610_device_preset(
+                await self._async_run_gateway_command(
+                    "set SQ610 preset",
+                    lambda: self.coordinator.gateway.set_sq610_device_preset(
                         self._device_id,
                         RAW_PRESET_PERMANENT_HOLD,
-                    )
+                    ),
+                )
                 await self._async_request_debounced_refresh_after_sq610_write()
                 return
             raw_preset_mode = RAW_PRESET_PERMANENT_HOLD
         elif preset_mode == PRESET_FOLLOW_SALUS_SCHEDULE:
             if self._is_sq610:
-                async with self.coordinator.gateway_lock:
-                    await self.coordinator.gateway.set_sq610_device_preset(
+                await self._async_run_gateway_command(
+                    "set SQ610 preset",
+                    lambda: self.coordinator.gateway.set_sq610_device_preset(
                         self._device_id,
                         RAW_PRESET_FOLLOW_SCHEDULE,
-                    )
+                    ),
+                )
                 await self._async_request_debounced_refresh_after_sq610_write()
                 return
             raw_preset_mode = RAW_PRESET_FOLLOW_SCHEDULE
@@ -319,11 +335,13 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             )
             return
 
-        async with self.coordinator.gateway_lock:
-            await self.coordinator.gateway.set_climate_device_preset(
+        await self._async_run_gateway_command(
+            "set preset",
+            lambda: self.coordinator.gateway.set_climate_device_preset(
                 self._device_id,
                 raw_preset_mode,
-            )
+            ),
+        )
         await self.coordinator.async_request_debounced_refresh()
 
     async def async_turn_on(self) -> None:

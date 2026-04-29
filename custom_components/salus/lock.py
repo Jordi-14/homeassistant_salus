@@ -62,18 +62,22 @@ class SalusThermostatLock(SalusEntity, LockEntity):
 
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock the thermostat keypad."""
-        async with self.coordinator.gateway_lock:
-            await self.coordinator.gateway.set_climate_device_locked(
+        await self._async_run_gateway_command(
+            "lock thermostat keypad",
+            lambda: self.coordinator.gateway.set_climate_device_locked(
                 self._device_id,
                 True,
-            )
+            ),
+        )
         await self.coordinator.async_request_debounced_refresh()
 
     async def async_unlock(self, **kwargs: Any) -> None:
         """Unlock the thermostat keypad."""
-        async with self.coordinator.gateway_lock:
-            await self.coordinator.gateway.set_climate_device_locked(
+        await self._async_run_gateway_command(
+            "unlock thermostat keypad",
+            lambda: self.coordinator.gateway.set_climate_device_locked(
                 self._device_id,
                 False,
-            )
+            ),
+        )
         await self.coordinator.async_request_debounced_refresh()

@@ -7,7 +7,7 @@ import unittest
 from types import SimpleNamespace
 from typing import Any
 
-from tests.ha_shim import HVACMode, install
+from tests.ha_shim import HVACMode, HomeAssistantError, install
 
 install()
 
@@ -23,6 +23,7 @@ from custom_components.salus.lock import SalusThermostatLock  # noqa: E402
 from custom_components.salus.sensor import SalusSensor  # noqa: E402
 from custom_components.salus.switch import SalusSwitch  # noqa: E402
 from custom_components.salus.const import DOMAIN  # noqa: E402
+from salus_it600.exceptions import IT600ConnectionError  # noqa: E402
 
 
 class FakeGateway:
@@ -30,23 +31,34 @@ class FakeGateway:
 
     def __init__(self) -> None:
         self.calls: list[tuple[Any, ...]] = []
+        self.command_error: Exception | None = None
+
+    def _raise_if_configured(self) -> None:
+        if self.command_error is not None:
+            raise self.command_error
 
     async def turn_on_switch_device(self, device_id: str) -> None:
+        self._raise_if_configured()
         self.calls.append(("turn_on_switch", device_id, None))
 
     async def turn_off_switch_device(self, device_id: str) -> None:
+        self._raise_if_configured()
         self.calls.append(("turn_off_switch", device_id, None))
 
     async def open_cover(self, device_id: str) -> None:
+        self._raise_if_configured()
         self.calls.append(("open_cover", device_id, None))
 
     async def close_cover(self, device_id: str) -> None:
+        self._raise_if_configured()
         self.calls.append(("close_cover", device_id, None))
 
     async def set_cover_position(self, device_id: str, position: int) -> None:
+        self._raise_if_configured()
         self.calls.append(("set_cover_position", device_id, position))
 
     async def set_climate_device_locked(self, device_id: str, locked: bool) -> None:
+        self._raise_if_configured()
         self.calls.append(("set_climate_locked", device_id, int(locked)))
 
     async def set_sq610_device_temperature(
@@ -56,14 +68,17 @@ class FakeGateway:
         *,
         cooling: bool = False,
     ) -> None:
+        self._raise_if_configured()
         self.calls.append(
             ("set_sq610_temperature", device_id, setpoint_celsius, cooling)
         )
 
     async def set_sq610_device_hvac_mode(self, device_id: str, mode: str) -> None:
+        self._raise_if_configured()
         self.calls.append(("set_sq610_hvac_mode", device_id, mode))
 
     async def set_sq610_device_preset(self, device_id: str, preset: str) -> None:
+        self._raise_if_configured()
         self.calls.append(("set_sq610_preset", device_id, preset))
 
 
@@ -221,6 +236,20 @@ class TestCommandEntities(unittest.IsolatedAsyncioTestCase):
             coordinator.gateway.calls,
         )
         self.assertEqual(4, coordinator.refresh_requests)
+
+    async def test_gateway_command_errors_raise_home_assistant_error(self) -> None:
+        coordinator = FakeCoordinator()
+        coordinator.gateway.command_error = IT600ConnectionError("offline")
+        entity = SalusThermostat(coordinator, "climate-1")
+
+        with self.assertRaisesRegex(
+            HomeAssistantError,
+            "Failed to set SQ610 preset",
+        ):
+            await entity.async_set_preset_mode(PRESET_FOLLOW_SALUS_SCHEDULE)
+
+        self.assertEqual([], coordinator.gateway.calls)
+        self.assertEqual(0, coordinator.refresh_requests)
 
     async def test_switch_commands_write_gateway_and_debounce_refresh(self) -> None:
         coordinator = FakeCoordinator()

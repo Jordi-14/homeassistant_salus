@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.5 - 2026-04-29
+
+Bug fixes:
+
+- Convert Salus gateway command connection failures into Home Assistant service
+  errors instead of raw websocket tracebacks.
+
 ## 0.7.4 - 2026-04-29
 
 Bug fixes:

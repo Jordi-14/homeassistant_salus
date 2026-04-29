@@ -27,6 +27,10 @@ class ConfigEntryNotReady(Exception):
     """Test stand-in for Home Assistant's ConfigEntryNotReady."""
 
 
+class HomeAssistantError(Exception):
+    """Test stand-in for Home Assistant's HomeAssistantError."""
+
+
 class UpdateFailed(Exception):
     """Test stand-in for Home Assistant's UpdateFailed."""
 
@@ -300,6 +304,7 @@ def install() -> None:
     const.Platform = Platform
     exceptions.ConfigEntryAuthFailed = ConfigEntryAuthFailed
     exceptions.ConfigEntryNotReady = ConfigEntryNotReady
+    exceptions.HomeAssistantError = HomeAssistantError
     device_registry.CONNECTION_NETWORK_MAC = "mac"
     device_registry.async_get = lambda _hass: SimpleNamespace(
         async_get_or_create=lambda **_kwargs: None
