@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.6 - 2026-04-29
+
+P3 command reliability:
+
+- Require `salus-it600-client 0.4.3`, which retries a transient gateway server
+  disconnect once for encrypted write requests.
+
 ## 0.7.5 - 2026-04-29
 
 Bug fixes:
