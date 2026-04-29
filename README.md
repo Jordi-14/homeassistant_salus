@@ -90,6 +90,31 @@ Check that Local WiFi Mode is enabled:
 6. Save settings.
 7. Power-cycle the gateway.
 
+### Diagnostics For Support
+
+Home Assistant diagnostics are useful when reporting gateway, device, or SQ610
+issues:
+
+1. Open `Settings -> Devices & services`.
+2. Select the `Salus iT600` integration.
+3. Open the three-dot menu for the config entry.
+4. Select `Download diagnostics`.
+
+Diagnostics include integration version, gateway health counters, device counts,
+availability history, and reduced SQ610 support fields. The gateway EUID/token
+is redacted automatically. The gateway host/IP address and Salus device IDs may
+still be present, so review the file before posting it publicly.
+
+For support requests, include:
+
+- Home Assistant version
+- `homeassistant_salus` version
+- `salus-it600-client` version from `custom_components/salus/manifest.json`
+- gateway model if known
+- whether the gateway uses UG600/legacy firmware or UG800/newer firmware if known
+- diagnostics file or the relevant redacted snippets
+- Home Assistant logs around startup, reload, polling, or the failed command
+
 ## Removal
 
 1. Remove the `Salus iT600` integration from `Settings -> Devices & services`.
