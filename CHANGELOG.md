@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.8 - 2026-04-29
+
+Options UI polish:
+
+- Render polling options as Home Assistant number input selectors instead of
+  awkward raw numeric controls.
+- Change the default post-command settle refresh delay from 3 seconds to
+  4 seconds.
+
 ## 0.7.7 - 2026-04-29
 
 User experience:

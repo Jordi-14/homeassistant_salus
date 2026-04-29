@@ -152,6 +152,27 @@ class IssueSeverity(StrEnum):
     WARNING = "warning"
 
 
+class NumberSelectorMode(StrEnum):
+    """Minimal NumberSelectorMode stand-in."""
+
+    BOX = "box"
+    SLIDER = "slider"
+
+
+class NumberSelectorConfig(dict):
+    """Minimal NumberSelectorConfig stand-in."""
+
+
+class NumberSelector:
+    """Minimal NumberSelector stand-in."""
+
+    def __init__(self, config: NumberSelectorConfig) -> None:
+        self.config = config
+
+    def __call__(self, value: Any) -> Any:
+        return value
+
+
 class HVACMode(StrEnum):
     """Minimal HVACMode stand-in."""
 
@@ -278,6 +299,7 @@ def install() -> None:
     device_registry = types.ModuleType("homeassistant.helpers.device_registry")
     entity = types.ModuleType("homeassistant.helpers.entity")
     issue_registry = types.ModuleType("homeassistant.helpers.issue_registry")
+    selector = types.ModuleType("homeassistant.helpers.selector")
     update_coordinator = types.ModuleType("homeassistant.helpers.update_coordinator")
     voluptuous = types.ModuleType("voluptuous")
 
@@ -320,6 +342,9 @@ def install() -> None:
     issue_registry.IssueSeverity = IssueSeverity
     issue_registry.async_create_issue = _async_create_issue
     issue_registry.async_delete_issue = _async_delete_issue
+    selector.NumberSelector = NumberSelector
+    selector.NumberSelectorConfig = NumberSelectorConfig
+    selector.NumberSelectorMode = NumberSelectorMode
     update_coordinator.CoordinatorEntity = CoordinatorEntity
     update_coordinator.DataUpdateCoordinator = DataUpdateCoordinator
     update_coordinator.UpdateFailed = UpdateFailed
@@ -341,6 +366,7 @@ def install() -> None:
     helpers.device_registry = device_registry
     helpers.entity = entity
     helpers.issue_registry = issue_registry
+    helpers.selector = selector
     helpers.update_coordinator = update_coordinator
 
     sys.modules["homeassistant"] = homeassistant
@@ -361,5 +387,6 @@ def install() -> None:
     sys.modules["homeassistant.helpers.device_registry"] = device_registry
     sys.modules["homeassistant.helpers.entity"] = entity
     sys.modules["homeassistant.helpers.issue_registry"] = issue_registry
+    sys.modules["homeassistant.helpers.selector"] = selector
     sys.modules["homeassistant.helpers.update_coordinator"] = update_coordinator
     sys.modules["voluptuous"] = voluptuous

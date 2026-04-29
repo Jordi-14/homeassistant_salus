@@ -142,6 +142,25 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual("form", result["type"])
         self.assertEqual("init", result["step_id"])
+        schema = result["data_schema"].schema
+        self.assertIsInstance(
+            schema[config_flow.CONF_POLL_FAILURE_THRESHOLD],
+            config_flow.selector.NumberSelector,
+        )
+        self.assertEqual(
+            config_flow.selector.NumberSelectorMode.BOX,
+            schema[config_flow.CONF_POLL_FAILURE_THRESHOLD].config["mode"],
+        )
+        self.assertIsInstance(
+            schema[config_flow.CONF_POST_COMMAND_REFRESH_DELAY],
+            config_flow.selector.NumberSelector,
+        )
+        self.assertEqual(
+            "s",
+            schema[config_flow.CONF_POST_COMMAND_REFRESH_DELAY].config[
+                "unit_of_measurement"
+            ],
+        )
 
     async def test_options_flow_saves_refresh_options(self) -> None:
         flow = config_flow.SalusOptionsFlowHandler(SimpleNamespace(options={}))

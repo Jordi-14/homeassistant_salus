@@ -78,7 +78,7 @@ through one shared coordinator, then reused by all entity platforms.
 
 After a Home Assistant command, such as changing a thermostat target
 temperature or turning on a switch, the integration requests an additional fast
-refresh after 0.5 seconds and a second settle refresh after 3 seconds by default.
+refresh after 0.5 seconds and a second settle refresh after 4 seconds by default.
 The settle refresh delay can be changed from the integration options.
 
 ## Troubleshooting

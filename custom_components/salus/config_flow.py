@@ -12,6 +12,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_TOKEN
+from homeassistant.helpers import selector
 
 from salus_it600.exceptions import (
     IT600AuthenticationError,
@@ -261,22 +262,25 @@ class SalusOptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_POLL_FAILURE_THRESHOLD,
                     default=current_threshold,
-                ): vol.All(
-                    int,
-                    vol.Range(
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
                         min=MIN_POLL_FAILURE_THRESHOLD,
                         max=MAX_POLL_FAILURE_THRESHOLD,
-                    ),
+                        step=1,
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
                 ),
                 vol.Optional(
                     CONF_POST_COMMAND_REFRESH_DELAY,
                     default=current_post_command_refresh_delay,
-                ): vol.All(
-                    vol.Coerce(float),
-                    vol.Range(
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
                         min=MIN_POST_COMMAND_REFRESH_DELAY,
                         max=MAX_POST_COMMAND_REFRESH_DELAY,
-                    ),
+                        step=0.5,
+                        mode=selector.NumberSelectorMode.BOX,
+                        unit_of_measurement="s",
+                    )
                 ),
             }
         )

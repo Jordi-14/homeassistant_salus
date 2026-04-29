@@ -47,10 +47,14 @@
     "step": {
       "init": {
         "title": "Salus options",
-        "description": "Tune gateway polling and post-command refresh behavior.",
+        "description": "Tune gateway availability and command verification timing.",
         "data": {
-          "poll_failure_threshold": "Poll failures before marking unavailable",
-          "post_command_refresh_delay": "Post-command settle refresh delay (seconds)"
+          "poll_failure_threshold": "Failed polls before unavailable",
+          "post_command_refresh_delay": "Command verification delay"
+        },
+        "data_description": {
+          "poll_failure_threshold": "Consecutive failed gateway polls to tolerate before entities become unavailable.",
+          "post_command_refresh_delay": "Seconds to wait before the second refresh after a command. A fast refresh still runs after 0.5 seconds."
         }
       }
     }
