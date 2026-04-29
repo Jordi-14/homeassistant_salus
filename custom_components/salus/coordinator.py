@@ -1,12 +1,12 @@
 """Coordinator for Salus iT600 gateway data.
 
 This module implements the DataUpdateCoordinator pattern for polling the Salus iT600
-gateway at regular intervals (default 10 seconds) and aggregating device state into a
+gateway at regular intervals (default 20 seconds) and aggregating device state into a
 single SalusData snapshot.
 
 Architecture:
     poll_status() flow:
-    1. Coordinator schedules _async_update_data() every 10 seconds
+    1. Coordinator schedules _async_update_data() every 20 seconds
     2. _async_update_data() locks gateway (prevents concurrent requests)
     3. gateway.poll_status() fetches all device types (climate, binary_sensor, etc.)
     4. Device type lists extracted and packaged into SalusData dataclass
@@ -59,10 +59,14 @@ from salus_it600.device_models import is_sq610_model
 
 from .const import (
     CONF_POLL_FAILURE_THRESHOLD,
+    CONF_POST_COMMAND_REFRESH_DELAY,
+    DEFAULT_FAST_REFRESH_DELAY,
     DEFAULT_POLL_FAILURE_THRESHOLD,
-    DEFAULT_REFRESH_DEBOUNCE,
+    DEFAULT_POST_COMMAND_REFRESH_DELAY,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    MAX_POST_COMMAND_REFRESH_DELAY,
+    MIN_POST_COMMAND_REFRESH_DELAY,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -248,8 +252,9 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         self._config_entry = config_entry
         self.gateway_lock = asyncio.Lock()
         self.gateway_id: str | None = None
-        self._refresh_debounce_delay = DEFAULT_REFRESH_DEBOUNCE
+        self._fast_refresh_delay = DEFAULT_FAST_REFRESH_DELAY
         self._debounced_refresh_task: asyncio.Task[None] | None = None
+        self._post_command_refresh_requested_at: float | None = None
         self._gateway_health = SalusGatewayHealth()
         self._device_availability: dict[str, SalusDeviceAvailability] = {}
 
@@ -257,6 +262,11 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         """Return gateway health diagnostics."""
         diagnostics = self._gateway_health.as_diagnostics()
         diagnostics["poll_failure_threshold"] = self._poll_failure_threshold()
+        diagnostics["scan_interval_seconds"] = int(DEFAULT_SCAN_INTERVAL.total_seconds())
+        diagnostics["fast_refresh_delay_seconds"] = self._fast_refresh_delay
+        diagnostics["post_command_refresh_delay_seconds"] = (
+            self._post_command_refresh_delay()
+        )
         return diagnostics
 
     def device_availability_diagnostics(self) -> dict[str, dict[str, Any]]:
@@ -267,28 +277,75 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         }
 
     async def async_request_debounced_refresh(self) -> None:
-        """Request one refresh after collapsing rapid write-triggered requests."""
-        if (
-            self._debounced_refresh_task is not None
-            and not self._debounced_refresh_task.done()
-        ):
-            return
+        """Request fast and settled refreshes after a gateway write.
 
-        self._debounced_refresh_task = asyncio.create_task(
-            self._async_debounced_refresh()
-        )
+        Rapid commands update the requested timestamp. The running task uses the
+        latest timestamp, so slider-style changes collapse into one fast refresh
+        and one settle refresh after the most recent command.
+        """
+        self._post_command_refresh_requested_at = self._loop_time()
+
+        if self._debounced_refresh_task is None or self._debounced_refresh_task.done():
+            self._debounced_refresh_task = asyncio.create_task(
+                self._async_debounced_refresh()
+            )
 
     async def _async_debounced_refresh(self) -> None:
-        """Run the delayed refresh task."""
+        """Run fast and settled post-command refreshes."""
         try:
-            await asyncio.sleep(self._refresh_debounce_delay)
-            await self.async_request_refresh()
+            while True:
+                request_at = self._post_command_refresh_requested_at
+                if request_at is None:
+                    return
+
+                await self._async_sleep_until(request_at + self._fast_refresh_delay)
+                if self._post_command_refresh_requested_at != request_at:
+                    continue
+
+                await self.async_request_refresh()
+                if self._post_command_refresh_requested_at != request_at:
+                    continue
+
+                settle_delay = self._post_command_refresh_delay()
+                if settle_delay <= self._fast_refresh_delay:
+                    if self._post_command_refresh_requested_at == request_at:
+                        self._post_command_refresh_requested_at = None
+                    return
+                if self._loop_time() >= request_at + settle_delay:
+                    if self._post_command_refresh_requested_at == request_at:
+                        self._post_command_refresh_requested_at = None
+                    return
+
+                await self._async_sleep_until(request_at + settle_delay)
+                if self._post_command_refresh_requested_at != request_at:
+                    continue
+
+                await self.async_request_refresh()
+                if self._post_command_refresh_requested_at != request_at:
+                    continue
+
+                self._post_command_refresh_requested_at = None
+                return
         except Exception:
             _LOGGER.exception("Debounced Salus refresh failed")
+            self._post_command_refresh_requested_at = None
         finally:
             current_task = asyncio.current_task()
             if self._debounced_refresh_task is current_task:
                 self._debounced_refresh_task = None
+
+    async def _async_sleep_until(self, when: float) -> None:
+        """Sleep until a Home Assistant loop timestamp."""
+        delay = when - self._loop_time()
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+    def _loop_time(self) -> float:
+        """Return monotonic time from the Home Assistant event loop."""
+        loop = getattr(self.hass, "loop", None)
+        if loop is not None:
+            return loop.time()
+        return asyncio.get_running_loop().time()
 
     def async_cancel_debounced_refresh(self) -> None:
         """Cancel a pending debounced refresh task, if one exists."""
@@ -298,6 +355,7 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         ):
             self._debounced_refresh_task.cancel()
         self._debounced_refresh_task = None
+        self._post_command_refresh_requested_at = None
 
     async def _async_update_data(self) -> SalusData:
         """Fetch all Salus device data from the gateway."""
@@ -364,6 +422,24 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
             )
         except (TypeError, ValueError):
             return DEFAULT_POLL_FAILURE_THRESHOLD
+
+    def _post_command_refresh_delay(self) -> float:
+        """Return configured settle-refresh delay after a gateway write."""
+        options = getattr(self._config_entry, "options", {})
+        try:
+            delay = float(
+                options.get(
+                    CONF_POST_COMMAND_REFRESH_DELAY,
+                    DEFAULT_POST_COMMAND_REFRESH_DELAY,
+                )
+            )
+        except (TypeError, ValueError):
+            return DEFAULT_POST_COMMAND_REFRESH_DELAY
+
+        return min(
+            MAX_POST_COMMAND_REFRESH_DELAY,
+            max(MIN_POST_COMMAND_REFRESH_DELAY, delay),
+        )
 
     def _record_update_success(self) -> None:
         """Record a successful coordinator update."""
