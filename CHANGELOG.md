@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+P3 product quality:
+
+- Add reconfigure and reauthentication flows for updating gateway IP/EUID
+  without deleting the integration.
+- Add a Home Assistant Repairs issue for persistent gateway poll failures, with
+  troubleshooting guidance and automatic cleanup after recovery.
+- Improve troubleshooting documentation around reconfigure, Local WiFi Mode, and
+  the all-zero EUID fallback.
+
 ## 0.7.2 - 2026-04-29
 
 P2 maintainability:

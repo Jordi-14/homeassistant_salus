@@ -7,12 +7,18 @@ import unittest
 from types import SimpleNamespace
 from typing import Any
 
-from tests.ha_shim import ConfigEntryAuthFailed, UpdateFailed, install
+from tests.ha_shim import ISSUES, ConfigEntryAuthFailed, UpdateFailed, install
 
 install()
 
-from custom_components.salus.const import CONF_POLL_FAILURE_THRESHOLD  # noqa: E402
+from homeassistant.const import CONF_HOST  # noqa: E402
+
+from custom_components.salus.const import (  # noqa: E402
+    CONF_POLL_FAILURE_THRESHOLD,
+    DOMAIN,
+)
 from custom_components.salus.coordinator import (  # noqa: E402
+    ISSUE_GATEWAY_UNAVAILABLE,
     SalusData,
     SalusDataUpdateCoordinator,
 )
@@ -81,12 +87,19 @@ def _coordinator(
 ) -> SalusDataUpdateCoordinator:
     return SalusDataUpdateCoordinator(
         hass=object(),
-        config_entry=SimpleNamespace(options=options or {}),
+        config_entry=SimpleNamespace(
+            entry_id="entry-1",
+            data={CONF_HOST: "192.0.2.10"},
+            options=options or {},
+        ),
         gateway=gateway,
     )
 
 
 class TestSalusDataUpdateCoordinator(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        ISSUES.clear()
+
     async def test_update_data_populates_snapshot_and_fetches_sq610_props(self) -> None:
         gateway = FakeGateway()
         coordinator = _coordinator(gateway)
@@ -156,6 +169,14 @@ class TestSalusDataUpdateCoordinator(unittest.IsolatedAsyncioTestCase):
         gateway_health = coordinator.gateway_diagnostics()
         self.assertEqual(3, gateway_health["consecutive_update_failures"])
         self.assertEqual(3, gateway_health["poll_failure_threshold"])
+        issue = ISSUES[(DOMAIN, f"entry-1_{ISSUE_GATEWAY_UNAVAILABLE}")]
+        self.assertEqual("gateway_unavailable", issue["translation_key"])
+        self.assertEqual({"host": "192.0.2.10"}, issue["translation_placeholders"])
+
+        gateway.poll_error = None
+        await coordinator._async_update_data()
+
+        self.assertNotIn((DOMAIN, f"entry-1_{ISSUE_GATEWAY_UNAVAILABLE}"), ISSUES)
 
     async def test_zero_poll_failure_threshold_marks_unavailable_immediately(self) -> None:
         gateway = FakeGateway()

@@ -78,6 +78,11 @@ through one shared coordinator, then reused by all entity platforms.
 
 ## Troubleshooting
 
+If the gateway IP address or EUID changes, open the integration entry from
+`Settings -> Devices & services -> Salus iT600` and use `Reconfigure` from the
+entry menu. You do not need to delete and recreate the integration just to
+change the connection settings.
+
 If the EUID printed on the gateway does not work, try `0000000000000000`.
 
 Check that Local WiFi Mode is enabled:
@@ -89,6 +94,10 @@ Check that Local WiFi Mode is enabled:
 5. Confirm `Disable Local WiFi Mode` is set to `No`.
 6. Save settings.
 7. Power-cycle the gateway.
+
+If polling fails repeatedly, Home Assistant creates a Repairs issue linking
+back to this troubleshooting section. The repair clears automatically after the
+gateway responds successfully again.
 
 ### Diagnostics For Support
 

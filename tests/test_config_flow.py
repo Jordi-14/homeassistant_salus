@@ -48,6 +48,17 @@ def _input() -> dict[str, str]:
     }
 
 
+def _entry() -> SimpleNamespace:
+    return SimpleNamespace(
+        data={
+            CONF_HOST: "192.0.2.10",
+            CONF_TOKEN: "001E5E0D32906128",
+            config_flow.CONF_MAC: FakeGateway.connected_unique_id,
+        },
+        options={},
+    )
+
+
 class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         FakeGateway.connect_error = None
@@ -63,7 +74,10 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("Gateway", result["title"])
         self.assertEqual("192.0.2.10", result["data"][CONF_HOST])
         self.assertEqual("001E5E0D32906128", result["data"][CONF_TOKEN])
-        self.assertEqual(FakeGateway.connected_unique_id, result["data"]["mac"])
+        self.assertEqual(
+            FakeGateway.connected_unique_id,
+            result["data"][config_flow.CONF_MAC],
+        )
         self.assertTrue(FakeGateway.instances[0].closed)
 
     async def test_user_step_connection_error_returns_form_error(self) -> None:
@@ -136,6 +150,62 @@ class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
             {config_flow.CONF_POLL_FAILURE_THRESHOLD: 7},
             result["data"],
         )
+
+    async def test_reconfigure_updates_existing_entry(self) -> None:
+        entry = _entry()
+        flow = config_flow.SalusFlowHandler()
+        flow.reconfigure_entry = entry
+
+        result = await flow.async_step_reconfigure(
+            {
+                CONF_HOST: " 192.0.2.11 ",
+                CONF_TOKEN: "001e5e0d32906128",
+            }
+        )
+
+        self.assertEqual("abort", result["type"])
+        self.assertEqual("reconfigure_successful", result["reason"])
+        self.assertEqual("192.0.2.11", entry.data[CONF_HOST])
+        self.assertEqual("001E5E0D32906128", entry.data[CONF_TOKEN])
+        self.assertEqual(FakeGateway.connected_unique_id, entry.data[config_flow.CONF_MAC])
+        self.assertTrue(FakeGateway.instances[0].closed)
+
+    async def test_reconfigure_returns_connection_error(self) -> None:
+        FakeGateway.connect_error = IT600ConnectionError("offline")
+        entry = _entry()
+        flow = config_flow.SalusFlowHandler()
+        flow.reconfigure_entry = entry
+
+        result = await flow.async_step_reconfigure(
+            {
+                CONF_HOST: "192.0.2.11",
+                CONF_TOKEN: "001E5E0D32906128",
+            }
+        )
+
+        self.assertEqual("form", result["type"])
+        self.assertEqual("reconfigure", result["step_id"])
+        self.assertEqual("connect_error", result["errors"]["base"])
+        self.assertEqual("192.0.2.10", entry.data[CONF_HOST])
+        self.assertTrue(FakeGateway.instances[0].closed)
+
+    async def test_reauth_updates_existing_entry(self) -> None:
+        entry = _entry()
+        flow = config_flow.SalusFlowHandler()
+        flow.reauth_entry = entry
+
+        result = await flow.async_step_reauth_confirm(
+            {
+                CONF_HOST: "192.0.2.10",
+                CONF_TOKEN: "0000000000000000",
+            }
+        )
+
+        self.assertEqual("abort", result["type"])
+        self.assertEqual("reconfigure_successful", result["reason"])
+        self.assertEqual("0000000000000000", entry.data[CONF_TOKEN])
+        self.assertEqual(FakeGateway.connected_unique_id, entry.data[config_flow.CONF_MAC])
+        self.assertTrue(FakeGateway.instances[0].closed)
 
 
 if __name__ == "__main__":
