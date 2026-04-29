@@ -4,8 +4,8 @@
 
 Translations:
 
-- Add Catalan translations for the Home Assistant configuration, options, and
-  Repairs UI.
+- Add Catalan translations for the Home Assistant configuration, options,
+  Repairs UI, and SQ610 preset labels.
 
 ## 0.7.8 - 2026-04-29
 

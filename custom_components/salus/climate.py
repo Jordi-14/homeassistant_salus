@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant
 from ._climate_state import (
     HA_TO_RAW_FAN_MODE,
     PRESET_FOLLOW_SALUS_SCHEDULE,
+    PRESET_PERMANENT_HOLD,
     PRESET_STANDBY,
     RAW_PRESET_FOLLOW_SCHEDULE,
     RAW_PRESET_OFF,
@@ -55,6 +56,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
     """Representation of a Salus thermostat."""
 
     _enable_turn_on_off_backwards_compatibility = False
+    _attr_translation_key = "thermostat"
 
     @property
     def _device(self) -> Any | None:
@@ -303,7 +305,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                 await self._async_request_debounced_refresh_after_sq610_write()
                 return
             raw_preset_mode = RAW_PRESET_OFF
-        elif preset_mode == RAW_PRESET_PERMANENT_HOLD:
+        elif preset_mode == PRESET_PERMANENT_HOLD:
             if self._is_sq610:
                 await self._async_run_gateway_command(
                     "set SQ610 preset",
@@ -346,7 +348,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
 
     async def async_turn_on(self) -> None:
         """Turn the thermostat on by resuming manual hold."""
-        await self.async_set_preset_mode(RAW_PRESET_PERMANENT_HOLD)
+        await self.async_set_preset_mode(PRESET_PERMANENT_HOLD)
 
     async def async_turn_off(self) -> None:
         """Turn the thermostat off by putting it in standby."""

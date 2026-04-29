@@ -64,5 +64,20 @@
             "description": "Home Assistant no pot arribar a la passarel·la Salus a {host}. Comprova que la passarel·la estigui engegada, que l'adreça IP encara sigui correcta i que el Mode WiFi local estigui activat a l'aplicació de Salus. Si l'EUID imprès a la passarel·la no funciona, prova 0000000000000000.",
             "title": "La passarel·la Salus no està disponible"
         }
+    },
+    "entity": {
+        "climate": {
+            "thermostat": {
+                "state_attributes": {
+                    "preset_mode": {
+                        "state": {
+                            "follow_salus_schedule": "Seguir l'horari de Salus",
+                            "permanent_hold": "Mantenir permanentment",
+                            "standby": "Aturat"
+                        }
+                    }
+                }
+            }
+        }
     }
 }

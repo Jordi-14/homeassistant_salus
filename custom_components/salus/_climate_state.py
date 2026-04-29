@@ -40,10 +40,11 @@ RAW_PRESET_TEMPORARY_HOLD = "Temporary Hold"
 RAW_PRESET_ECO = "Eco"
 RAW_PRESET_OFF = "Off"
 
-PRESET_STANDBY = "Standby"
-PRESET_FOLLOW_SALUS_SCHEDULE = "Follow Salus Schedule"
+PRESET_PERMANENT_HOLD = "permanent_hold"
+PRESET_STANDBY = "standby"
+PRESET_FOLLOW_SALUS_SCHEDULE = "follow_salus_schedule"
 EXPOSED_PRESET_MODES = [
-    RAW_PRESET_PERMANENT_HOLD,
+    PRESET_PERMANENT_HOLD,
     PRESET_STANDBY,
     PRESET_FOLLOW_SALUS_SCHEDULE,
 ]
@@ -262,14 +263,14 @@ def _effective_preset_mode(
         if hold_type == SQ610_HOLD_STANDBY:
             return PRESET_STANDBY
         if hold_type == SQ610_HOLD_PERMANENT:
-            return RAW_PRESET_PERMANENT_HOLD
+            return PRESET_PERMANENT_HOLD
         if hold_type == SQ610_HOLD_AUTO:
             return PRESET_FOLLOW_SALUS_SCHEDULE
 
     if device.preset_mode == RAW_PRESET_OFF:
         return PRESET_STANDBY
     if device.preset_mode in MANUAL_PRESET_MODES:
-        return RAW_PRESET_PERMANENT_HOLD
+        return PRESET_PERMANENT_HOLD
     if device.preset_mode == RAW_PRESET_FOLLOW_SCHEDULE:
         return PRESET_FOLLOW_SALUS_SCHEDULE
     return device.preset_mode

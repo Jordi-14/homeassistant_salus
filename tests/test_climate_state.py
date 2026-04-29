@@ -12,8 +12,8 @@ install()
 
 from custom_components.salus._climate_state import (  # noqa: E402
     PRESET_FOLLOW_SALUS_SCHEDULE,
+    PRESET_PERMANENT_HOLD,
     PRESET_STANDBY,
-    RAW_PRESET_PERMANENT_HOLD,
     build_climate_view_state,
 )
 from salus_it600.const import (  # noqa: E402
@@ -68,7 +68,7 @@ class TestClimateViewState(unittest.TestCase):
         self.assertEqual(HVACMode.COOL, state.hvac_mode)
         self.assertEqual(HVACAction.COOLING, state.hvac_action)
         self.assertEqual(22.5, state.target_temperature)
-        self.assertEqual(RAW_PRESET_PERMANENT_HOLD, state.preset_mode)
+        self.assertEqual(PRESET_PERMANENT_HOLD, state.preset_mode)
 
     def test_sq610_current_temperature_uses_raw_temperature_measurement(self) -> None:
         state = build_climate_view_state(

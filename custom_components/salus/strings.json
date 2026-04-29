@@ -64,5 +64,20 @@
       "title": "Salus Gateway is unavailable",
       "description": "Home Assistant could not reach the Salus Gateway at {host}. Check that the gateway is powered on, the IP address is still correct, and Local WiFi Mode is enabled in the Salus app. If the EUID printed on the gateway does not work, try 0000000000000000."
     }
+  },
+  "entity": {
+    "climate": {
+      "thermostat": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "standby": "Standby",
+              "permanent_hold": "Permanent hold",
+              "follow_salus_schedule": "Follow Salus schedule"
+            }
+          }
+        }
+      }
+    }
   }
 }
