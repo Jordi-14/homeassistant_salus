@@ -1,0 +1,91 @@
+name: Salus Home Assistant support
+description: Report a Salus iT600 Home Assistant integration problem.
+title: "[Support]: "
+labels: ["support"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for setup, polling, entity, diagnostics, and command issues in Home Assistant.
+
+  - type: input
+    id: home_assistant_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.4.0"
+    validations:
+      required: true
+
+  - type: input
+    id: integration_version
+    attributes:
+      label: homeassistant_salus version
+      placeholder: "0.7.0"
+    validations:
+      required: true
+
+  - type: input
+    id: client_version
+    attributes:
+      label: salus-it600-client version
+      placeholder: "0.4.0"
+    validations:
+      required: true
+
+  - type: input
+    id: gateway_model
+    attributes:
+      label: Gateway model and firmware
+      description: Include UGE600/UG800 and firmware version if visible.
+      placeholder: "UGE600, firmware unknown"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: gateway_protocol
+    attributes:
+      label: Gateway protocol
+      options:
+        - Unknown
+        - AES-CBC / legacy
+        - AES-CCM / newer firmware
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected_devices
+    attributes:
+      label: Affected devices
+      description: List device models, entity IDs, and what is wrong.
+      placeholder: "SQ610RF climate.bedroom shows no current temperature."
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Attach diagnostics or paste relevant redacted snippets. The EUID is redacted, but review host/IP and device IDs before posting publicly.
+      placeholder: "Attach config_entry-salus-*.json or paste relevant gateway/device sections."
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste relevant Home Assistant logs from startup, reload, polling, or the failed command.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Restart Home Assistant.
+        2. Reload the Salus config entry.
+        3. Toggle switch.x or set climate.y target temperature.
+    validations:
+      required: true

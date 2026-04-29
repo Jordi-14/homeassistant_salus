@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+P1 near-term hardening:
+
+- Document Home Assistant diagnostics download and what to include in support
+  requests.
+- Add a GitHub issue form for Home Assistant support reports.
+
 P0 release hardening for the current tested pair:
 
 - `homeassistant_salus 0.7.0`
