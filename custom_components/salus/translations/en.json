@@ -2,7 +2,10 @@
     "config": {
         "abort": {
             "already_configured": "Device is already configured",
-            "already_in_progress": "Config flow for this Salus device is already in progress."
+            "already_in_progress": "Config flow for this Salus device is already in progress.",
+            "reauth_successful": "Salus Gateway credentials were updated.",
+            "reconfigure_successful": "Salus Gateway connection settings were updated.",
+            "wrong_gateway": "The updated settings connected to a different Salus gateway."
         },
         "error": {
             "auth_error": "Failed to connect, please check EUID",
@@ -12,6 +15,22 @@
         },
         "flow_title": "Salus: {name}",
         "step": {
+            "reauth_confirm": {
+                "data": {
+                    "host": "IP Address",
+                    "token": "EUID"
+                },
+                "description": "Home Assistant could not authenticate with the gateway. Check the EUID on the gateway label, or try 0000000000000000 if the printed EUID does not work.",
+                "title": "Update Salus Gateway credentials"
+            },
+            "reconfigure": {
+                "data": {
+                    "host": "IP Address",
+                    "token": "EUID"
+                },
+                "description": "Update the gateway IP address or EUID. Use this if the gateway IP changed, Local WiFi Mode was changed, or you need to try the all-zero EUID fallback.",
+                "title": "Update Salus Gateway connection"
+            },
             "user": {
                 "data": {
                     "host": "IP Address",
@@ -32,6 +51,12 @@
                 "description": "Tune how the integration handles transient gateway polling failures.",
                 "title": "Salus options"
             }
+        }
+    },
+    "issues": {
+        "gateway_unavailable": {
+            "description": "Home Assistant could not reach the Salus Gateway at {host}. Check that the gateway is powered on, the IP address is still correct, and Local WiFi Mode is enabled in the Salus app. If the EUID printed on the gateway does not work, try 0000000000000000.",
+            "title": "Salus Gateway is unavailable"
         }
     }
 }

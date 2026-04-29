@@ -43,8 +43,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from salus_it600.exceptions import (
@@ -64,6 +66,9 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+ISSUE_GATEWAY_UNAVAILABLE = "gateway_unavailable"
+TROUBLESHOOTING_URL = "https://github.com/Jordi-14/homeassistant_salus#troubleshooting"
 
 
 def _utcnow_iso() -> str:
@@ -338,6 +343,7 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
                     ex,
                 )
                 return cached_data
+            self._async_create_gateway_unavailable_issue()
             raise UpdateFailed(f"Salus gateway is unavailable: {ex}") from ex
         except Exception as ex:
             self._record_update_failure(ex)
@@ -366,6 +372,7 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         health.consecutive_update_failures = 0
         health.last_successful_update_at = _utcnow_iso()
         health.last_update_error = None
+        self._async_delete_gateway_unavailable_issue()
 
     def _record_update_failure(self, ex: Exception) -> None:
         """Record a failed coordinator update."""
@@ -374,6 +381,35 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         health.consecutive_update_failures += 1
         health.last_failed_update_at = _utcnow_iso()
         health.last_update_error = _exception_summary(ex)
+
+    def _gateway_unavailable_issue_id(self) -> str:
+        """Return the repairs issue ID for this config entry."""
+        entry_id = getattr(self._config_entry, "entry_id", "gateway")
+        return f"{entry_id}_{ISSUE_GATEWAY_UNAVAILABLE}"
+
+    def _async_create_gateway_unavailable_issue(self) -> None:
+        """Create an actionable repairs issue for persistent gateway failures."""
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            self._gateway_unavailable_issue_id(),
+            is_fixable=False,
+            is_persistent=False,
+            learn_more_url=TROUBLESHOOTING_URL,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key=ISSUE_GATEWAY_UNAVAILABLE,
+            translation_placeholders={
+                "host": str(self._config_entry.data.get(CONF_HOST, "configured host")),
+            },
+        )
+
+    def _async_delete_gateway_unavailable_issue(self) -> None:
+        """Remove the gateway-unavailable repairs issue after recovery."""
+        ir.async_delete_issue(
+            self.hass,
+            DOMAIN,
+            self._gateway_unavailable_issue_id(),
+        )
 
     def _record_raw_sq610_fetch_success(self) -> None:
         """Record a successful raw SQ610 property fetch."""
