@@ -1,0 +1,68 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "El dispositiu ja està configurat",
+            "already_in_progress": "Ja hi ha una configuració en curs per a aquest dispositiu Salus.",
+            "reauth_successful": "S'han actualitzat les credencials de la passarel·la Salus.",
+            "reconfigure_successful": "S'han actualitzat els paràmetres de connexió de la passarel·la Salus.",
+            "wrong_gateway": "Els paràmetres actualitzats han connectat amb una passarel·la Salus diferent."
+        },
+        "error": {
+            "auth_error": "No s'ha pogut connectar; comprova l'EUID",
+            "connect_error": "No s'ha pogut connectar; comprova l'adreça IP",
+            "invalid_euid": "L'EUID ha de tenir exactament 16 caràcters hexadecimals",
+            "unsupported_firmware": "El firmware de la passarel·la utilitza un protocol local no compatible",
+            "unknown": "Error inesperat"
+        },
+        "flow_title": "Salus: {name}",
+        "step": {
+            "reauth_confirm": {
+                "data": {
+                    "host": "Adreça IP",
+                    "token": "EUID"
+                },
+                "description": "Home Assistant no s'ha pogut autenticar amb la passarel·la. Comprova l'EUID de l'etiqueta de la passarel·la, o prova 0000000000000000 si l'EUID imprès no funciona.",
+                "title": "Actualitza les credencials de la passarel·la Salus"
+            },
+            "reconfigure": {
+                "data": {
+                    "host": "Adreça IP",
+                    "token": "EUID"
+                },
+                "description": "Actualitza l'adreça IP o l'EUID de la passarel·la. Fes-ho servir si ha canviat la IP de la passarel·la, si ha canviat el Mode WiFi local o si vols provar l'EUID alternatiu de tots zeros.",
+                "title": "Actualitza la connexió de la passarel·la Salus"
+            },
+            "user": {
+                "data": {
+                    "host": "Adreça IP",
+                    "name": "Nom de la passarel·la",
+                    "token": "EUID"
+                },
+                "description": "Necessitaràs l'adreça IP i els primers 16 caràcters de l'EUID, sense espais, que trobaràs a la part inferior de la passarel·la sota el port microUSB (per exemple, 001E5E0D32906128).",
+                "title": "Connecta amb la passarel·la Salus"
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "poll_failure_threshold": "Sondejos fallits abans de marcar com a no disponible",
+                    "post_command_refresh_delay": "Retard de verificació de l'ordre"
+                },
+                "data_description": {
+                    "poll_failure_threshold": "Nombre de sondejos fallits consecutius que es toleren abans de marcar les entitats com a no disponibles.",
+                    "post_command_refresh_delay": "Segons que cal esperar abans del segon refresc després d'una ordre. També s'executa un refresc ràpid al cap de 0,5 segons."
+                },
+                "description": "Ajusta la disponibilitat de la passarel·la i el temps de verificació de les ordres.",
+                "title": "Opcions de Salus"
+            }
+        }
+    },
+    "issues": {
+        "gateway_unavailable": {
+            "description": "Home Assistant no pot arribar a la passarel·la Salus a {host}. Comprova que la passarel·la estigui engegada, que l'adreça IP encara sigui correcta i que el Mode WiFi local estigui activat a l'aplicació de Salus. Si l'EUID imprès a la passarel·la no funciona, prova 0000000000000000.",
+            "title": "La passarel·la Salus no està disponible"
+        }
+    }
+}

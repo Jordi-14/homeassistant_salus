@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.9 - 2026-04-29
+
+Translations:
+
+- Add Catalan translations for the Home Assistant configuration, options, and
+  Repairs UI.
+
 ## 0.7.8 - 2026-04-29
 
 Options UI polish:
