@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.11 - 2026-04-29
+
+Polish:
+
+- Require `salus-it600-client 0.4.4`.
+- Mark RS600/SR600 covers as shutters for better Home Assistant UI display.
+- Add state classes for battery, humidity, power, temperature, and energy
+  sensors so they can participate in Home Assistant long-term statistics.
+- Refresh README examples that still referenced older client versions.
+
 ## 0.7.9 - 2026-04-29
 
 Translations:

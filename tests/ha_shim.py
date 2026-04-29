@@ -159,6 +159,13 @@ class NumberSelectorMode(StrEnum):
     SLIDER = "slider"
 
 
+class SensorStateClass(StrEnum):
+    """Minimal SensorStateClass stand-in."""
+
+    MEASUREMENT = "measurement"
+    TOTAL_INCREASING = "total_increasing"
+
+
 class NumberSelectorConfig(dict):
     """Minimal NumberSelectorConfig stand-in."""
 
@@ -318,6 +325,7 @@ def install() -> None:
     cover.CoverEntity = type("CoverEntity", (), {})
     lock.LockEntity = type("LockEntity", (), {})
     sensor.SensorEntity = type("SensorEntity", (), {})
+    sensor.SensorStateClass = SensorStateClass
     switch.SwitchEntity = type("SwitchEntity", (), {})
 
     config_entries.ConfigEntry = type("ConfigEntry", (), {})

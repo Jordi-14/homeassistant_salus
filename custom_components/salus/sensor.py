@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -13,6 +13,14 @@ from .coordinator import SalusData, SalusRuntimeData
 from .entity import SalusEntity, async_add_salus_entities
 
 PARALLEL_UPDATES = 0
+
+STATE_CLASS_BY_DEVICE_CLASS = {
+    "battery": SensorStateClass.MEASUREMENT,
+    "humidity": SensorStateClass.MEASUREMENT,
+    "power": SensorStateClass.MEASUREMENT,
+    "temperature": SensorStateClass.MEASUREMENT,
+    "energy": SensorStateClass.TOTAL_INCREASING,
+}
 
 
 async def async_setup_entry(
@@ -60,6 +68,13 @@ class SalusSensor(SalusEntity, SensorEntity):
     def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement of this entity, if any."""
         return None if self._device is None else self._device.unit_of_measurement
+
+    @property
+    def state_class(self) -> SensorStateClass | None:
+        """Return the long-term statistics behavior for numeric sensors."""
+        if self._device is None:
+            return None
+        return STATE_CLASS_BY_DEVICE_CLASS.get(self._device.device_class)
 
     @property
     def device_class(self) -> str | None:

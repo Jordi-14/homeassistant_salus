@@ -7,7 +7,7 @@ import unittest
 from types import SimpleNamespace
 from typing import Any
 
-from tests.ha_shim import HVACMode, HomeAssistantError, install
+from tests.ha_shim import HVACMode, HomeAssistantError, SensorStateClass, install
 
 install()
 
@@ -174,6 +174,19 @@ class FakeCoordinator:
                     parent_unique_id="switch-1",
                     entity_category=None,
                 ),
+                "switch-1_energy": SimpleNamespace(
+                    available=True,
+                    unique_id="switch-1_energy",
+                    name="Switch Energy",
+                    manufacturer="SALUS",
+                    model="SPE600",
+                    sw_version=None,
+                    state=12.345,
+                    unit_of_measurement="kWh",
+                    device_class="energy",
+                    parent_unique_id="switch-1",
+                    entity_category=None,
+                ),
                 "standalone-1_temp": SimpleNamespace(
                     available=True,
                     unique_id="standalone-1_temp",
@@ -271,6 +284,8 @@ class TestCommandEntities(unittest.IsolatedAsyncioTestCase):
         coordinator = FakeCoordinator()
         entity = SalusCover(coordinator, "cover-1")
 
+        self.assertEqual("shutter", entity.device_class)
+
         await entity.async_open_cover()
         await entity.async_close_cover()
         await entity.async_set_cover_position(position=42)
@@ -291,10 +306,27 @@ class TestCommandEntities(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(75, entity.native_value)
         self.assertEqual("battery", entity.device_class)
+        self.assertEqual(SensorStateClass.MEASUREMENT, entity.state_class)
         self.assertEqual("diagnostic", entity.entity_category)
         self.assertEqual(
             {"identifiers": {(DOMAIN, "climate-1")}},
             entity.device_info,
+        )
+
+    async def test_sensor_state_class_matches_device_class(self) -> None:
+        coordinator = FakeCoordinator()
+
+        self.assertEqual(
+            SensorStateClass.MEASUREMENT,
+            SalusSensor(coordinator, "switch-1_power").state_class,
+        )
+        self.assertEqual(
+            SensorStateClass.TOTAL_INCREASING,
+            SalusSensor(coordinator, "switch-1_energy").state_class,
+        )
+        self.assertEqual(
+            SensorStateClass.MEASUREMENT,
+            SalusSensor(coordinator, "standalone-1_temp").state_class,
         )
 
     async def test_primary_standalone_sensor_uses_physical_device_id(self) -> None:

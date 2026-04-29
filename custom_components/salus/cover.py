@@ -13,6 +13,11 @@ from .entity import SalusEntity, async_add_salus_entities
 
 PARALLEL_UPDATES = 1
 
+COVER_DEVICE_CLASS_BY_MODEL = {
+    "RS600": "shutter",
+    "SR600": "shutter",
+}
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -49,7 +54,11 @@ class SalusCover(SalusEntity, CoverEntity):
     @property
     def device_class(self) -> str | None:
         """Return the device class of the cover."""
-        return None if self._device is None else self._device.device_class
+        if self._device is None:
+            return None
+        return self._device.device_class or COVER_DEVICE_CLASS_BY_MODEL.get(
+            self._device.model
+        )
 
     @property
     def current_cover_position(self) -> int | None:

@@ -23,10 +23,13 @@ Copy `custom_components/salus` from this repository to
 
 ## Migration Notes
 
-Version `0.6.0` switches the integration from the unmaintained `pyit600`
-dependency to `salus-it600-client==0.2.0`. Existing Home Assistant config
-entries continue to use the same `salus` integration domain, so normal HACS
-updates should only require a restart.
+This fork uses the maintained `salus-it600-client` package instead of the
+unmaintained `pyit600` dependency. Existing Home Assistant config entries keep
+the same `salus` integration domain, so normal HACS updates should only require
+a restart.
+
+The exact client version is pinned in `custom_components/salus/manifest.json`.
+The current tested integration line uses `salus-it600-client==0.4.4`.
 
 Custom Python code outside this integration that imports `pyit600` should be
 updated to import from `salus_it600` instead.
@@ -51,7 +54,7 @@ Known supported categories:
 - binary sensors: SW600, WLS600, OS600, SD600, TRV10RFM, RX10RF
 - temperature sensors: PS600
 - switches: SPE600, RS600, SR600
-- covers: RS600
+- covers: RS600, SR600
 
 Known unsupported devices:
 
@@ -175,13 +178,14 @@ coordinator.py (DataUpdateCoordinator)
 |--------|---------|
 | `config_flow.py` | Validates EUID, tests gateway connection, creates config entry |
 | `__init__.py` | Sets up coordinator, registers gateway device, forwards platforms |
-| `coordinator.py` | Polls gateway every 10s, aggregates device data, notifies platforms |
+| `coordinator.py` | Polls gateway every 20s, aggregates device data, notifies platforms |
 | `entity.py` | Base entity class, device registry pattern, entity factory helper |
 | `climate.py` | Thermostat entities, SQ610 special handling, mode/preset mapping |
 | `switch.py` | Relay/switch entities, on/off control |
 | `binary_sensor.py` | Door/window sensors, state interpretation |
 | `cover.py` | Blind/shutter entities, position control |
-| `sensor.py` | Temperature/humidity sensors, state mapping |
+| `sensor.py` | Temperature/humidity/power/energy sensors, state and statistics mapping |
+| `lock.py` | Thermostat keypad lock entities |
 | `const.py` | Constants (polling interval, platforms, domain) |
 | `strings.json` | Translatable strings for config flow UI |
 
@@ -259,8 +263,8 @@ Edit `custom_components/salus/manifest.json`:
   "documentation": "https://github.com/Jordi-14/homeassistant_salus",
   "homeassistant": "2024.8.0",
   "iot_class": "local_polling",
-  "requirements": ["salus-it600-client==0.2.0"],
-  "platforms": ["binary_sensor", "climate", "cover", "sensor", "switch", "<new_platform>"]
+  "requirements": ["salus-it600-client==0.4.4"],
+  "platforms": ["binary_sensor", "climate", "cover", "lock", "sensor", "switch", "<new_platform>"]
 }
 ```
 
@@ -298,7 +302,9 @@ Create `tests/test_<platform>.py` with:
 
 ```bash
 cd homeassistant_salus
-python -m pytest tests/
+python3 -m unittest discover -q
+python3 -m ruff check custom_components tests
+python3 -m compileall -q custom_components tests
 ```
 
 ### Testing with a Real Gateway
@@ -328,7 +334,7 @@ Pre-commit config (add to `.pre-commit-config.yaml`):
 ```yaml
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.2.0
+    rev: v0.15.12
     hooks:
       - id: ruff
         args: [--fix]
