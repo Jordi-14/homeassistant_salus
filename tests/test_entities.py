@@ -5,14 +5,19 @@ from __future__ import annotations
 import asyncio
 import unittest
 from types import SimpleNamespace
+from typing import Any
 
-from tests.ha_shim import install
+from tests.ha_shim import HVACMode, install
 
 install()
 
 from custom_components.salus.coordinator import SalusData  # noqa: E402
 from custom_components.salus.cover import SalusCover  # noqa: E402
 from custom_components.salus.climate import SalusThermostat  # noqa: E402
+from custom_components.salus._climate_state import (  # noqa: E402
+    PRESET_FOLLOW_SALUS_SCHEDULE,
+    RAW_PRESET_OFF,
+)
 from custom_components.salus.binary_sensor import SalusBinarySensor  # noqa: E402
 from custom_components.salus.lock import SalusThermostatLock  # noqa: E402
 from custom_components.salus.sensor import SalusSensor  # noqa: E402
@@ -24,7 +29,7 @@ class FakeGateway:
     """Gateway fake for command entity tests."""
 
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str, int | None]] = []
+        self.calls: list[tuple[Any, ...]] = []
 
     async def turn_on_switch_device(self, device_id: str) -> None:
         self.calls.append(("turn_on_switch", device_id, None))
@@ -43,6 +48,23 @@ class FakeGateway:
 
     async def set_climate_device_locked(self, device_id: str, locked: bool) -> None:
         self.calls.append(("set_climate_locked", device_id, int(locked)))
+
+    async def set_sq610_device_temperature(
+        self,
+        device_id: str,
+        setpoint_celsius: float,
+        *,
+        cooling: bool = False,
+    ) -> None:
+        self.calls.append(
+            ("set_sq610_temperature", device_id, setpoint_celsius, cooling)
+        )
+
+    async def set_sq610_device_hvac_mode(self, device_id: str, mode: str) -> None:
+        self.calls.append(("set_sq610_hvac_mode", device_id, mode))
+
+    async def set_sq610_device_preset(self, device_id: str, preset: str) -> None:
+        self.calls.append(("set_sq610_preset", device_id, preset))
 
 
 class FakeCoordinator:
@@ -63,6 +85,21 @@ class FakeCoordinator:
                     model="SQ610RF",
                     sw_version=None,
                     locked=False,
+                    temperature_unit="°C",
+                    precision=0.1,
+                    current_temperature=20.0,
+                    current_humidity=45.0,
+                    target_temperature=21.0,
+                    max_temp=35.0,
+                    min_temp=5.0,
+                    hvac_mode="heat",
+                    hvac_action="idle",
+                    hvac_modes=["heat", "cool"],
+                    preset_mode="Permanent Hold",
+                    preset_modes=["Follow Schedule", "Permanent Hold", "Off"],
+                    fan_mode=None,
+                    fan_modes=None,
+                    extra_state_attributes=None,
                 )
             },
             binary_sensor_devices={
@@ -160,6 +197,30 @@ class FakeCoordinator:
 class TestCommandEntities(unittest.IsolatedAsyncioTestCase):
     async def test_climate_turn_on_off_backwards_compatibility_is_disabled(self) -> None:
         self.assertFalse(SalusThermostat._enable_turn_on_off_backwards_compatibility)
+
+    async def test_sq610_commands_use_high_level_gateway_methods(self) -> None:
+        coordinator = FakeCoordinator()
+        entity = SalusThermostat(coordinator, "climate-1")
+
+        await entity.async_set_temperature(temperature=22.5)
+        await entity.async_set_hvac_mode(HVACMode.COOL)
+        await entity.async_set_preset_mode(PRESET_FOLLOW_SALUS_SCHEDULE)
+        await entity.async_turn_off()
+
+        self.assertEqual(
+            [
+                ("set_sq610_temperature", "climate-1", 22.5, False),
+                ("set_sq610_hvac_mode", "climate-1", HVACMode.COOL),
+                (
+                    "set_sq610_preset",
+                    "climate-1",
+                    "Follow Schedule",
+                ),
+                ("set_sq610_preset", "climate-1", RAW_PRESET_OFF),
+            ],
+            coordinator.gateway.calls,
+        )
+        self.assertEqual(4, coordinator.refresh_requests)
 
     async def test_switch_commands_write_gateway_and_debounce_refresh(self) -> None:
         coordinator = FakeCoordinator()

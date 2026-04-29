@@ -9,3 +9,5 @@
    Assistant instance.
 7. Reload the config entry and verify one gateway poll plus one safe command on
    a real Salus gateway.
+8. Check Home Assistant release notes for integration API deprecations affecting
+   config entries, entity platforms, diagnostics, or manifest metadata.
