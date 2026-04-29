@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -25,21 +26,33 @@ from .coordinator import SalusDataUpdateCoordinator, SalusRuntimeData
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Salus iT600 from a config entry."""
     gateway = IT600Gateway(host=entry.data[CONF_HOST], euid=entry.data[CONF_TOKEN])
+    runtime_data: SalusRuntimeData | None = None
 
-    await _async_connect_gateway(gateway)
+    try:
+        await _async_connect_gateway(gateway)
 
-    coordinator = SalusDataUpdateCoordinator(hass, entry, gateway)
-    runtime_data = SalusRuntimeData(gateway=gateway, coordinator=coordinator)
-    entry.runtime_data = runtime_data
+        coordinator = SalusDataUpdateCoordinator(hass, entry, gateway)
+        runtime_data = SalusRuntimeData(gateway=gateway, coordinator=coordinator)
+        entry.runtime_data = runtime_data
 
-    await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_config_entry_first_refresh()
 
-    gateway_info = gateway.get_gateway_device()
-    coordinator.gateway_id = gateway_info.unique_id
-    _async_register_gateway_device(hass, entry, gateway_info)
+        gateway_info = gateway.get_gateway_device()
+        coordinator.gateway_id = gateway_info.unique_id
+        _async_register_gateway_device(hass, entry, gateway_info)
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime_data
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime_data
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    except Exception:
+        with suppress(Exception):
+            await gateway.close()
+        if (
+            runtime_data is not None
+            and getattr(entry, "runtime_data", None) is runtime_data
+        ):
+            entry.runtime_data = None
+        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+        raise
 
     return True
 
@@ -103,6 +116,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
+        await runtime_data.gateway.close()
         hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
 
     return unload_ok
