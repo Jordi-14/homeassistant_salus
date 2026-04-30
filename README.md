@@ -157,12 +157,17 @@ Archived upstream issue notes for future maintenance live in
 
 This fork uses `salus-it600-client`, a maintained successor of the original
 `pyit600` library. The package was renamed to avoid conflicts with the
-unmaintained `pyit600` distribution while preserving the original MIT license
+unmaintained `pyit600` distribution while preserving the original MIT notices
 and attribution.
 
 Gateway protocol handling, payload compatibility, commands, and device models
 live in `salus-it600-client`. This integration keeps the Home Assistant config
 flow, coordinator, and entity platform code.
+
+## License
+
+This project is dual licensed under `MIT OR Apache-2.0`. See [LICENSE](LICENSE),
+[LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE), and [NOTICE](NOTICE).
 
 ## Project Origin
 

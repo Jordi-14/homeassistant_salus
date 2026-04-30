@@ -1,0 +1,11 @@
+Salus iT600 Home Assistant integration
+
+This project is a maintained fork/successor of:
+
+- https://github.com/konradb3/homeassistant_salus
+- https://github.com/epoplavskis/homeassistant_salus
+
+It also incorporates and reworks feature ideas and code from Leonard Pitzu's
+MIT-licensed fork:
+
+- https://github.com/leonardpitzu/homeassistant_salus
