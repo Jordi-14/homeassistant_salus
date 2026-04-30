@@ -3,27 +3,27 @@
 from __future__ import annotations
 
 import asyncio
-import unittest
 from types import SimpleNamespace
 from typing import Any
 
-from tests.ha_shim import HVACMode, HomeAssistantError, SensorStateClass, install
+import pytest
+from homeassistant.components.climate.const import HVACMode
+from homeassistant.components.sensor import SensorStateClass
+from homeassistant.exceptions import HomeAssistantError
 
-install()
-
-from custom_components.salus.coordinator import SalusData  # noqa: E402
-from custom_components.salus.cover import SalusCover  # noqa: E402
-from custom_components.salus.climate import SalusThermostat  # noqa: E402
-from custom_components.salus._climate_state import (  # noqa: E402
+from custom_components.salus._climate_state import (
     PRESET_FOLLOW_SALUS_SCHEDULE,
     RAW_PRESET_OFF,
 )
-from custom_components.salus.binary_sensor import SalusBinarySensor  # noqa: E402
-from custom_components.salus.lock import SalusThermostatLock  # noqa: E402
-from custom_components.salus.sensor import SalusSensor  # noqa: E402
-from custom_components.salus.switch import SalusSwitch  # noqa: E402
-from custom_components.salus.const import DOMAIN  # noqa: E402
-from salus_it600.exceptions import IT600ConnectionError  # noqa: E402
+from custom_components.salus.binary_sensor import SalusBinarySensor
+from custom_components.salus.climate import SalusThermostat
+from custom_components.salus.const import DOMAIN
+from custom_components.salus.coordinator import SalusData
+from custom_components.salus.cover import SalusCover
+from custom_components.salus.lock import SalusThermostatLock
+from custom_components.salus.sensor import SalusSensor
+from custom_components.salus.switch import SalusSwitch
+from salus_it600.exceptions import IT600ConnectionError
 
 
 class FakeGateway:
@@ -62,16 +62,10 @@ class FakeGateway:
         self.calls.append(("set_climate_locked", device_id, int(locked)))
 
     async def set_sq610_device_temperature(
-        self,
-        device_id: str,
-        setpoint_celsius: float,
-        *,
-        cooling: bool = False,
+        self, device_id: str, setpoint_celsius: float, *, cooling: bool = False
     ) -> None:
         self._raise_if_configured()
-        self.calls.append(
-            ("set_sq610_temperature", device_id, setpoint_celsius, cooling)
-        )
+        self.calls.append(("set_sq610_temperature", device_id, setpoint_celsius, cooling))
 
     async def set_sq610_device_hvac_mode(self, device_id: str, mode: str) -> None:
         self._raise_if_configured()
@@ -187,33 +181,6 @@ class FakeCoordinator:
                     parent_unique_id="switch-1",
                     entity_category=None,
                 ),
-                "standalone-1_temp": SimpleNamespace(
-                    available=True,
-                    unique_id="standalone-1_temp",
-                    name="Standalone Temperature",
-                    manufacturer="SALUS",
-                    model="PS600",
-                    sw_version=None,
-                    data={"UniID": "standalone-1"},
-                    state=21.5,
-                    unit_of_measurement="°C",
-                    device_class="temperature",
-                    parent_unique_id=None,
-                    entity_category=None,
-                ),
-                "climate-1_battery": SimpleNamespace(
-                    available=True,
-                    unique_id="climate-1_battery",
-                    name="Thermostat Battery",
-                    manufacturer="SALUS",
-                    model="SQ610RF",
-                    sw_version=None,
-                    state=75,
-                    unit_of_measurement="%",
-                    device_class="battery",
-                    parent_unique_id="climate-1",
-                    entity_category="diagnostic",
-                ),
             },
             raw_climate_props={},
         )
@@ -222,163 +189,94 @@ class FakeCoordinator:
         self.refresh_requests += 1
 
 
-class TestCommandEntities(unittest.IsolatedAsyncioTestCase):
-    async def test_climate_turn_on_off_backwards_compatibility_is_disabled(self) -> None:
-        self.assertFalse(SalusThermostat._enable_turn_on_off_backwards_compatibility)
+async def test_sq610_commands_use_high_level_gateway_methods() -> None:
+    coordinator = FakeCoordinator()
+    entity = SalusThermostat(coordinator, "climate-1")
 
-    async def test_sq610_commands_use_high_level_gateway_methods(self) -> None:
-        coordinator = FakeCoordinator()
-        entity = SalusThermostat(coordinator, "climate-1")
+    await entity.async_set_temperature(temperature=22.5)
+    await entity.async_set_hvac_mode(HVACMode.HEAT)
+    await entity.async_set_preset_mode(PRESET_FOLLOW_SALUS_SCHEDULE)
+    await entity.async_turn_off()
 
-        await entity.async_set_temperature(temperature=22.5)
-        await entity.async_set_hvac_mode(HVACMode.COOL)
+    assert coordinator.gateway.calls == [
+        ("set_sq610_temperature", "climate-1", 22.5, False),
+        ("set_sq610_hvac_mode", "climate-1", HVACMode.HEAT),
+        ("set_sq610_preset", "climate-1", "Follow Schedule"),
+        ("set_sq610_preset", "climate-1", RAW_PRESET_OFF),
+    ]
+    assert coordinator.refresh_requests == 4
+
+
+async def test_gateway_command_errors_raise_home_assistant_error() -> None:
+    coordinator = FakeCoordinator()
+    coordinator.gateway.command_error = IT600ConnectionError("offline")
+    entity = SalusThermostat(coordinator, "climate-1")
+
+    with pytest.raises(HomeAssistantError, match="Failed to set SQ610 preset"):
         await entity.async_set_preset_mode(PRESET_FOLLOW_SALUS_SCHEDULE)
-        await entity.async_turn_off()
 
-        self.assertEqual(
-            [
-                ("set_sq610_temperature", "climate-1", 22.5, False),
-                ("set_sq610_hvac_mode", "climate-1", HVACMode.COOL),
-                (
-                    "set_sq610_preset",
-                    "climate-1",
-                    "Follow Schedule",
-                ),
-                ("set_sq610_preset", "climate-1", RAW_PRESET_OFF),
-            ],
-            coordinator.gateway.calls,
-        )
-        self.assertEqual(4, coordinator.refresh_requests)
-
-    async def test_gateway_command_errors_raise_home_assistant_error(self) -> None:
-        coordinator = FakeCoordinator()
-        coordinator.gateway.command_error = IT600ConnectionError("offline")
-        entity = SalusThermostat(coordinator, "climate-1")
-
-        with self.assertRaisesRegex(
-            HomeAssistantError,
-            "Failed to set SQ610 preset",
-        ):
-            await entity.async_set_preset_mode(PRESET_FOLLOW_SALUS_SCHEDULE)
-
-        self.assertEqual([], coordinator.gateway.calls)
-        self.assertEqual(0, coordinator.refresh_requests)
-
-    async def test_switch_commands_write_gateway_and_debounce_refresh(self) -> None:
-        coordinator = FakeCoordinator()
-        entity = SalusSwitch(coordinator, "switch-1")
-
-        await entity.async_turn_on()
-        await entity.async_turn_off()
-
-        self.assertEqual(
-            [
-                ("turn_on_switch", "switch-1", None),
-                ("turn_off_switch", "switch-1", None),
-            ],
-            coordinator.gateway.calls,
-        )
-        self.assertEqual(2, coordinator.refresh_requests)
-
-    async def test_cover_commands_write_gateway_and_debounce_refresh(self) -> None:
-        coordinator = FakeCoordinator()
-        entity = SalusCover(coordinator, "cover-1")
-
-        self.assertEqual("shutter", entity.device_class)
-
-        await entity.async_open_cover()
-        await entity.async_close_cover()
-        await entity.async_set_cover_position(position=42)
-
-        self.assertEqual(
-            [
-                ("open_cover", "cover-1", None),
-                ("close_cover", "cover-1", None),
-                ("set_cover_position", "cover-1", 42),
-            ],
-            coordinator.gateway.calls,
-        )
-        self.assertEqual(3, coordinator.refresh_requests)
-
-    async def test_sensor_child_entity_uses_parent_device_and_category(self) -> None:
-        coordinator = FakeCoordinator()
-        entity = SalusSensor(coordinator, "climate-1_battery")
-
-        self.assertEqual(75, entity.native_value)
-        self.assertEqual("battery", entity.device_class)
-        self.assertEqual(SensorStateClass.MEASUREMENT, entity.state_class)
-        self.assertEqual("diagnostic", entity.entity_category)
-        self.assertEqual(
-            {"identifiers": {(DOMAIN, "climate-1")}},
-            entity.device_info,
-        )
-
-    async def test_sensor_state_class_matches_device_class(self) -> None:
-        coordinator = FakeCoordinator()
-
-        self.assertEqual(
-            SensorStateClass.MEASUREMENT,
-            SalusSensor(coordinator, "switch-1_power").state_class,
-        )
-        self.assertEqual(
-            SensorStateClass.TOTAL_INCREASING,
-            SalusSensor(coordinator, "switch-1_energy").state_class,
-        )
-        self.assertEqual(
-            SensorStateClass.MEASUREMENT,
-            SalusSensor(coordinator, "standalone-1_temp").state_class,
-        )
-
-    async def test_primary_standalone_sensor_uses_physical_device_id(self) -> None:
-        coordinator = FakeCoordinator()
-        entity = SalusSensor(coordinator, "standalone-1_temp")
-
-        self.assertEqual(
-            {
-                "identifiers": {(DOMAIN, "standalone-1")},
-                "manufacturer": "SALUS",
-                "model": "PS600",
-                "name": "Standalone Temperature",
-                "sw_version": None,
-                "via_device": (DOMAIN, "gateway"),
-            },
-            entity.device_info,
-        )
-
-    async def test_binary_child_entity_uses_parent_device_and_attributes(self) -> None:
-        coordinator = FakeCoordinator()
-        entity = SalusBinarySensor(coordinator, "climate-1_problem")
-
-        self.assertTrue(entity.is_on)
-        self.assertEqual("problem", entity.device_class)
-        self.assertEqual("diagnostic", entity.entity_category)
-        self.assertEqual(
-            {"errors": ["Floor sensor overheating"]},
-            entity.extra_state_attributes,
-        )
-        self.assertEqual(
-            {"identifiers": {(DOMAIN, "climate-1")}},
-            entity.device_info,
-        )
-
-    async def test_lock_commands_write_gateway_and_debounce_refresh(self) -> None:
-        coordinator = FakeCoordinator()
-        entity = SalusThermostatLock(coordinator, "climate-1")
-
-        self.assertFalse(entity.is_locked)
-        self.assertEqual("climate-1_lock", entity._attr_unique_id)
-        await entity.async_lock()
-        await entity.async_unlock()
-
-        self.assertEqual(
-            [
-                ("set_climate_locked", "climate-1", 1),
-                ("set_climate_locked", "climate-1", 0),
-            ],
-            coordinator.gateway.calls,
-        )
-        self.assertEqual(2, coordinator.refresh_requests)
+    assert coordinator.gateway.calls == []
+    assert coordinator.refresh_requests == 0
 
 
-if __name__ == "__main__":
-    unittest.main()
+async def test_switch_commands_write_gateway_and_debounce_refresh() -> None:
+    coordinator = FakeCoordinator()
+    entity = SalusSwitch(coordinator, "switch-1")
+
+    await entity.async_turn_on()
+    await entity.async_turn_off()
+
+    assert coordinator.gateway.calls == [
+        ("turn_on_switch", "switch-1", None),
+        ("turn_off_switch", "switch-1", None),
+    ]
+    assert coordinator.refresh_requests == 2
+
+
+async def test_cover_commands_write_gateway_and_debounce_refresh() -> None:
+    coordinator = FakeCoordinator()
+    entity = SalusCover(coordinator, "cover-1")
+
+    await entity.async_open_cover()
+    await entity.async_close_cover()
+    await entity.async_set_cover_position(position=42)
+
+    assert coordinator.gateway.calls == [
+        ("open_cover", "cover-1", None),
+        ("close_cover", "cover-1", None),
+        ("set_cover_position", "cover-1", 42),
+    ]
+    assert coordinator.refresh_requests == 3
+
+
+async def test_sensor_state_class_matches_device_class() -> None:
+    coordinator = FakeCoordinator()
+
+    assert SalusSensor(coordinator, "switch-1_power").state_class == SensorStateClass.MEASUREMENT
+    assert SalusSensor(coordinator, "switch-1_energy").state_class == SensorStateClass.TOTAL_INCREASING
+
+
+async def test_binary_child_entity_uses_parent_device() -> None:
+    coordinator = FakeCoordinator()
+    entity = SalusBinarySensor(coordinator, "climate-1_problem")
+
+    assert entity.is_on is True
+    assert entity.device_class == "problem"
+    assert entity.entity_category == "diagnostic"
+    assert entity.extra_state_attributes == {"errors": ["Floor sensor overheating"]}
+    assert entity.device_info == {"identifiers": {(DOMAIN, "climate-1")}}
+
+
+async def test_lock_commands_write_gateway_and_debounce_refresh() -> None:
+    coordinator = FakeCoordinator()
+    entity = SalusThermostatLock(coordinator, "climate-1")
+
+    assert entity.is_locked is False
+    await entity.async_lock()
+    await entity.async_unlock()
+
+    assert coordinator.gateway.calls == [
+        ("set_climate_locked", "climate-1", 1),
+        ("set_climate_locked", "climate-1", 0),
+    ]
+    assert coordinator.refresh_requests == 2

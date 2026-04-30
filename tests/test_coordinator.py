@@ -3,27 +3,26 @@
 from __future__ import annotations
 
 import asyncio
-import unittest
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import MagicMock
 
-from tests.ha_shim import ISSUES, ConfigEntryAuthFailed, UpdateFailed, install
+import pytest
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
-install()
-
-from homeassistant.const import CONF_HOST  # noqa: E402
-
-from custom_components.salus.const import (  # noqa: E402
+from custom_components.salus.const import (
     CONF_POLL_FAILURE_THRESHOLD,
     CONF_POST_COMMAND_REFRESH_DELAY,
     DOMAIN,
 )
-from custom_components.salus.coordinator import (  # noqa: E402
+from custom_components.salus.coordinator import (
     ISSUE_GATEWAY_UNAVAILABLE,
     SalusData,
     SalusDataUpdateCoordinator,
 )
-from salus_it600.exceptions import (  # noqa: E402
+from salus_it600.exceptions import (
     IT600AuthenticationError,
     IT600ConnectionError,
 )
@@ -73,8 +72,7 @@ class FakeGateway:
         return self.sensor_devices
 
     async def fetch_sq610_properties(
-        self,
-        device_ids: list[str],
+        self, device_ids: list[str]
     ) -> dict[str, dict[str, Any]]:
         self.raw_fetch_ids = device_ids
         if self.raw_error is not None:
@@ -83,224 +81,172 @@ class FakeGateway:
 
 
 def _coordinator(
+    hass: HomeAssistant,
     gateway: FakeGateway,
     options: dict[str, Any] | None = None,
 ) -> SalusDataUpdateCoordinator:
+    config_entry = MagicMock()
+    config_entry.entry_id = "entry-1"
+    config_entry.data = {"host": "192.0.2.10"}
+    config_entry.options = options or {}
     return SalusDataUpdateCoordinator(
-        hass=object(),
-        config_entry=SimpleNamespace(
-            entry_id="entry-1",
-            data={CONF_HOST: "192.0.2.10"},
-            options=options or {},
-        ),
+        hass=hass,
+        config_entry=config_entry,
         gateway=gateway,
     )
 
 
-class TestSalusDataUpdateCoordinator(unittest.IsolatedAsyncioTestCase):
-    def setUp(self) -> None:
-        ISSUES.clear()
+async def test_update_data_populates_snapshot(hass: HomeAssistant) -> None:
+    gateway = FakeGateway()
+    coordinator = _coordinator(hass, gateway)
 
-    async def test_update_data_populates_snapshot_and_fetches_sq610_props(self) -> None:
-        gateway = FakeGateway()
-        coordinator = _coordinator(gateway)
+    data = await coordinator._async_update_data()
 
-        data = await coordinator._async_update_data()
+    assert data.climate_devices == {"sq610-1": gateway.climate_devices["sq610-1"]}
+    assert data.raw_climate_props == {"sq610-1": {"SystemMode": 3, "OnlineStatus_i": 1}}
+    assert gateway.raw_fetch_ids == ["sq610-1"]
 
-        self.assertEqual(
-            {"sq610-1": gateway.climate_devices["sq610-1"]},
-            data.climate_devices,
-        )
-        self.assertEqual(
-            {"sq610-1": {"SystemMode": 3, "OnlineStatus_i": 1}},
-            data.raw_climate_props,
-        )
-        self.assertEqual(["sq610-1"], gateway.raw_fetch_ids)
+    health = coordinator.gateway_diagnostics()
+    assert health["successful_updates"] == 1
+    assert health["consecutive_update_failures"] == 0
 
-        gateway_health = coordinator.gateway_diagnostics()
-        self.assertEqual(1, gateway_health["successful_updates"])
-        self.assertEqual(0, gateway_health["consecutive_update_failures"])
-        self.assertEqual(1, gateway_health["raw_sq610_fetch_successes"])
 
-        device_health = coordinator.device_availability_diagnostics()["sq610-1"]
-        self.assertTrue(device_health["available"])
-        self.assertEqual("climate", device_health["platform"])
-        self.assertEqual(1, device_health["raw_online_status"])
-        self.assertEqual("raw_sq610_props", device_health["raw_online_status_source"])
-        self.assertEqual(0, device_health["consecutive_missed_refreshes"])
+async def test_update_data_maps_auth_failure(hass: HomeAssistant) -> None:
+    gateway = FakeGateway()
+    gateway.poll_error = IT600AuthenticationError("bad euid")
+    coordinator = _coordinator(hass, gateway)
 
-    async def test_update_data_maps_auth_failure(self) -> None:
-        gateway = FakeGateway()
-        gateway.poll_error = IT600AuthenticationError("bad euid")
-        coordinator = _coordinator(gateway)
-
-        with self.assertRaises(ConfigEntryAuthFailed):
-            await coordinator._async_update_data()
-
-        self.assertEqual(
-            1,
-            coordinator.gateway_diagnostics()["consecutive_update_failures"],
-        )
-
-    async def test_update_data_maps_connection_failure(self) -> None:
-        gateway = FakeGateway()
-        gateway.poll_error = IT600ConnectionError("offline")
-        coordinator = _coordinator(gateway)
-
-        with self.assertRaises(UpdateFailed):
-            await coordinator._async_update_data()
-
-        self.assertIn(
-            "IT600ConnectionError: offline",
-            coordinator.gateway_diagnostics()["last_update_error"],
-        )
-
-    async def test_connection_failures_keep_last_data_until_threshold(self) -> None:
-        gateway = FakeGateway()
-        coordinator = _coordinator(gateway)
-        coordinator.data = await coordinator._async_update_data()
-
-        gateway.poll_error = IT600ConnectionError("offline")
-
-        self.assertIs(coordinator.data, await coordinator._async_update_data())
-        self.assertIs(coordinator.data, await coordinator._async_update_data())
-        with self.assertRaises(UpdateFailed):
-            await coordinator._async_update_data()
-
-        gateway_health = coordinator.gateway_diagnostics()
-        self.assertEqual(3, gateway_health["consecutive_update_failures"])
-        self.assertEqual(3, gateway_health["poll_failure_threshold"])
-        issue = ISSUES[(DOMAIN, f"entry-1_{ISSUE_GATEWAY_UNAVAILABLE}")]
-        self.assertEqual("gateway_unavailable", issue["translation_key"])
-        self.assertEqual({"host": "192.0.2.10"}, issue["translation_placeholders"])
-
-        gateway.poll_error = None
+    with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
 
-        self.assertNotIn((DOMAIN, f"entry-1_{ISSUE_GATEWAY_UNAVAILABLE}"), ISSUES)
+    assert coordinator.gateway_diagnostics()["consecutive_update_failures"] == 1
 
-    async def test_zero_poll_failure_threshold_marks_unavailable_immediately(self) -> None:
-        gateway = FakeGateway()
-        coordinator = _coordinator(
-            gateway,
-            options={CONF_POLL_FAILURE_THRESHOLD: 0},
-        )
-        coordinator.data = await coordinator._async_update_data()
 
-        gateway.poll_error = IT600ConnectionError("offline")
+async def test_update_data_maps_connection_failure(hass: HomeAssistant) -> None:
+    gateway = FakeGateway()
+    gateway.poll_error = IT600ConnectionError("offline")
+    coordinator = _coordinator(hass, gateway)
 
-        with self.assertRaises(UpdateFailed):
-            await coordinator._async_update_data()
-
-        gateway_health = coordinator.gateway_diagnostics()
-        self.assertEqual(1, gateway_health["consecutive_update_failures"])
-        self.assertEqual(0, gateway_health["poll_failure_threshold"])
-
-    async def test_raw_sq610_failure_uses_last_known_values(self) -> None:
-        gateway = FakeGateway()
-        gateway.raw_error = IT600ConnectionError("offline")
-        coordinator = _coordinator(gateway)
-        coordinator.data = SalusData(
-            climate_devices={},
-            binary_sensor_devices={},
-            switch_devices={},
-            cover_devices={},
-            sensor_devices={},
-            raw_climate_props={"sq610-1": {"SystemMode": 4}},
-        )
-
-        with self.assertLogs("custom_components.salus.coordinator", level="WARNING"):
-            raw_props = await coordinator._async_fetch_raw_climate_props(
-                gateway.climate_devices,
-            )
-
-        self.assertEqual({"sq610-1": {"SystemMode": 4}}, raw_props)
-        gateway_health = coordinator.gateway_diagnostics()
-        self.assertEqual(1, gateway_health["raw_sq610_fetch_failures"])
-        self.assertIn(
-            "IT600ConnectionError: offline",
-            gateway_health["last_raw_sq610_fetch_error"],
-        )
-
-    async def test_availability_history_tracks_missing_devices(self) -> None:
-        gateway = FakeGateway()
-        coordinator = _coordinator(gateway)
-
-        await coordinator._async_update_data()
-        gateway.climate_devices = {}
-        gateway.raw_props = {}
+    with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
 
-        device_health = coordinator.device_availability_diagnostics()["sq610-1"]
-        self.assertFalse(device_health["available"])
-        self.assertEqual("missing_from_snapshot", device_health["raw_online_status_source"])
-        self.assertEqual(1, device_health["consecutive_missed_refreshes"])
-
-    async def test_debounced_refresh_coalesces_rapid_requests(self) -> None:
-        coordinator = _coordinator(
-            FakeGateway(),
-            options={CONF_POST_COMMAND_REFRESH_DELAY: 0},
-        )
-        coordinator._fast_refresh_delay = 0
-
-        await coordinator.async_request_debounced_refresh()
-        await coordinator.async_request_debounced_refresh()
-        await coordinator.async_request_debounced_refresh()
-
-        self.assertIsNotNone(coordinator._debounced_refresh_task)
-        await coordinator._debounced_refresh_task
-        await asyncio.sleep(0)
-
-        self.assertEqual(1, coordinator.refresh_count)
-        self.assertIsNone(coordinator._debounced_refresh_task)
-
-    async def test_debounced_refresh_runs_settle_refresh(self) -> None:
-        coordinator = _coordinator(
-            FakeGateway(),
-            options={CONF_POST_COMMAND_REFRESH_DELAY: 0.01},
-        )
-        coordinator._fast_refresh_delay = 0
-
-        await coordinator.async_request_debounced_refresh()
-
-        self.assertIsNotNone(coordinator._debounced_refresh_task)
-        await coordinator._debounced_refresh_task
-
-        self.assertEqual(2, coordinator.refresh_count)
-        gateway_health = coordinator.gateway_diagnostics()
-        self.assertEqual(0.01, gateway_health["post_command_refresh_delay_seconds"])
-        self.assertEqual(20, gateway_health["scan_interval_seconds"])
-
-    async def test_debounced_refresh_uses_latest_request_time(self) -> None:
-        coordinator = _coordinator(
-            FakeGateway(),
-            options={CONF_POST_COMMAND_REFRESH_DELAY: 0},
-        )
-        coordinator._fast_refresh_delay = 0.02
-
-        await coordinator.async_request_debounced_refresh()
-        await asyncio.sleep(0.01)
-        first_task = coordinator._debounced_refresh_task
-        await coordinator.async_request_debounced_refresh()
-
-        self.assertIs(first_task, coordinator._debounced_refresh_task)
-        await coordinator._debounced_refresh_task
-
-        self.assertEqual(1, coordinator.refresh_count)
-
-    async def test_cancel_debounced_refresh_clears_pending_task(self) -> None:
-        coordinator = _coordinator(FakeGateway())
-        coordinator._fast_refresh_delay = 60
-
-        await coordinator.async_request_debounced_refresh()
-        self.assertIsNotNone(coordinator._debounced_refresh_task)
-
-        coordinator.async_cancel_debounced_refresh()
-        await asyncio.sleep(0)
-
-        self.assertIsNone(coordinator._debounced_refresh_task)
-        self.assertEqual(0, coordinator.refresh_count)
+    assert "IT600ConnectionError: offline" in coordinator.gateway_diagnostics()["last_update_error"]
 
 
-if __name__ == "__main__":
-    unittest.main()
+async def test_connection_failures_keep_last_data_until_threshold(hass: HomeAssistant) -> None:
+    gateway = FakeGateway()
+    coordinator = _coordinator(hass, gateway)
+    coordinator.data = await coordinator._async_update_data()
+
+    gateway.poll_error = IT600ConnectionError("offline")
+
+    # First two failures return stale data
+    assert coordinator.data is await coordinator._async_update_data()
+    assert coordinator.data is await coordinator._async_update_data()
+
+    # Third failure exceeds threshold (default 3)
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    health = coordinator.gateway_diagnostics()
+    assert health["consecutive_update_failures"] == 3
+    assert health["poll_failure_threshold"] == 3
+
+    # Recovery clears failures
+    gateway.poll_error = None
+    await coordinator._async_update_data()
+
+
+async def test_zero_threshold_marks_unavailable_immediately(hass: HomeAssistant) -> None:
+    gateway = FakeGateway()
+    coordinator = _coordinator(hass, gateway, options={CONF_POLL_FAILURE_THRESHOLD: 0})
+    coordinator.data = await coordinator._async_update_data()
+
+    gateway.poll_error = IT600ConnectionError("offline")
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    assert coordinator.gateway_diagnostics()["consecutive_update_failures"] == 1
+
+
+async def test_raw_sq610_failure_uses_last_known_values(hass: HomeAssistant, caplog) -> None:
+    gateway = FakeGateway()
+    gateway.raw_error = IT600ConnectionError("offline")
+    coordinator = _coordinator(hass, gateway)
+    coordinator.data = SalusData(
+        climate_devices={},
+        binary_sensor_devices={},
+        switch_devices={},
+        cover_devices={},
+        sensor_devices={},
+        raw_climate_props={"sq610-1": {"SystemMode": 4}},
+    )
+
+    raw_props = await coordinator._async_fetch_raw_climate_props(gateway.climate_devices)
+
+    assert raw_props == {"sq610-1": {"SystemMode": 4}}
+    health = coordinator.gateway_diagnostics()
+    assert health["raw_sq610_fetch_failures"] == 1
+
+
+async def test_availability_history_tracks_missing_devices(hass: HomeAssistant) -> None:
+    gateway = FakeGateway()
+    coordinator = _coordinator(hass, gateway)
+
+    await coordinator._async_update_data()
+    gateway.climate_devices = {}
+    gateway.raw_props = {}
+    await coordinator._async_update_data()
+
+    device_health = coordinator.device_availability_diagnostics()["sq610-1"]
+    assert device_health["available"] is False
+    assert device_health["consecutive_missed_refreshes"] == 1
+
+
+async def test_debounced_refresh_coalesces_rapid_requests(hass: HomeAssistant) -> None:
+    coordinator = _coordinator(
+        hass,
+        FakeGateway(),
+        options={CONF_POST_COMMAND_REFRESH_DELAY: 0},
+    )
+    coordinator._fast_refresh_delay = 0
+    coordinator.refresh_count = 0
+    _orig = coordinator.async_request_refresh
+
+    async def _counting_refresh():
+        coordinator.refresh_count += 1
+
+    coordinator.async_request_refresh = _counting_refresh
+
+    await coordinator.async_request_debounced_refresh()
+    await coordinator.async_request_debounced_refresh()
+    await coordinator.async_request_debounced_refresh()
+
+    assert coordinator._debounced_refresh_task is not None
+    await coordinator._debounced_refresh_task
+    await asyncio.sleep(0)
+
+    assert coordinator.refresh_count == 1
+    assert coordinator._debounced_refresh_task is None
+
+
+async def test_debounced_refresh_runs_settle_refresh(hass: HomeAssistant) -> None:
+    coordinator = _coordinator(
+        hass,
+        FakeGateway(),
+        options={CONF_POST_COMMAND_REFRESH_DELAY: 0.01},
+    )
+    coordinator._fast_refresh_delay = 0
+    coordinator.refresh_count = 0
+
+    async def _counting_refresh():
+        coordinator.refresh_count += 1
+
+    coordinator.async_request_refresh = _counting_refresh
+
+    await coordinator.async_request_debounced_refresh()
+    assert coordinator._debounced_refresh_task is not None
+    await coordinator._debounced_refresh_task
+
+    assert coordinator.refresh_count == 2

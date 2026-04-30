@@ -255,10 +255,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             await self.async_set_preset_mode(PRESET_STANDBY)
             return
         if hvac_mode == HVACMode.AUTO:
-            _LOGGER.warning(
-                "Ignoring unsupported schedule mode request for %s",
-                self._device_id,
-            )
+            await self.async_set_preset_mode(PRESET_FOLLOW_SALUS_SCHEDULE)
             return
         if hvac_mode not in self.hvac_modes:
             _LOGGER.warning(

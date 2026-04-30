@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-import unittest
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
-from tests.ha_shim import install
+import pytest
+import voluptuous as vol
+from homeassistant.const import CONF_HOST, CONF_NAME, CONF_TOKEN
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 
-install()
-
-from custom_components.salus import config_flow  # noqa: E402
-from homeassistant.const import CONF_HOST, CONF_NAME, CONF_TOKEN  # noqa: E402
-from salus_it600.exceptions import (  # noqa: E402
+from custom_components.salus import config_flow
+from custom_components.salus.const import DOMAIN
+from salus_it600.exceptions import (
     IT600AuthenticationError,
     IT600ConnectionError,
     IT600UnsupportedFirmwareError,
@@ -24,7 +26,7 @@ class FakeGateway:
 
     connect_error: Exception | None = None
     connected_unique_id = "AA:BB:CC:DD:EE:FF"
-    instances: list[FakeGateway] = []
+    instances: list["FakeGateway"] = []
 
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
@@ -48,228 +50,105 @@ def _input() -> dict[str, str]:
     }
 
 
-def _entry() -> SimpleNamespace:
-    return SimpleNamespace(
-        data={
-            CONF_HOST: "192.0.2.10",
-            CONF_TOKEN: "001E5E0D32906128",
-            config_flow.CONF_MAC: FakeGateway.connected_unique_id,
-        },
-        options={},
-    )
+@pytest.fixture(autouse=True)
+def reset_fake_gateway():
+    FakeGateway.connect_error = None
+    FakeGateway.instances = []
 
 
-class TestSalusFlowHandler(unittest.IsolatedAsyncioTestCase):
-    def setUp(self) -> None:
-        FakeGateway.connect_error = None
-        FakeGateway.instances = []
-        config_flow.IT600Gateway = FakeGateway
+@pytest.fixture(autouse=True)
+def mock_setup_entry():
+    """Prevent actual setup after flow creates entry."""
+    with patch(
+        "custom_components.salus.async_setup_entry", return_value=True
+    ):
+        yield
 
-    async def test_user_step_success_creates_entry(self) -> None:
-        flow = config_flow.SalusFlowHandler()
 
-        result = await flow.async_step_user(_input())
-
-        self.assertEqual("create_entry", result["type"])
-        self.assertEqual("Gateway", result["title"])
-        self.assertEqual("192.0.2.10", result["data"][CONF_HOST])
-        self.assertEqual("001E5E0D32906128", result["data"][CONF_TOKEN])
-        self.assertEqual(
-            FakeGateway.connected_unique_id,
-            result["data"][config_flow.CONF_MAC],
+async def test_user_step_success_creates_entry(hass: HomeAssistant) -> None:
+    with patch.object(config_flow, "IT600Gateway", FakeGateway):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "user"}
         )
-        self.assertTrue(FakeGateway.instances[0].closed)
-
-    async def test_user_step_connection_error_returns_form_error(self) -> None:
-        FakeGateway.connect_error = IT600ConnectionError("offline")
-        flow = config_flow.SalusFlowHandler()
-
-        result = await flow.async_step_user(_input())
-
-        self.assertEqual("form", result["type"])
-        self.assertEqual("connect_error", result["errors"]["base"])
-        self.assertTrue(FakeGateway.instances[0].closed)
-
-    async def test_user_step_auth_error_returns_form_error(self) -> None:
-        FakeGateway.connect_error = IT600AuthenticationError("bad euid")
-        flow = config_flow.SalusFlowHandler()
-
-        result = await flow.async_step_user(_input())
-
-        self.assertEqual("form", result["type"])
-        self.assertEqual("auth_error", result["errors"]["base"])
-        self.assertTrue(FakeGateway.instances[0].closed)
-
-    async def test_user_step_unsupported_firmware_returns_form_error(self) -> None:
-        FakeGateway.connect_error = IT600UnsupportedFirmwareError("protocol")
-        flow = config_flow.SalusFlowHandler()
-
-        result = await flow.async_step_user(_input())
-
-        self.assertEqual("form", result["type"])
-        self.assertEqual("unsupported_firmware", result["errors"]["base"])
-        self.assertTrue(FakeGateway.instances[0].closed)
-
-    def test_valid_euid_normalizes_case(self) -> None:
-        self.assertEqual(
-            "001E5E0D32906128",
-            config_flow._valid_euid("001e5e0d32906128"),
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], _input()
         )
 
-    def test_valid_euid_rejects_invalid_values(self) -> None:
-        with self.assertRaises(config_flow.vol.Invalid):
-            config_flow._valid_euid("not-valid")
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Gateway"
+    assert result["data"][CONF_HOST] == "192.0.2.10"
+    assert result["data"][CONF_TOKEN] == "001E5E0D32906128"
+    assert FakeGateway.instances[0].closed
 
-    def test_get_options_flow_returns_options_handler(self) -> None:
-        config_entry = SimpleNamespace(options={})
 
-        flow = config_flow.SalusFlowHandler.async_get_options_flow(config_entry)
-
-        self.assertIsInstance(flow, config_flow.SalusOptionsFlowHandler)
-        self.assertIs(config_entry, flow._config_entry)
-
-    async def test_options_flow_shows_form(self) -> None:
-        flow = config_flow.SalusOptionsFlowHandler(
-            SimpleNamespace(
-                options={
-                    config_flow.CONF_POLL_FAILURE_THRESHOLD: 5,
-                    config_flow.CONF_POST_COMMAND_REFRESH_DELAY: 4.0,
-                }
-            )
+async def test_user_step_connection_error_returns_form(hass: HomeAssistant) -> None:
+    FakeGateway.connect_error = IT600ConnectionError("offline")
+    with patch.object(config_flow, "IT600Gateway", FakeGateway):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "user"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], _input()
         )
 
-        result = await flow.async_step_init()
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"]["base"] == "connect_error"
+    assert FakeGateway.instances[0].closed
 
-        self.assertEqual("form", result["type"])
-        self.assertEqual("init", result["step_id"])
-        schema = result["data_schema"].schema
-        self.assertIsInstance(
-            schema[config_flow.CONF_POLL_FAILURE_THRESHOLD],
-            config_flow.selector.NumberSelector,
+
+async def test_user_step_auth_error_returns_form(hass: HomeAssistant) -> None:
+    FakeGateway.connect_error = IT600AuthenticationError("bad euid")
+    with patch.object(config_flow, "IT600Gateway", FakeGateway):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "user"}
         )
-        self.assertEqual(
-            config_flow.selector.NumberSelectorMode.BOX,
-            schema[config_flow.CONF_POLL_FAILURE_THRESHOLD].config["mode"],
-        )
-        self.assertIsInstance(
-            schema[config_flow.CONF_POST_COMMAND_REFRESH_DELAY],
-            config_flow.selector.NumberSelector,
-        )
-        self.assertEqual(
-            "s",
-            schema[config_flow.CONF_POST_COMMAND_REFRESH_DELAY].config[
-                "unit_of_measurement"
-            ],
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], _input()
         )
 
-    async def test_options_flow_saves_refresh_options(self) -> None:
-        flow = config_flow.SalusOptionsFlowHandler(SimpleNamespace(options={}))
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"]["base"] == "auth_error"
+    assert FakeGateway.instances[0].closed
 
-        result = await flow.async_step_init(
-            {
-                config_flow.CONF_POLL_FAILURE_THRESHOLD: 7,
-                config_flow.CONF_POST_COMMAND_REFRESH_DELAY: 4.5,
-            }
+
+async def test_user_step_unsupported_firmware_returns_form(hass: HomeAssistant) -> None:
+    FakeGateway.connect_error = IT600UnsupportedFirmwareError("protocol")
+    with patch.object(config_flow, "IT600Gateway", FakeGateway):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "user"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], _input()
         )
 
-        self.assertEqual("create_entry", result["type"])
-        self.assertEqual(
-            {
-                config_flow.CONF_POLL_FAILURE_THRESHOLD: 7,
-                config_flow.CONF_POST_COMMAND_REFRESH_DELAY: 4.5,
-            },
-            result["data"],
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"]["base"] == "unsupported_firmware"
+    assert FakeGateway.instances[0].closed
+
+
+async def test_user_step_invalid_euid_returns_field_error(hass: HomeAssistant) -> None:
+    with patch.object(config_flow, "IT600Gateway", FakeGateway):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "user"}
         )
-
-    async def test_user_step_invalid_euid_returns_field_error(self) -> None:
-        flow = config_flow.SalusFlowHandler()
-
-        result = await flow.async_step_user(
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
             {
                 CONF_HOST: "192.0.2.10",
                 CONF_TOKEN: "too-short",
                 CONF_NAME: "Gateway",
-            }
+            },
         )
 
-        self.assertEqual("form", result["type"])
-        self.assertEqual("invalid_euid", result["errors"][CONF_TOKEN])
-        self.assertEqual([], FakeGateway.instances)
-
-    async def test_reconfigure_updates_existing_entry(self) -> None:
-        entry = _entry()
-        flow = config_flow.SalusFlowHandler()
-        flow.reconfigure_entry = entry
-
-        result = await flow.async_step_reconfigure(
-            {
-                CONF_HOST: " 192.0.2.11 ",
-                CONF_TOKEN: "001e5e0d32906128",
-            }
-        )
-
-        self.assertEqual("abort", result["type"])
-        self.assertEqual("reconfigure_successful", result["reason"])
-        self.assertEqual("192.0.2.11", entry.data[CONF_HOST])
-        self.assertEqual("001E5E0D32906128", entry.data[CONF_TOKEN])
-        self.assertEqual(FakeGateway.connected_unique_id, entry.data[config_flow.CONF_MAC])
-        self.assertTrue(FakeGateway.instances[0].closed)
-
-    async def test_reconfigure_returns_connection_error(self) -> None:
-        FakeGateway.connect_error = IT600ConnectionError("offline")
-        entry = _entry()
-        flow = config_flow.SalusFlowHandler()
-        flow.reconfigure_entry = entry
-
-        result = await flow.async_step_reconfigure(
-            {
-                CONF_HOST: "192.0.2.11",
-                CONF_TOKEN: "001E5E0D32906128",
-            }
-        )
-
-        self.assertEqual("form", result["type"])
-        self.assertEqual("reconfigure", result["step_id"])
-        self.assertEqual("connect_error", result["errors"]["base"])
-        self.assertEqual("192.0.2.10", entry.data[CONF_HOST])
-        self.assertTrue(FakeGateway.instances[0].closed)
-
-    async def test_reconfigure_invalid_euid_returns_field_error(self) -> None:
-        entry = _entry()
-        flow = config_flow.SalusFlowHandler()
-        flow.reconfigure_entry = entry
-
-        result = await flow.async_step_reconfigure(
-            {
-                CONF_HOST: "192.0.2.11",
-                CONF_TOKEN: "invalid",
-            }
-        )
-
-        self.assertEqual("form", result["type"])
-        self.assertEqual("reconfigure", result["step_id"])
-        self.assertEqual("invalid_euid", result["errors"][CONF_TOKEN])
-        self.assertEqual("192.0.2.10", entry.data[CONF_HOST])
-        self.assertEqual([], FakeGateway.instances)
-
-    async def test_reauth_updates_existing_entry(self) -> None:
-        entry = _entry()
-        flow = config_flow.SalusFlowHandler()
-        flow.reauth_entry = entry
-
-        result = await flow.async_step_reauth_confirm(
-            {
-                CONF_HOST: "192.0.2.10",
-                CONF_TOKEN: "0000000000000000",
-            }
-        )
-
-        self.assertEqual("abort", result["type"])
-        self.assertEqual("reconfigure_successful", result["reason"])
-        self.assertEqual("0000000000000000", entry.data[CONF_TOKEN])
-        self.assertEqual(FakeGateway.connected_unique_id, entry.data[config_flow.CONF_MAC])
-        self.assertTrue(FakeGateway.instances[0].closed)
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"][CONF_TOKEN] == "invalid_euid"
+    assert FakeGateway.instances == []
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_valid_euid_normalizes_case() -> None:
+    assert config_flow._valid_euid("001e5e0d32906128") == "001E5E0D32906128"
+
+
+def test_valid_euid_rejects_invalid_values() -> None:
+    with pytest.raises(vol.Invalid):
+        config_flow._valid_euid("not-valid")

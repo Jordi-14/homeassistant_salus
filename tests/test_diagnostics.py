@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-import unittest
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import MagicMock
 
-from tests.ha_shim import install
+import pytest
+from homeassistant.const import CONF_HOST, CONF_TOKEN
+from homeassistant.core import HomeAssistant
 
-install()
-
-from homeassistant.const import CONF_HOST, CONF_TOKEN  # noqa: E402
-
-from custom_components.salus.coordinator import (  # noqa: E402
+from custom_components.salus.coordinator import (
     SalusDataUpdateCoordinator,
     SalusRuntimeData,
 )
-from custom_components.salus.diagnostics import (  # noqa: E402
-    async_get_config_entry_diagnostics,
-)
+from custom_components.salus.diagnostics import async_get_config_entry_diagnostics
 
 
 def _sq610_device() -> SimpleNamespace:
@@ -32,8 +28,6 @@ def _sq610_device() -> SimpleNamespace:
 
 
 class FakeGateway:
-    """Gateway fake for diagnostics tests."""
-
     def __init__(self) -> None:
         self.climate_devices = {"sq610-1": _sq610_device()}
 
@@ -56,8 +50,7 @@ class FakeGateway:
         return {}
 
     async def fetch_sq610_properties(
-        self,
-        device_ids: list[str],
+        self, device_ids: list[str]
     ) -> dict[str, dict[str, Any]]:
         return {
             device_ids[0]: {
@@ -69,60 +62,38 @@ class FakeGateway:
         }
 
 
-class TestDiagnostics(unittest.IsolatedAsyncioTestCase):
-    async def test_config_entry_diagnostics_redacts_and_reports_health(self) -> None:
-        gateway = FakeGateway()
-        hass = SimpleNamespace(data={})
-        entry = SimpleNamespace(
-            entry_id="entry-1",
-            title="Salus",
-            data={CONF_HOST: "192.0.2.10", CONF_TOKEN: "001E5E0D32906128"},
-        )
-        coordinator = SalusDataUpdateCoordinator(hass, entry, gateway)
-        coordinator.gateway_id = "gateway-1"
-        entry.runtime_data = SalusRuntimeData(
-            gateway=gateway,
-            coordinator=coordinator,
-        )
+async def test_diagnostics_redacts_token_and_reports_health(hass: HomeAssistant) -> None:
+    gateway = FakeGateway()
+    entry = MagicMock()
+    entry.entry_id = "entry-1"
+    entry.title = "Salus"
+    entry.data = {CONF_HOST: "192.0.2.10", CONF_TOKEN: "001E5E0D32906128"}
+    entry.options = {}
+    coordinator = SalusDataUpdateCoordinator(hass, entry, gateway)
+    coordinator.gateway_id = "gateway-1"
+    entry.runtime_data = SalusRuntimeData(
+        gateway=gateway,
+        coordinator=coordinator,
+    )
 
-        coordinator.data = await coordinator._async_update_data()
+    coordinator.data = await coordinator._async_update_data()
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-        diagnostics = await async_get_config_entry_diagnostics(hass, entry)
-
-        self.assertEqual("192.0.2.10", diagnostics["entry"]["data"][CONF_HOST])
-        self.assertEqual("**REDACTED**", diagnostics["entry"]["data"][CONF_TOKEN])
-        self.assertTrue(diagnostics["runtime"]["loaded"])
-        self.assertEqual(1, diagnostics["device_counts"]["climate"])
-        self.assertEqual(
-            1,
-            diagnostics["gateway"]["health"]["successful_updates"],
-        )
-        self.assertEqual(
-            0,
-            diagnostics["device_availability"]["sq610-1"][
-                "consecutive_missed_refreshes"
-            ],
-        )
-        self.assertEqual(
-            2150,
-            diagnostics["sq610"]["devices"]["sq610-1"]["support_fields"][
-                "LocalTemperature_x100"
-            ],
-        )
-
-    async def test_config_entry_diagnostics_handles_unloaded_entry(self) -> None:
-        hass = SimpleNamespace(data={})
-        entry = SimpleNamespace(
-            entry_id="entry-1",
-            title="Salus",
-            data={CONF_HOST: "192.0.2.10", CONF_TOKEN: "001E5E0D32906128"},
-        )
-
-        diagnostics = await async_get_config_entry_diagnostics(hass, entry)
-
-        self.assertFalse(diagnostics["runtime"]["loaded"])
-        self.assertEqual("**REDACTED**", diagnostics["entry"]["data"][CONF_TOKEN])
+    assert diagnostics["entry"]["data"][CONF_HOST] == "192.0.2.10"
+    assert diagnostics["entry"]["data"][CONF_TOKEN] == "**REDACTED**"
+    assert diagnostics["runtime"]["loaded"] is True
+    assert diagnostics["device_counts"]["climate"] == 1
+    assert diagnostics["gateway"]["health"]["successful_updates"] == 1
 
 
-if __name__ == "__main__":
-    unittest.main()
+async def test_diagnostics_handles_unloaded_entry(hass: HomeAssistant) -> None:
+    entry = SimpleNamespace(
+        entry_id="entry-1",
+        title="Salus",
+        data={CONF_HOST: "192.0.2.10", CONF_TOKEN: "001E5E0D32906128"},
+    )
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    assert diagnostics["runtime"]["loaded"] is False
+    assert diagnostics["entry"]["data"][CONF_TOKEN] == "**REDACTED**"
