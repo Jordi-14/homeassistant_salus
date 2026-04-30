@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from homeassistant.components.climate import ClimateEntityFeature, HVACAction, HVACMode
 from homeassistant.exceptions import HomeAssistantError
+from salus_it600.device_models import SQ610_HOLD_AUTO, SQ610_MODE_COOL
 from salus_it600.exceptions import IT600ConnectionError
 
 from custom_components.salus._climate_state import (
@@ -250,6 +251,31 @@ class TestSQ610Commands:
         assert coord.gateway.calls == []
         assert coord.refresh_requests == 0
 
+    async def test_set_temperature_in_scheduled_cooling_uses_cooling_setpoint(self):
+        device = make_climate_device()
+        coord = _coordinator_with_climate(
+            device,
+            {
+                device.unique_id: {
+                    "SystemMode": SQ610_MODE_COOL,
+                    "HoldType": SQ610_HOLD_AUTO,
+                    "CoolingSetpoint_x100": 2250,
+                    "HeatingSetpoint_x100": 2100,
+                }
+            },
+        )
+        entity = SalusThermostat(coord, device.unique_id)
+
+        assert entity.hvac_mode == HVACMode.COOL
+        assert entity.preset_mode == PRESET_FOLLOW_SCHEDULE
+
+        await entity.async_set_temperature(temperature=23.5)
+
+        assert coord.gateway.calls == [
+            ("set_sq610_temperature", device.unique_id, 23.5, True)
+        ]
+        assert coord.refresh_requests == 1
+
     async def test_set_hvac_mode_heat(self):
         device = make_climate_device()
         coord = _coordinator_with_climate(device)
@@ -374,3 +400,19 @@ class TestFC600Commands:
             device.unique_id,
             RAW_PRESET_FOLLOW_SCHEDULE,
         ) in coord.gateway.calls
+
+    async def test_auto_hvac_mode_is_ignored_when_not_advertised(self):
+        device = make_climate_device(
+            model="HTRP-RF(50)",
+            hvac_modes=["heat"],
+            preset_mode="Follow Schedule",
+        )
+        coord = _coordinator_with_climate(device)
+        entity = SalusThermostat(coord, device.unique_id)
+
+        assert entity.hvac_modes == [HVACMode.HEAT]
+
+        await entity.async_set_hvac_mode(HVACMode.AUTO)
+
+        assert coord.gateway.calls == []
+        assert coord.refresh_requests == 0

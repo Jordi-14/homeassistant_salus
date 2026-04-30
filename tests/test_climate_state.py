@@ -25,6 +25,7 @@ from salus_it600.device_models import (
     SQ610_HOLD_PERMANENT,
     SQ610_HOLD_STANDBY,
     SQ610_MODE_COOL,
+    SQ610_MODE_HEAT,
     SQ610_RUNNING_COOL,
     SQ610_RUNNING_HEAT,
 )
@@ -71,6 +72,40 @@ def test_sq610_cooling_uses_raw_cooling_setpoint() -> None:
     assert state.hvac_action == HVACAction.COOLING
     assert state.target_temperature == 22.5
     assert state.preset_mode == PRESET_PERMANENT_HOLD
+
+
+def test_sq610_auto_hold_preserves_cooling_system_mode() -> None:
+    state = build_climate_view_state(
+        _device(model="SQ610RF"),
+        {
+            "SystemMode": SQ610_MODE_COOL,
+            "RunningState": SQ610_RUNNING_COOL,
+            "HoldType": SQ610_HOLD_AUTO,
+            "CoolingSetpoint_x100": 2250,
+            "HeatingSetpoint_x100": 2100,
+        },
+    )
+
+    assert state.hvac_mode == HVACMode.COOL
+    assert state.target_temperature == 22.5
+    assert state.preset_mode == PRESET_FOLLOW_SCHEDULE
+
+
+def test_sq610_auto_hold_preserves_heating_system_mode() -> None:
+    state = build_climate_view_state(
+        _device(model="SQ610RF"),
+        {
+            "SystemMode": SQ610_MODE_HEAT,
+            "RunningState": SQ610_RUNNING_HEAT,
+            "HoldType": SQ610_HOLD_AUTO,
+            "CoolingSetpoint_x100": 2250,
+            "HeatingSetpoint_x100": 2100,
+        },
+    )
+
+    assert state.hvac_mode == HVACMode.HEAT
+    assert state.target_temperature == 21.0
+    assert state.preset_mode == PRESET_FOLLOW_SCHEDULE
 
 
 def test_sq610_current_temperature_uses_raw_temperature_measurement() -> None:
@@ -127,7 +162,7 @@ def test_sq610_standby_maps_to_off_mode_and_off_action() -> None:
     assert state.preset_mode == PRESET_STANDBY
 
 
-def test_sq610_auto_hold_maps_to_auto_mode_and_follow_schedule() -> None:
+def test_sq610_auto_hold_without_system_state_maps_to_auto_mode() -> None:
     state = build_climate_view_state(
         _device(model="SQ610RF"),
         {"HoldType": SQ610_HOLD_AUTO, "HeatingSetpoint_x100": 2100},

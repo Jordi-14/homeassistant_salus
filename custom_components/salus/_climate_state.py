@@ -209,6 +209,7 @@ def _supports_cooling(device: Any | None, raw_props: Mapping[str, Any]) -> bool:
         # SQ610RF is heat-only; only report cooling if gateway confirms it
         return (
             raw_props.get("SystemMode") == SQ610_MODE_COOL
+            or raw_props.get("RunningState") == SQ610_RUNNING_COOL
             or raw_props.get("CoolingSetpoint_x100") is not None
         )
     return bool(
@@ -246,10 +247,15 @@ def _effective_hvac_mode(
         running_state = raw_props.get("RunningState")
         if hold_type == SQ610_HOLD_STANDBY:
             return HVACMode.OFF
-        if hold_type == SQ610_HOLD_AUTO:
-            return HVACMode.AUTO
         if system_mode == SQ610_MODE_COOL or running_state == SQ610_RUNNING_COOL:
             return HVACMode.COOL
+        if (
+            system_mode in {SQ610_MODE_HEAT, SQ610_MODE_EMERGENCY_HEAT}
+            or running_state == SQ610_RUNNING_HEAT
+        ):
+            return HVACMode.HEAT
+        if hold_type == SQ610_HOLD_AUTO:
+            return HVACMode.AUTO
         return HVACMode.HEAT
 
     if device.hvac_mode == HVACMode.COOL:
