@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -11,14 +10,14 @@ import voluptuous as vol
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-
-from custom_components.salus import config_flow
-from custom_components.salus.const import DOMAIN
 from salus_it600.exceptions import (
     IT600AuthenticationError,
     IT600ConnectionError,
     IT600UnsupportedFirmwareError,
 )
+
+from custom_components.salus import config_flow
+from custom_components.salus.const import DOMAIN
 
 
 class FakeGateway:
@@ -26,7 +25,7 @@ class FakeGateway:
 
     connect_error: Exception | None = None
     connected_unique_id = "AA:BB:CC:DD:EE:FF"
-    instances: list["FakeGateway"] = []
+    instances: list[FakeGateway] = []
 
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs

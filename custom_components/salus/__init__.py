@@ -11,6 +11,7 @@ from homeassistant.const import CONF_HOST, CONF_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.config_validation import config_entry_only_config_schema
 
 from salus_it600.exceptions import (
     IT600AuthenticationError,
@@ -21,6 +22,8 @@ from salus_it600.gateway import IT600Gateway
 
 from .const import CONNECT_RETRIES, CONNECT_RETRY_DELAY, DOMAIN, PLATFORMS
 from .coordinator import SalusDataUpdateCoordinator, SalusRuntimeData
+
+CONFIG_SCHEMA = config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -23,7 +23,6 @@ from salus_it600.device_models import (
     SQ610_HOLD_AUTO,
     SQ610_HOLD_PERMANENT,
     SQ610_HOLD_STANDBY,
-    SQ610_MODE_AUTO,
     SQ610_MODE_COOL,
     SQ610_MODE_EMERGENCY_HEAT,
     SQ610_MODE_HEAT,
@@ -42,11 +41,11 @@ RAW_PRESET_OFF = "Off"
 
 PRESET_PERMANENT_HOLD = "permanent_hold"
 PRESET_STANDBY = "standby"
-PRESET_FOLLOW_SALUS_SCHEDULE = "follow_salus_schedule"
+PRESET_FOLLOW_SCHEDULE = "follow_schedule"
 EXPOSED_PRESET_MODES = [
     PRESET_PERMANENT_HOLD,
     PRESET_STANDBY,
-    PRESET_FOLLOW_SALUS_SCHEDULE,
+    PRESET_FOLLOW_SCHEDULE,
 ]
 
 RAW_TO_HA_FAN_MODE = {
@@ -277,14 +276,14 @@ def _effective_preset_mode(
         if hold_type == SQ610_HOLD_PERMANENT:
             return PRESET_PERMANENT_HOLD
         if hold_type == SQ610_HOLD_AUTO:
-            return PRESET_FOLLOW_SALUS_SCHEDULE
+            return PRESET_FOLLOW_SCHEDULE
 
     if device.preset_mode == RAW_PRESET_OFF:
         return PRESET_STANDBY
     if device.preset_mode in MANUAL_PRESET_MODES:
         return PRESET_PERMANENT_HOLD
     if device.preset_mode == RAW_PRESET_FOLLOW_SCHEDULE:
-        return PRESET_FOLLOW_SALUS_SCHEDULE
+        return PRESET_FOLLOW_SCHEDULE
     return device.preset_mode
 
 

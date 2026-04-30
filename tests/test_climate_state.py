@@ -5,26 +5,20 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
-import pytest
 from homeassistant.components.climate.const import (
     ClimateEntityFeature,
     HVACAction,
     HVACMode,
-)
-
-from custom_components.salus._climate_state import (
-    PRESET_FOLLOW_SALUS_SCHEDULE,
-    PRESET_PERMANENT_HOLD,
-    PRESET_STANDBY,
-    build_climate_view_state,
 )
 from salus_it600.const import (
     CURRENT_HVAC_COOL,
     FAN_MODE_AUTO,
     FAN_MODE_HIGH,
     HVAC_MODE_HEAT,
-    PRESET_FOLLOW_SCHEDULE,
     PRESET_OFF,
+)
+from salus_it600.const import (
+    PRESET_FOLLOW_SCHEDULE as RAW_PRESET_FOLLOW_SCHEDULE,
 )
 from salus_it600.device_models import (
     SQ610_HOLD_AUTO,
@@ -35,6 +29,13 @@ from salus_it600.device_models import (
     SQ610_RUNNING_HEAT,
 )
 
+from custom_components.salus._climate_state import (
+    PRESET_FOLLOW_SCHEDULE,
+    PRESET_PERMANENT_HOLD,
+    PRESET_STANDBY,
+    build_climate_view_state,
+)
+
 
 def _device(**overrides: Any) -> SimpleNamespace:
     values = {
@@ -42,7 +43,7 @@ def _device(**overrides: Any) -> SimpleNamespace:
         "hvac_mode": HVAC_MODE_HEAT,
         "hvac_action": "idle",
         "hvac_modes": [HVAC_MODE_HEAT],
-        "preset_mode": PRESET_FOLLOW_SCHEDULE,
+        "preset_mode": RAW_PRESET_FOLLOW_SCHEDULE,
         "current_temperature": 20.0,
         "current_humidity": None,
         "target_temperature": 21.0,
@@ -133,7 +134,7 @@ def test_sq610_auto_hold_maps_to_auto_mode_and_follow_schedule() -> None:
     )
 
     assert state.hvac_mode == HVACMode.AUTO
-    assert state.preset_mode == PRESET_FOLLOW_SALUS_SCHEDULE
+    assert state.preset_mode == PRESET_FOLLOW_SCHEDULE
 
 
 def test_sq610_heat_only_exposes_off_heat_auto_modes() -> None:

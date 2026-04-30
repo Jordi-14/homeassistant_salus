@@ -11,20 +11,18 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from salus_it600.exceptions import (
+    IT600AuthenticationError,
+    IT600ConnectionError,
+)
 
 from custom_components.salus.const import (
     CONF_POLL_FAILURE_THRESHOLD,
     CONF_POST_COMMAND_REFRESH_DELAY,
-    DOMAIN,
 )
 from custom_components.salus.coordinator import (
-    ISSUE_GATEWAY_UNAVAILABLE,
     SalusData,
     SalusDataUpdateCoordinator,
-)
-from salus_it600.exceptions import (
-    IT600AuthenticationError,
-    IT600ConnectionError,
 )
 
 

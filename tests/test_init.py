@@ -4,22 +4,22 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.const import CONF_HOST, CONF_TOKEN
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import CONF_HOST, CONF_TOKEN
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.salus import PLATFORMS, async_setup_entry, async_unload_entry
+from custom_components.salus import PLATFORMS, async_setup_entry
 from custom_components.salus.const import DOMAIN
 
 
 class FakeGateway:
     """Gateway fake for setup tests."""
 
-    instances: list["FakeGateway"] = []
+    instances: list[FakeGateway] = []
     poll_error: Exception | None = None
 
     def __init__(self, **kwargs: Any) -> None:

@@ -73,7 +73,7 @@
             "state": {
               "standby": "Standby",
               "permanent_hold": "Permanent hold",
-              "follow_salus_schedule": "Follow Salus schedule"
+              "follow_schedule": "Follow schedule"
             }
           }
         }

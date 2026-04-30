@@ -39,7 +39,7 @@ import asyncio
 import logging
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -77,7 +77,7 @@ TROUBLESHOOTING_URL = "https://github.com/Jordi-14/homeassistant_salus#troublesh
 
 def _utcnow_iso() -> str:
     """Return a UTC timestamp suitable for diagnostics."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _exception_summary(ex: Exception) -> str:
