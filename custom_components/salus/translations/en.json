@@ -71,7 +71,7 @@
                 "state_attributes": {
                     "preset_mode": {
                         "state": {
-                            "follow_salus_schedule": "Follow Salus schedule",
+                            "follow_schedule": "Follow Salus schedule",
                             "permanent_hold": "Permanent hold",
                             "standby": "Standby"
                         }

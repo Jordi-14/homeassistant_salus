@@ -1,6 +1,28 @@
-.idea
-.venv/
-venv/
+# Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# Testing / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Linting
+.ruff_cache/
+.mypy_cache/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# OS
 .DS_Store
+Thumbs.db

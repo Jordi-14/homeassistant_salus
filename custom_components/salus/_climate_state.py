@@ -23,7 +23,6 @@ from salus_it600.device_models import (
     SQ610_HOLD_AUTO,
     SQ610_HOLD_PERMANENT,
     SQ610_HOLD_STANDBY,
-    SQ610_MODE_AUTO,
     SQ610_MODE_COOL,
     SQ610_MODE_EMERGENCY_HEAT,
     SQ610_MODE_HEAT,
@@ -42,11 +41,11 @@ RAW_PRESET_OFF = "Off"
 
 PRESET_PERMANENT_HOLD = "permanent_hold"
 PRESET_STANDBY = "standby"
-PRESET_FOLLOW_SALUS_SCHEDULE = "follow_salus_schedule"
+PRESET_FOLLOW_SCHEDULE = "follow_schedule"
 EXPOSED_PRESET_MODES = [
     PRESET_PERMANENT_HOLD,
     PRESET_STANDBY,
-    PRESET_FOLLOW_SALUS_SCHEDULE,
+    PRESET_FOLLOW_SCHEDULE,
 ]
 
 RAW_TO_HA_FAN_MODE = {
@@ -106,9 +105,7 @@ def build_climate_view_state(
         current_temperature=_current_temperature(device, raw_props),
         current_humidity=_current_humidity(device, raw_props),
         hvac_mode=hvac_mode,
-        hvac_modes=[HVACMode.HEAT, HVACMode.COOL]
-        if supports_cooling
-        else [HVACMode.HEAT],
+        hvac_modes=_build_hvac_modes(device, supports_cooling),
         hvac_action=_hvac_action(device, raw_props),
         target_temperature=_target_temperature(device, raw_props, hvac_mode),
         preset_mode=_effective_preset_mode(device, raw_props),
@@ -206,18 +203,33 @@ def _normalize_hvac_action(action: Any) -> HVACAction | None:
 
 def _supports_cooling(device: Any | None, raw_props: Mapping[str, Any]) -> bool:
     """Return whether the thermostat exposes a separate cooling mode."""
-    return bool(
-        device
-        and (
-            is_sq610_device(device)
-            or device.model == MODEL_FC600
-            or HVACMode.COOL in (device.hvac_modes or [])
-            or device.fan_modes is not None
-            or raw_props.get("SystemMode")
-            in {SQ610_MODE_COOL, SQ610_MODE_HEAT, SQ610_MODE_AUTO}
+    if not device:
+        return False
+    if is_sq610_device(device):
+        # SQ610RF is heat-only; only report cooling if gateway confirms it
+        return (
+            raw_props.get("SystemMode") == SQ610_MODE_COOL
+            or raw_props.get("RunningState") == SQ610_RUNNING_COOL
             or raw_props.get("CoolingSetpoint_x100") is not None
         )
+    return bool(
+        device.model == MODEL_FC600
+        or HVACMode.COOL in (device.hvac_modes or [])
+        or device.fan_modes is not None
+        or raw_props.get("CoolingSetpoint_x100") is not None
     )
+
+
+def _build_hvac_modes(device: Any | None, supports_cooling: bool) -> list[HVACMode]:
+    """Return the HVAC modes to expose for a thermostat."""
+    if device and is_sq610_device(device):
+        modes = [HVACMode.OFF, HVACMode.HEAT, HVACMode.AUTO]
+        if supports_cooling:
+            modes.insert(2, HVACMode.COOL)
+        return modes
+    if supports_cooling:
+        return [HVACMode.HEAT, HVACMode.COOL]
+    return [HVACMode.HEAT]
 
 
 def _effective_hvac_mode(
@@ -230,8 +242,11 @@ def _effective_hvac_mode(
         return HVACMode.HEAT
 
     if is_sq610_device(device):
+        hold_type = raw_props.get("HoldType")
         system_mode = raw_props.get("SystemMode")
         running_state = raw_props.get("RunningState")
+        if hold_type == SQ610_HOLD_STANDBY:
+            return HVACMode.OFF
         if system_mode == SQ610_MODE_COOL or running_state == SQ610_RUNNING_COOL:
             return HVACMode.COOL
         if (
@@ -239,6 +254,8 @@ def _effective_hvac_mode(
             or running_state == SQ610_RUNNING_HEAT
         ):
             return HVACMode.HEAT
+        if hold_type == SQ610_HOLD_AUTO:
+            return HVACMode.AUTO
         return HVACMode.HEAT
 
     if device.hvac_mode == HVACMode.COOL:
@@ -265,14 +282,14 @@ def _effective_preset_mode(
         if hold_type == SQ610_HOLD_PERMANENT:
             return PRESET_PERMANENT_HOLD
         if hold_type == SQ610_HOLD_AUTO:
-            return PRESET_FOLLOW_SALUS_SCHEDULE
+            return PRESET_FOLLOW_SCHEDULE
 
     if device.preset_mode == RAW_PRESET_OFF:
         return PRESET_STANDBY
     if device.preset_mode in MANUAL_PRESET_MODES:
         return PRESET_PERMANENT_HOLD
     if device.preset_mode == RAW_PRESET_FOLLOW_SCHEDULE:
-        return PRESET_FOLLOW_SALUS_SCHEDULE
+        return PRESET_FOLLOW_SCHEDULE
     return device.preset_mode
 
 

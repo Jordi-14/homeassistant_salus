@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 
 from ._climate_state import (
     HA_TO_RAW_FAN_MODE,
-    PRESET_FOLLOW_SALUS_SCHEDULE,
+    PRESET_FOLLOW_SCHEDULE,
     PRESET_PERMANENT_HOLD,
     PRESET_STANDBY,
     RAW_PRESET_FOLLOW_SCHEDULE,
@@ -251,21 +251,18 @@ class SalusThermostat(SalusEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set operation mode."""
-        if hvac_mode == HVACMode.OFF:
-            await self.async_set_preset_mode(PRESET_STANDBY)
-            return
-        if hvac_mode == HVACMode.AUTO:
-            _LOGGER.warning(
-                "Ignoring unsupported schedule mode request for %s",
-                self._device_id,
-            )
-            return
         if hvac_mode not in self.hvac_modes:
             _LOGGER.warning(
                 "Ignoring unsupported HVAC mode request for %s: %s",
                 self._device_id,
                 hvac_mode,
             )
+            return
+        if hvac_mode == HVACMode.OFF:
+            await self.async_set_preset_mode(PRESET_STANDBY)
+            return
+        if hvac_mode == HVACMode.AUTO:
+            await self.async_set_preset_mode(PRESET_FOLLOW_SCHEDULE)
             return
 
         if self._is_sq610:
@@ -317,7 +314,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                 await self._async_request_debounced_refresh_after_sq610_write()
                 return
             raw_preset_mode = RAW_PRESET_PERMANENT_HOLD
-        elif preset_mode == PRESET_FOLLOW_SALUS_SCHEDULE:
+        elif preset_mode == PRESET_FOLLOW_SCHEDULE:
             if self._is_sq610:
                 await self._async_run_gateway_command(
                     "set SQ610 preset",
