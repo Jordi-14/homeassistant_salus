@@ -14,6 +14,13 @@ from homeassistant.components.climate.const import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
+from salus_it600.device_models import (
+    SQ610_HOLD_AUTO,
+    SQ610_HOLD_PERMANENT,
+    SQ610_HOLD_STANDBY,
+    SQ610_MODE_COOL,
+    SQ610_RUNNING_COOL,
+)
 
 from ._climate_state import (
     HA_TO_RAW_FAN_MODE,
@@ -32,6 +39,11 @@ from .entity import SalusEntity, async_add_salus_entities
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
+
+SQ610_RESUME_PRESET_TO_RAW = {
+    PRESET_FOLLOW_SCHEDULE: RAW_PRESET_FOLLOW_SCHEDULE,
+    PRESET_PERMANENT_HOLD: RAW_PRESET_PERMANENT_HOLD,
+}
 
 
 async def async_setup_entry(
@@ -58,6 +70,13 @@ class SalusThermostat(SalusEntity, ClimateEntity):
     _enable_turn_on_off_backwards_compatibility = False
     _attr_translation_key = "thermostat"
 
+    def __init__(self, coordinator: Any, device_id: str) -> None:
+        """Initialize a Salus thermostat entity."""
+        super().__init__(coordinator, device_id)
+        self._sq610_resume_preset_mode: str | None = None
+        self._sq610_supports_cooling = False
+        self._sq610_logged_unknown_hold_types: set[str] = set()
+
     @property
     def _device(self) -> Any | None:
         """Return the latest thermostat snapshot from the coordinator."""
@@ -80,7 +99,19 @@ class SalusThermostat(SalusEntity, ClimateEntity):
     @property
     def _view(self) -> ClimateViewState:
         """Return the Home Assistant-facing climate view state."""
-        return build_climate_view_state(self._device, self._raw_props)
+        resume_preset_mode = None
+        known_supports_cooling = False
+        if self._is_sq610:
+            self._remember_sq610_cooling_support()
+            self._remember_current_sq610_preset()
+            resume_preset_mode = self._sq610_resume_preset_mode
+            known_supports_cooling = self._sq610_supports_cooling
+        return build_climate_view_state(
+            self._device,
+            self._raw_props,
+            resume_preset_mode,
+            known_supports_cooling,
+        )
 
     @property
     def _supports_cooling(self) -> bool:
@@ -199,6 +230,79 @@ class SalusThermostat(SalusEntity, ClimateEntity):
 
         await self.coordinator.async_request_debounced_refresh()
 
+    def _current_sq610_preset_mode(self) -> str | None:
+        """Return the active non-standby SQ610 preset from raw or parsed state."""
+        hold_type = self._raw_props.get("HoldType")
+        if hold_type == SQ610_HOLD_AUTO:
+            return PRESET_FOLLOW_SCHEDULE
+        if hold_type == SQ610_HOLD_PERMANENT:
+            return PRESET_PERMANENT_HOLD
+        if hold_type == SQ610_HOLD_STANDBY:
+            return None
+        if hold_type is not None:
+            hold_type_key = repr(hold_type)
+            if hold_type_key not in self._sq610_logged_unknown_hold_types:
+                self._sq610_logged_unknown_hold_types.add(hold_type_key)
+                _LOGGER.debug(
+                    "Ignoring unknown SQ610 HoldType for %s: %s",
+                    self._device_id,
+                    hold_type,
+                )
+            return None
+
+        device = self._device
+        if device is None:
+            return None
+
+        preset_mode = getattr(device, "preset_mode", None)
+        if preset_mode == RAW_PRESET_FOLLOW_SCHEDULE:
+            return PRESET_FOLLOW_SCHEDULE
+        if preset_mode == RAW_PRESET_PERMANENT_HOLD:
+            return PRESET_PERMANENT_HOLD
+        return None
+
+    def _remember_current_sq610_preset(self) -> None:
+        """Remember the last active hold/schedule preset for standby resume."""
+        preset_mode = self._current_sq610_preset_mode()
+        if preset_mode is not None:
+            self._sq610_resume_preset_mode = preset_mode
+
+    def _sq610_snapshot_supports_cooling(self) -> bool:
+        """Return whether the current SQ610 snapshot proves cooling support."""
+        raw_props = self._raw_props
+        if (
+            raw_props.get("SystemMode") == SQ610_MODE_COOL
+            or raw_props.get("RunningState") == SQ610_RUNNING_COOL
+            or raw_props.get("CoolingSetpoint_x100") is not None
+        ):
+            return True
+
+        return False
+
+    def _remember_sq610_cooling_support(self) -> None:
+        """Keep Cool exposed after an SQ610 has proved cooling support once."""
+        if self._sq610_snapshot_supports_cooling():
+            self._sq610_supports_cooling = True
+
+    @property
+    def _sq610_resume_raw_preset_mode(self) -> str:
+        """Return the raw Salus preset to restore when leaving SQ610 standby."""
+        return SQ610_RESUME_PRESET_TO_RAW.get(
+            self._sq610_resume_preset_mode,
+            RAW_PRESET_PERMANENT_HOLD,
+        )
+
+    async def _async_set_sq610_raw_preset(self, raw_preset_mode: str) -> None:
+        """Set an SQ610 raw preset and refresh state."""
+        await self._async_run_gateway_command(
+            "set SQ610 preset",
+            lambda: self.coordinator.gateway.set_sq610_device_preset(
+                self._device_id,
+                raw_preset_mode,
+            ),
+        )
+        await self._async_request_debounced_refresh_after_sq610_write()
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
@@ -206,6 +310,12 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             return
 
         if self._is_sq610:
+            if self._raw_props.get("HoldType") == SQ610_HOLD_STANDBY:
+                _LOGGER.debug(
+                    "Ignoring SQ610 target temperature change while %s is in standby",
+                    self._device_id,
+                )
+                return
             await self._async_run_gateway_command(
                 "set SQ610 target temperature",
                 lambda: self.coordinator.gateway.set_sq610_device_temperature(
@@ -259,6 +369,10 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             )
             return
         if hvac_mode == HVACMode.OFF:
+            if self._is_sq610:
+                self._remember_current_sq610_preset()
+                await self._async_set_sq610_raw_preset(RAW_PRESET_OFF)
+                return
             await self.async_set_preset_mode(PRESET_STANDBY)
             return
         if hvac_mode == HVACMode.AUTO:
@@ -266,12 +380,23 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             return
 
         if self._is_sq610:
-            await self._async_run_gateway_command(
-                "set SQ610 HVAC mode",
-                lambda: self.coordinator.gateway.set_sq610_device_hvac_mode(
+            restore_preset = self._raw_props.get("HoldType") == SQ610_HOLD_STANDBY
+            raw_resume_preset = self._sq610_resume_raw_preset_mode
+
+            async def set_sq610_mode() -> None:
+                await self.coordinator.gateway.set_sq610_device_hvac_mode(
                     self._device_id,
                     hvac_mode,
-                ),
+                )
+                if restore_preset:
+                    await self.coordinator.gateway.set_sq610_device_preset(
+                        self._device_id,
+                        raw_resume_preset,
+                    )
+
+            await self._async_run_gateway_command(
+                "set SQ610 HVAC mode",
+                set_sq610_mode,
             )
             await self._async_request_debounced_refresh_after_sq610_write()
             return
@@ -292,38 +417,20 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         """Set the exposed Salus hold mode."""
         if preset_mode == PRESET_STANDBY:
             if self._is_sq610:
-                await self._async_run_gateway_command(
-                    "set SQ610 preset",
-                    lambda: self.coordinator.gateway.set_sq610_device_preset(
-                        self._device_id,
-                        RAW_PRESET_OFF,
-                    ),
-                )
-                await self._async_request_debounced_refresh_after_sq610_write()
+                self._remember_current_sq610_preset()
+                await self._async_set_sq610_raw_preset(RAW_PRESET_OFF)
                 return
             raw_preset_mode = RAW_PRESET_OFF
         elif preset_mode == PRESET_PERMANENT_HOLD:
             if self._is_sq610:
-                await self._async_run_gateway_command(
-                    "set SQ610 preset",
-                    lambda: self.coordinator.gateway.set_sq610_device_preset(
-                        self._device_id,
-                        RAW_PRESET_PERMANENT_HOLD,
-                    ),
-                )
-                await self._async_request_debounced_refresh_after_sq610_write()
+                self._sq610_resume_preset_mode = PRESET_PERMANENT_HOLD
+                await self._async_set_sq610_raw_preset(RAW_PRESET_PERMANENT_HOLD)
                 return
             raw_preset_mode = RAW_PRESET_PERMANENT_HOLD
         elif preset_mode == PRESET_FOLLOW_SCHEDULE:
             if self._is_sq610:
-                await self._async_run_gateway_command(
-                    "set SQ610 preset",
-                    lambda: self.coordinator.gateway.set_sq610_device_preset(
-                        self._device_id,
-                        RAW_PRESET_FOLLOW_SCHEDULE,
-                    ),
-                )
-                await self._async_request_debounced_refresh_after_sq610_write()
+                self._sq610_resume_preset_mode = PRESET_FOLLOW_SCHEDULE
+                await self._async_set_sq610_raw_preset(RAW_PRESET_FOLLOW_SCHEDULE)
                 return
             raw_preset_mode = RAW_PRESET_FOLLOW_SCHEDULE
         else:
@@ -344,7 +451,11 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         await self.coordinator.async_request_debounced_refresh()
 
     async def async_turn_on(self) -> None:
-        """Turn the thermostat on by resuming manual hold."""
+        """Turn the thermostat on by resuming the previous active preset."""
+        if self._is_sq610:
+            self._remember_current_sq610_preset()
+            await self._async_set_sq610_raw_preset(self._sq610_resume_raw_preset_mode)
+            return
         await self.async_set_preset_mode(PRESET_PERMANENT_HOLD)
 
     async def async_turn_off(self) -> None:
