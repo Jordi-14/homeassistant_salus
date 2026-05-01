@@ -47,6 +47,10 @@ EXPOSED_PRESET_MODES = [
     PRESET_STANDBY,
     PRESET_FOLLOW_SCHEDULE,
 ]
+SQ610_EXPOSED_PRESET_MODES = [
+    PRESET_PERMANENT_HOLD,
+    PRESET_FOLLOW_SCHEDULE,
+]
 
 RAW_TO_HA_FAN_MODE = {
     "Off": FAN_OFF,
@@ -95,9 +99,13 @@ def is_sq610_device(device: Any) -> bool:
 def build_climate_view_state(
     device: Any | None,
     raw_props: Mapping[str, Any],
+    sq610_resume_preset_mode: str | None = None,
+    sq610_known_supports_cooling: bool = False,
 ) -> ClimateViewState:
     """Build the Home Assistant-facing state for a Salus climate device."""
-    supports_cooling = _supports_cooling(device, raw_props)
+    supports_cooling = _supports_cooling(device, raw_props) or (
+        bool(device and is_sq610_device(device)) and sq610_known_supports_cooling
+    )
     hvac_mode = _effective_hvac_mode(device, raw_props, supports_cooling)
     return ClimateViewState(
         supports_cooling=supports_cooling,
@@ -108,8 +116,12 @@ def build_climate_view_state(
         hvac_modes=_build_hvac_modes(device, supports_cooling),
         hvac_action=_hvac_action(device, raw_props),
         target_temperature=_target_temperature(device, raw_props, hvac_mode),
-        preset_mode=_effective_preset_mode(device, raw_props),
-        preset_modes=EXPOSED_PRESET_MODES,
+        preset_mode=_effective_preset_mode(
+            device,
+            raw_props,
+            sq610_resume_preset_mode,
+        ),
+        preset_modes=_build_preset_modes(device),
         fan_mode=_fan_mode(device),
         fan_modes=_fan_modes(device),
     )
@@ -223,9 +235,9 @@ def _supports_cooling(device: Any | None, raw_props: Mapping[str, Any]) -> bool:
 def _build_hvac_modes(device: Any | None, supports_cooling: bool) -> list[HVACMode]:
     """Return the HVAC modes to expose for a thermostat."""
     if device and is_sq610_device(device):
-        modes = [HVACMode.OFF, HVACMode.HEAT, HVACMode.AUTO]
+        modes = [HVACMode.OFF, HVACMode.HEAT]
         if supports_cooling:
-            modes.insert(2, HVACMode.COOL)
+            modes.append(HVACMode.COOL)
         return modes
     if supports_cooling:
         return [HVACMode.HEAT, HVACMode.COOL]
@@ -254,8 +266,6 @@ def _effective_hvac_mode(
             or running_state == SQ610_RUNNING_HEAT
         ):
             return HVACMode.HEAT
-        if hold_type == SQ610_HOLD_AUTO:
-            return HVACMode.AUTO
         return HVACMode.HEAT
 
     if device.hvac_mode == HVACMode.COOL:
@@ -270,6 +280,7 @@ def _effective_hvac_mode(
 def _effective_preset_mode(
     device: Any | None,
     raw_props: Mapping[str, Any],
+    sq610_resume_preset_mode: str | None = None,
 ) -> str | None:
     """Collapse Salus hold states into the smaller HA control surface."""
     if device is None:
@@ -278,11 +289,13 @@ def _effective_preset_mode(
     if is_sq610_device(device):
         hold_type = raw_props.get("HoldType")
         if hold_type == SQ610_HOLD_STANDBY:
-            return PRESET_STANDBY
+            return _valid_sq610_resume_preset_mode(sq610_resume_preset_mode)
         if hold_type == SQ610_HOLD_PERMANENT:
             return PRESET_PERMANENT_HOLD
         if hold_type == SQ610_HOLD_AUTO:
             return PRESET_FOLLOW_SCHEDULE
+        if hold_type is not None:
+            return _valid_sq610_resume_preset_mode(sq610_resume_preset_mode)
 
     if device.preset_mode == RAW_PRESET_OFF:
         return PRESET_STANDBY
@@ -291,6 +304,20 @@ def _effective_preset_mode(
     if device.preset_mode == RAW_PRESET_FOLLOW_SCHEDULE:
         return PRESET_FOLLOW_SCHEDULE
     return device.preset_mode
+
+
+def _build_preset_modes(device: Any | None) -> list[str]:
+    """Return the preset modes to expose for a thermostat."""
+    if device and is_sq610_device(device):
+        return SQ610_EXPOSED_PRESET_MODES
+    return EXPOSED_PRESET_MODES
+
+
+def _valid_sq610_resume_preset_mode(preset_mode: str | None) -> str | None:
+    """Return a standby resume preset that is valid for the SQ610 UI."""
+    if preset_mode in SQ610_EXPOSED_PRESET_MODES:
+        return preset_mode
+    return None
 
 
 def _supported_features(device: Any | None) -> ClimateEntityFeature:

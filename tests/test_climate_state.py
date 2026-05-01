@@ -68,10 +68,12 @@ def test_sq610_cooling_uses_raw_cooling_setpoint() -> None:
     )
 
     assert state.supports_cooling is True
+    assert state.hvac_modes == [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL]
     assert state.hvac_mode == HVACMode.COOL
     assert state.hvac_action == HVACAction.COOLING
     assert state.target_temperature == 22.5
     assert state.preset_mode == PRESET_PERMANENT_HOLD
+    assert state.preset_modes == [PRESET_PERMANENT_HOLD, PRESET_FOLLOW_SCHEDULE]
 
 
 def test_sq610_auto_hold_preserves_cooling_system_mode() -> None:
@@ -159,27 +161,63 @@ def test_sq610_standby_maps_to_off_mode_and_off_action() -> None:
 
     assert state.hvac_mode == HVACMode.OFF
     assert state.hvac_action == HVACAction.OFF
-    assert state.preset_mode == PRESET_STANDBY
+    assert state.preset_mode is None
 
 
-def test_sq610_auto_hold_without_system_state_maps_to_auto_mode() -> None:
+def test_sq610_standby_uses_remembered_resume_preset() -> None:
+    state = build_climate_view_state(
+        _device(model="SQ610RF"),
+        {
+            "RunningState": SQ610_RUNNING_HEAT,
+            "HoldType": SQ610_HOLD_STANDBY,
+            "HeatingSetpoint_x100": 2100,
+        },
+        PRESET_FOLLOW_SCHEDULE,
+    )
+
+    assert state.hvac_mode == HVACMode.OFF
+    assert state.preset_mode == PRESET_FOLLOW_SCHEDULE
+
+
+def test_sq610_unknown_hold_type_uses_remembered_resume_preset() -> None:
+    state = build_climate_view_state(
+        _device(model="SQ610RF"),
+        {"HoldType": 99, "HeatingSetpoint_x100": 2100},
+        PRESET_FOLLOW_SCHEDULE,
+    )
+
+    assert state.preset_mode == PRESET_FOLLOW_SCHEDULE
+
+
+def test_sq610_auto_hold_without_system_state_falls_back_to_heat_mode() -> None:
     state = build_climate_view_state(
         _device(model="SQ610RF"),
         {"HoldType": SQ610_HOLD_AUTO, "HeatingSetpoint_x100": 2100},
     )
 
-    assert state.hvac_mode == HVACMode.AUTO
+    assert state.hvac_mode == HVACMode.HEAT
     assert state.preset_mode == PRESET_FOLLOW_SCHEDULE
 
 
-def test_sq610_heat_only_exposes_off_heat_auto_modes() -> None:
+def test_sq610_heat_only_exposes_off_heat_modes() -> None:
     state = build_climate_view_state(
         _device(model="SQ610RF"),
         {"HoldType": SQ610_HOLD_PERMANENT, "HeatingSetpoint_x100": 2100},
     )
 
-    assert state.hvac_modes == [HVACMode.OFF, HVACMode.HEAT, HVACMode.AUTO]
+    assert state.hvac_modes == [HVACMode.OFF, HVACMode.HEAT]
     assert state.supports_cooling is False
+
+
+def test_sq610_keeps_cool_mode_when_cooling_was_seen_before() -> None:
+    state = build_climate_view_state(
+        _device(model="SQ610RF"),
+        {"HoldType": SQ610_HOLD_PERMANENT, "HeatingSetpoint_x100": 2100},
+        sq610_known_supports_cooling=True,
+    )
+
+    assert state.supports_cooling is True
+    assert state.hvac_modes == [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL]
 
 
 def test_standard_off_preset_maps_to_standby() -> None:
