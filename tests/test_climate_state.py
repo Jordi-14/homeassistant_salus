@@ -172,7 +172,7 @@ def test_sq610_standby_maps_to_off_mode_and_off_action() -> None:
     assert state.preset_mode is None
 
 
-def test_sq610_standby_uses_remembered_resume_preset() -> None:
+def test_sq610_standby_hides_remembered_resume_preset() -> None:
     state = build_climate_view_state(
         _device(model="SQ610RF"),
         {
@@ -184,7 +184,7 @@ def test_sq610_standby_uses_remembered_resume_preset() -> None:
     )
 
     assert state.hvac_mode == HVACMode.OFF
-    assert state.preset_mode == PRESET_FOLLOW_SCHEDULE
+    assert state.preset_mode is None
 
 
 def test_sq610_unknown_hold_type_uses_remembered_resume_preset() -> None:
@@ -304,7 +304,7 @@ def test_fc600_off_preset_maps_to_off_hvac_mode() -> None:
     assert state.preset_mode is None
 
 
-def test_fc600_off_preset_uses_remembered_resume_preset() -> None:
+def test_fc600_off_preset_hides_remembered_resume_preset() -> None:
     state = build_climate_view_state(
         _device(
             model="FC600",
@@ -318,7 +318,7 @@ def test_fc600_off_preset_uses_remembered_resume_preset() -> None:
     )
 
     assert state.hvac_mode == HVACMode.OFF
-    assert state.preset_mode == PRESET_ECO
+    assert state.preset_mode is None
 
 
 def test_fc600_eco_maps_to_ha_eco_preset() -> None:
