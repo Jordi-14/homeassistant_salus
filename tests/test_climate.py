@@ -14,9 +14,11 @@ from salus_it600.device_models import (
 from salus_it600.exceptions import IT600ConnectionError
 
 from custom_components.salus._climate_state import (
+    PRESET_ECO,
     PRESET_FOLLOW_SCHEDULE,
     PRESET_PERMANENT_HOLD,
     PRESET_STANDBY,
+    RAW_PRESET_ECO,
     RAW_PRESET_FOLLOW_SCHEDULE,
     RAW_PRESET_OFF,
     RAW_PRESET_PERMANENT_HOLD,
@@ -225,9 +227,12 @@ class TestFC600Properties:
     def test_preset_modes_include_eco(self):
         device = make_fc600_device()
         coord = _coordinator_with_climate(device)
-        SalusThermostat(coord, device.unique_id)
-        # FC600 exposes its own preset list from the library
-        assert "Follow Schedule" in device.preset_modes
+        entity = SalusThermostat(coord, device.unique_id)
+        assert entity.preset_modes == [
+            PRESET_FOLLOW_SCHEDULE,
+            PRESET_PERMANENT_HOLD,
+            PRESET_ECO,
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -637,6 +642,17 @@ class TestFC600Commands:
         await entity.async_set_temperature(temperature=24.0)
         assert ("set_climate_temperature", device.unique_id, 24.0) in coord.gateway.calls
 
+    async def test_set_temperature_fc600_eco_is_noop(self):
+        device = make_fc600_device()
+        device.preset_mode = RAW_PRESET_ECO
+        coord = _coordinator_with_climate(device)
+        entity = SalusThermostat(coord, device.unique_id)
+
+        await entity.async_set_temperature(temperature=24.0)
+
+        assert coord.gateway.calls == []
+        assert coord.refresh_requests == 0
+
     async def test_set_preset_non_sq610(self):
         device = make_fc600_device()
         coord = _coordinator_with_climate(device)
@@ -648,7 +664,61 @@ class TestFC600Commands:
             RAW_PRESET_FOLLOW_SCHEDULE,
         ) in coord.gateway.calls
 
-    async def test_auto_hvac_mode_is_ignored_when_not_advertised(self):
+    async def test_set_preset_fc600_eco(self):
+        device = make_fc600_device()
+        coord = _coordinator_with_climate(device)
+        entity = SalusThermostat(coord, device.unique_id)
+
+        await entity.async_set_preset_mode(PRESET_ECO)
+
+        assert coord.gateway.calls == [
+            ("set_climate_preset", device.unique_id, RAW_PRESET_ECO),
+        ]
+        assert coord.refresh_requests == 1
+
+    async def test_set_hvac_mode_fc600_off_uses_preset(self):
+        device = make_fc600_device()
+        device.preset_mode = RAW_PRESET_FOLLOW_SCHEDULE
+        coord = _coordinator_with_climate(device)
+        entity = SalusThermostat(coord, device.unique_id)
+
+        await entity.async_set_hvac_mode(HVACMode.OFF)
+
+        assert coord.gateway.calls == [
+            ("set_climate_preset", device.unique_id, RAW_PRESET_OFF),
+        ]
+        assert coord.refresh_requests == 1
+
+    async def test_set_hvac_mode_fc600_from_off_restores_eco(self):
+        device = make_fc600_device()
+        device.hvac_mode = "cool"
+        device.preset_mode = RAW_PRESET_ECO
+        coord = _coordinator_with_climate(device)
+        entity = SalusThermostat(coord, device.unique_id)
+
+        await entity.async_set_hvac_mode(HVACMode.OFF)
+        device.preset_mode = RAW_PRESET_OFF
+        await entity.async_set_hvac_mode(HVACMode.HEAT)
+
+        assert coord.gateway.calls == [
+            ("set_climate_preset", device.unique_id, RAW_PRESET_OFF),
+            ("set_climate_mode", device.unique_id, HVACMode.HEAT),
+            ("set_climate_preset", device.unique_id, RAW_PRESET_ECO),
+        ]
+
+    async def test_set_preset_fc600_while_off_turns_on(self):
+        device = make_fc600_device()
+        device.preset_mode = RAW_PRESET_OFF
+        coord = _coordinator_with_climate(device)
+        entity = SalusThermostat(coord, device.unique_id)
+
+        await entity.async_set_preset_mode(PRESET_ECO)
+
+        assert coord.gateway.calls == [
+            ("set_climate_preset", device.unique_id, RAW_PRESET_ECO),
+        ]
+
+    async def test_standard_heat_only_device_uses_single_hvac_menu(self):
         device = make_climate_device(
             model="HTRP-RF(50)",
             hvac_modes=["heat"],
@@ -657,9 +727,46 @@ class TestFC600Commands:
         coord = _coordinator_with_climate(device)
         entity = SalusThermostat(coord, device.unique_id)
 
-        assert entity.hvac_modes == [HVACMode.HEAT]
+        assert entity.hvac_mode == HVACMode.AUTO
+        assert entity.hvac_modes == [HVACMode.OFF, HVACMode.HEAT, HVACMode.AUTO]
+        assert entity.preset_modes == []
+        assert not (entity.supported_features & ClimateEntityFeature.PRESET_MODE)
 
         await entity.async_set_hvac_mode(HVACMode.AUTO)
 
-        assert coord.gateway.calls == []
-        assert coord.refresh_requests == 0
+        assert coord.gateway.calls == [
+            ("set_climate_preset", device.unique_id, RAW_PRESET_FOLLOW_SCHEDULE)
+        ]
+        assert coord.refresh_requests == 1
+
+    async def test_standard_heat_only_heat_mode_sets_permanent_hold(self):
+        device = make_climate_device(
+            model="HTRP-RF(50)",
+            hvac_modes=["heat"],
+            preset_mode="Follow Schedule",
+        )
+        coord = _coordinator_with_climate(device)
+        entity = SalusThermostat(coord, device.unique_id)
+
+        await entity.async_set_hvac_mode(HVACMode.HEAT)
+
+        assert coord.gateway.calls == [
+            ("set_climate_preset", device.unique_id, RAW_PRESET_PERMANENT_HOLD)
+        ]
+        assert coord.refresh_requests == 1
+
+    async def test_standard_heat_only_off_mode_sets_off_preset(self):
+        device = make_climate_device(
+            model="HTRP-RF(50)",
+            hvac_modes=["heat"],
+            preset_mode="Permanent Hold",
+        )
+        coord = _coordinator_with_climate(device)
+        entity = SalusThermostat(coord, device.unique_id)
+
+        await entity.async_set_hvac_mode(HVACMode.OFF)
+
+        assert coord.gateway.calls == [
+            ("set_climate_preset", device.unique_id, RAW_PRESET_OFF)
+        ]
+        assert coord.refresh_requests == 1
