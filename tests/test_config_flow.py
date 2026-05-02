@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -17,7 +18,12 @@ from salus_it600.exceptions import (
 )
 
 from custom_components.salus import config_flow
-from custom_components.salus.const import DOMAIN
+from custom_components.salus.const import (
+    CONF_POLL_FAILURE_THRESHOLD,
+    CONF_POST_COMMAND_REFRESH_DELAY,
+    CONF_SCAN_INTERVAL,
+    DOMAIN,
+)
 
 
 class FakeGateway:
@@ -151,3 +157,23 @@ def test_valid_euid_normalizes_case() -> None:
 def test_valid_euid_rejects_invalid_values() -> None:
     with pytest.raises(vol.Invalid):
         config_flow._valid_euid("not-valid")
+
+
+async def test_options_flow_stores_scan_interval() -> None:
+    flow = config_flow.SalusOptionsFlowHandler(SimpleNamespace(options={}))
+    flow.flow_id = "test-flow"
+    flow.handler = DOMAIN
+    flow.context = {}
+
+    result = await flow.async_step_init(
+        {
+            CONF_POLL_FAILURE_THRESHOLD: 5,
+            CONF_SCAN_INTERVAL: 45,
+            CONF_POST_COMMAND_REFRESH_DELAY: 4.5,
+        }
+    )
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_POLL_FAILURE_THRESHOLD] == 5
+    assert result["data"][CONF_SCAN_INTERVAL] == 45
+    assert result["data"][CONF_POST_COMMAND_REFRESH_DELAY] == 4.5

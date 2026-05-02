@@ -1,12 +1,12 @@
 """Coordinator for Salus iT600 gateway data.
 
 This module implements the DataUpdateCoordinator pattern for polling the Salus iT600
-gateway at regular intervals (default 20 seconds) and aggregating device state into a
-single SalusData snapshot.
+gateway at a configurable interval (default 20 seconds) and aggregating device state
+into a single SalusData snapshot.
 
 Architecture:
     poll_status() flow:
-    1. Coordinator schedules _async_update_data() every 20 seconds
+    1. Coordinator schedules _async_update_data() at the configured scan interval
     2. _async_update_data() locks gateway (prevents concurrent requests)
     3. gateway.poll_status() fetches all device types (climate, binary_sensor, etc.)
     4. Device type lists extracted and packaged into SalusData dataclass
@@ -39,7 +39,7 @@ import asyncio
 import logging
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -60,13 +60,16 @@ from salus_it600.device_models import is_sq610_model
 from .const import (
     CONF_POLL_FAILURE_THRESHOLD,
     CONF_POST_COMMAND_REFRESH_DELAY,
-    DEFAULT_FAST_REFRESH_DELAY,
+    CONF_SCAN_INTERVAL,
     DEFAULT_POLL_FAILURE_THRESHOLD,
     DEFAULT_POST_COMMAND_REFRESH_DELAY,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL_SECONDS,
     DOMAIN,
     MAX_POST_COMMAND_REFRESH_DELAY,
+    MAX_SCAN_INTERVAL_SECONDS,
     MIN_POST_COMMAND_REFRESH_DELAY,
+    MIN_SCAN_INTERVAL_SECONDS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -83,6 +86,21 @@ def _utcnow_iso() -> str:
 def _exception_summary(ex: Exception) -> str:
     """Return a compact exception summary for diagnostics."""
     return f"{type(ex).__name__}: {ex}"
+
+
+def _scan_interval_from_options(options: Mapping[str, Any]) -> timedelta:
+    """Return the configured coordinator scan interval."""
+    try:
+        seconds = int(options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS))
+    except (TypeError, ValueError):
+        return DEFAULT_SCAN_INTERVAL
+
+    return timedelta(
+        seconds=min(
+            MAX_SCAN_INTERVAL_SECONDS,
+            max(MIN_SCAN_INTERVAL_SECONDS, seconds),
+        )
+    )
 
 
 @dataclass(slots=True)
@@ -245,14 +263,13 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=DEFAULT_SCAN_INTERVAL,
+            update_interval=_scan_interval_from_options(config_entry.options),
             config_entry=config_entry,
         )
         self.gateway = gateway
         self._config_entry = config_entry
         self.gateway_lock = asyncio.Lock()
         self.gateway_id: str | None = None
-        self._fast_refresh_delay = DEFAULT_FAST_REFRESH_DELAY
         self._debounced_refresh_task: asyncio.Task[None] | None = None
         self._post_command_refresh_requested_at: float | None = None
         self._gateway_health = SalusGatewayHealth()
@@ -262,8 +279,9 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         """Return gateway health diagnostics."""
         diagnostics = self._gateway_health.as_diagnostics()
         diagnostics["poll_failure_threshold"] = self._poll_failure_threshold()
-        diagnostics["scan_interval_seconds"] = int(DEFAULT_SCAN_INTERVAL.total_seconds())
-        diagnostics["fast_refresh_delay_seconds"] = self._fast_refresh_delay
+        diagnostics["scan_interval_seconds"] = int(
+            _scan_interval_from_options(self._config_entry.options).total_seconds()
+        )
         diagnostics["post_command_refresh_delay_seconds"] = (
             self._post_command_refresh_delay()
         )
@@ -277,11 +295,11 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         }
 
     async def async_request_debounced_refresh(self) -> None:
-        """Request fast and settled refreshes after a gateway write.
+        """Request a delayed refresh after a gateway write.
 
         Rapid commands update the requested timestamp. The running task uses the
-        latest timestamp, so slider-style changes collapse into one fast refresh
-        and one settle refresh after the most recent command.
+        latest timestamp, so slider-style changes collapse into one refresh
+        after the most recent command.
         """
         self._post_command_refresh_requested_at = self._loop_time()
 
@@ -291,31 +309,14 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
             )
 
     async def _async_debounced_refresh(self) -> None:
-        """Run fast and settled post-command refreshes."""
+        """Run the delayed post-command refresh."""
         try:
             while True:
                 request_at = self._post_command_refresh_requested_at
                 if request_at is None:
                     return
 
-                await self._async_sleep_until(request_at + self._fast_refresh_delay)
-                if self._post_command_refresh_requested_at != request_at:
-                    continue
-
-                await self.async_request_refresh()
-                if self._post_command_refresh_requested_at != request_at:
-                    continue
-
                 settle_delay = self._post_command_refresh_delay()
-                if settle_delay <= self._fast_refresh_delay:
-                    if self._post_command_refresh_requested_at == request_at:
-                        self._post_command_refresh_requested_at = None
-                    return
-                if self._loop_time() >= request_at + settle_delay:
-                    if self._post_command_refresh_requested_at == request_at:
-                        self._post_command_refresh_requested_at = None
-                    return
-
                 await self._async_sleep_until(request_at + settle_delay)
                 if self._post_command_refresh_requested_at != request_at:
                     continue

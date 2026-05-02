@@ -24,13 +24,17 @@ from salus_it600.gateway import IT600Gateway
 from .const import (
     CONF_POLL_FAILURE_THRESHOLD,
     CONF_POST_COMMAND_REFRESH_DELAY,
+    CONF_SCAN_INTERVAL,
     DEFAULT_POLL_FAILURE_THRESHOLD,
     DEFAULT_POST_COMMAND_REFRESH_DELAY,
+    DEFAULT_SCAN_INTERVAL_SECONDS,
     DOMAIN,
     MAX_POLL_FAILURE_THRESHOLD,
     MAX_POST_COMMAND_REFRESH_DELAY,
+    MAX_SCAN_INTERVAL_SECONDS,
     MIN_POLL_FAILURE_THRESHOLD,
     MIN_POST_COMMAND_REFRESH_DELAY,
+    MIN_SCAN_INTERVAL_SECONDS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -252,6 +256,10 @@ class SalusOptionsFlowHandler(config_entries.OptionsFlow):
             CONF_POLL_FAILURE_THRESHOLD,
             DEFAULT_POLL_FAILURE_THRESHOLD,
         )
+        current_scan_interval = self._config_entry.options.get(
+            CONF_SCAN_INTERVAL,
+            DEFAULT_SCAN_INTERVAL_SECONDS,
+        )
         current_post_command_refresh_delay = self._config_entry.options.get(
             CONF_POST_COMMAND_REFRESH_DELAY,
             DEFAULT_POST_COMMAND_REFRESH_DELAY,
@@ -268,6 +276,18 @@ class SalusOptionsFlowHandler(config_entries.OptionsFlow):
                         max=MAX_POLL_FAILURE_THRESHOLD,
                         step=1,
                         mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=current_scan_interval,
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_SCAN_INTERVAL_SECONDS,
+                        max=MAX_SCAN_INTERVAL_SECONDS,
+                        step=1,
+                        mode=selector.NumberSelectorMode.BOX,
+                        unit_of_measurement="s",
                     )
                 ),
                 vol.Optional(
@@ -296,6 +316,12 @@ class SalusOptionsFlowHandler(config_entries.OptionsFlow):
                 data={
                     CONF_POLL_FAILURE_THRESHOLD: int(
                         user_input[CONF_POLL_FAILURE_THRESHOLD]
+                    ),
+                    CONF_SCAN_INTERVAL: int(
+                        user_input.get(
+                            CONF_SCAN_INTERVAL,
+                            DEFAULT_SCAN_INTERVAL_SECONDS,
+                        )
                     ),
                     CONF_POST_COMMAND_REFRESH_DELAY: float(
                         user_input.get(

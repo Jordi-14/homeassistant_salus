@@ -76,9 +76,9 @@ If the printed EUID does not work, try `0000000000000000` — some gateways acce
 
 ### Data updates
 
-This is a local polling integration. Gateway data is refreshed every 20 seconds through one shared coordinator, then reused by all entity platforms.
+This is a local polling integration. Gateway data is refreshed every 20 seconds by default through one shared coordinator, then reused by all entity platforms. The regular poll interval is configurable in integration options.
 
-After a Home Assistant command (e.g. changing a thermostat target temperature or turning on a switch), the integration requests a fast refresh after 0.5 s and a settle refresh after 4 s (configurable in integration options). This ensures the UI updates promptly without hammering the gateway.
+After a Home Assistant command (e.g. changing a thermostat target temperature or turning on a switch), the integration requests one verification refresh after 5 s by default. This delay is configurable in integration options.
 
 ## Supported devices
 

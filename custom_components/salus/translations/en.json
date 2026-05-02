@@ -48,11 +48,13 @@
             "init": {
                 "data": {
                     "poll_failure_threshold": "Failed polls before unavailable",
+                    "scan_interval": "Gateway poll interval",
                     "post_command_refresh_delay": "Command verification delay"
                 },
                 "data_description": {
                     "poll_failure_threshold": "Consecutive failed gateway polls to tolerate before entities become unavailable.",
-                    "post_command_refresh_delay": "Seconds to wait before the second refresh after a command. A fast refresh still runs after 0.5 seconds."
+                    "scan_interval": "Seconds between regular gateway polls.",
+                    "post_command_refresh_delay": "Seconds to wait before refreshing after a command."
                 },
                 "description": "Tune gateway availability and command verification timing.",
                 "title": "Salus options"

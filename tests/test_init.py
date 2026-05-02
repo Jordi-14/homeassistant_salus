@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -13,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.salus import PLATFORMS, async_setup_entry
-from custom_components.salus.const import DOMAIN
+from custom_components.salus.const import CONF_SCAN_INTERVAL, DOMAIN
 
 
 class FakeGateway:
@@ -89,3 +90,27 @@ async def test_setup_entry_forwards_platforms(hass: HomeAssistant) -> None:
     mock_forward.assert_called_once_with(entry, PLATFORMS)
     assert FakeGateway.instances[0].kwargs[CONF_HOST] == "192.0.2.10"
     assert not FakeGateway.instances[0].closed
+
+
+async def test_setup_entry_uses_configured_scan_interval(
+    hass: HomeAssistant,
+) -> None:
+    import custom_components.salus as salus_init
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_HOST: "192.0.2.10", CONF_TOKEN: "001E5E0D32906128"},
+        options={CONF_SCAN_INTERVAL: 45},
+        state=ConfigEntryState.SETUP_IN_PROGRESS,
+    )
+    entry.add_to_hass(hass)
+    hass.data.setdefault(DOMAIN, {})
+
+    with patch.object(salus_init, "IT600Gateway", FakeGateway):
+        with patch.object(
+            hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
+        ):
+            result = await async_setup_entry(hass, entry)
+
+    assert result is True
+    assert entry.runtime_data.coordinator.update_interval == timedelta(seconds=45)
