@@ -431,7 +431,7 @@ def _effective_preset_mode(
     if capabilities.is_sq610:
         hold_type = raw_props.get("HoldType")
         if hold_type == SQ610_HOLD_STANDBY:
-            return _valid_sq610_resume_preset_mode(sq610_resume_preset_mode)
+            return None
         if hold_type == SQ610_HOLD_PERMANENT:
             return PRESET_PERMANENT_HOLD
         if hold_type == SQ610_HOLD_AUTO:
@@ -441,7 +441,7 @@ def _effective_preset_mode(
 
     if capabilities.is_fc600:
         if device.preset_mode == RAW_PRESET_OFF:
-            return _valid_fc600_resume_preset_mode(fc600_resume_preset_mode)
+            return None
         if device.preset_mode == RAW_PRESET_ECO:
             return PRESET_ECO
         if device.preset_mode in {RAW_PRESET_PERMANENT_HOLD, RAW_PRESET_TEMPORARY_HOLD}:
