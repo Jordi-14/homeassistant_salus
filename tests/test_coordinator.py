@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
@@ -19,6 +20,7 @@ from salus_it600.exceptions import (
 from custom_components.salus.const import (
     CONF_POLL_FAILURE_THRESHOLD,
     CONF_POST_COMMAND_REFRESH_DELAY,
+    CONF_SCAN_INTERVAL,
 )
 from custom_components.salus.coordinator import (
     SalusData,
@@ -92,6 +94,28 @@ def _coordinator(
         config_entry=config_entry,
         gateway=gateway,
     )
+
+
+async def test_scan_interval_uses_options(hass: HomeAssistant) -> None:
+    coordinator = _coordinator(
+        hass,
+        FakeGateway(),
+        options={CONF_SCAN_INTERVAL: 45},
+    )
+
+    assert coordinator.update_interval == timedelta(seconds=45)
+    assert coordinator.gateway_diagnostics()["scan_interval_seconds"] == 45
+
+
+async def test_scan_interval_clamps_options(hass: HomeAssistant) -> None:
+    coordinator = _coordinator(
+        hass,
+        FakeGateway(),
+        options={CONF_SCAN_INTERVAL: 1},
+    )
+
+    assert coordinator.update_interval == timedelta(seconds=5)
+    assert coordinator.gateway_diagnostics()["scan_interval_seconds"] == 5
 
 
 async def test_update_data_populates_snapshot(hass: HomeAssistant) -> None:
@@ -208,7 +232,6 @@ async def test_debounced_refresh_coalesces_rapid_requests(hass: HomeAssistant) -
         FakeGateway(),
         options={CONF_POST_COMMAND_REFRESH_DELAY: 0},
     )
-    coordinator._fast_refresh_delay = 0
     coordinator.refresh_count = 0
     _orig = coordinator.async_request_refresh
 
@@ -229,13 +252,12 @@ async def test_debounced_refresh_coalesces_rapid_requests(hass: HomeAssistant) -
     assert coordinator._debounced_refresh_task is None
 
 
-async def test_debounced_refresh_runs_settle_refresh(hass: HomeAssistant) -> None:
+async def test_debounced_refresh_waits_for_settle_delay(hass: HomeAssistant) -> None:
     coordinator = _coordinator(
         hass,
         FakeGateway(),
         options={CONF_POST_COMMAND_REFRESH_DELAY: 0.01},
     )
-    coordinator._fast_refresh_delay = 0
     coordinator.refresh_count = 0
 
     async def _counting_refresh():
@@ -247,4 +269,4 @@ async def test_debounced_refresh_runs_settle_refresh(hass: HomeAssistant) -> Non
     assert coordinator._debounced_refresh_task is not None
     await coordinator._debounced_refresh_task
 
-    assert coordinator.refresh_count == 2
+    assert coordinator.refresh_count == 1

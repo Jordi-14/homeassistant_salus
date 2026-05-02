@@ -46,6 +46,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime_data
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     except Exception:
         with suppress(Exception):
             await gateway.close()
@@ -58,6 +59,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise
 
     return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the config entry when integration options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def _async_connect_gateway(gateway: IT600Gateway) -> None:

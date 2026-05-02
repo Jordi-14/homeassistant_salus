@@ -48,11 +48,13 @@
             "init": {
                 "data": {
                     "poll_failure_threshold": "Sondejos fallits abans de marcar com a no disponible",
+                    "scan_interval": "Interval de sondeig de la passarel·la",
                     "post_command_refresh_delay": "Retard de verificació de l'ordre"
                 },
                 "data_description": {
                     "poll_failure_threshold": "Nombre de sondejos fallits consecutius que es toleren abans de marcar les entitats com a no disponibles.",
-                    "post_command_refresh_delay": "Segons que cal esperar abans del segon refresc després d'una ordre. També s'executa un refresc ràpid al cap de 0,5 segons."
+                    "scan_interval": "Segons entre sondejos regulars de la passarel·la.",
+                    "post_command_refresh_delay": "Segons que cal esperar abans de refrescar després d'una ordre."
                 },
                 "description": "Ajusta la disponibilitat de la passarel·la i el temps de verificació de les ordres.",
                 "title": "Opcions de Salus"
