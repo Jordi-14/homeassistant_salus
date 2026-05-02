@@ -114,8 +114,8 @@ async def test_scan_interval_clamps_options(hass: HomeAssistant) -> None:
         options={CONF_SCAN_INTERVAL: 1},
     )
 
-    assert coordinator.update_interval == timedelta(seconds=5)
-    assert coordinator.gateway_diagnostics()["scan_interval_seconds"] == 5
+    assert coordinator.update_interval == timedelta(seconds=10)
+    assert coordinator.gateway_diagnostics()["scan_interval_seconds"] == 10
 
 
 async def test_update_data_populates_snapshot(hass: HomeAssistant) -> None:
