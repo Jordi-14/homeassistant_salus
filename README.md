@@ -22,14 +22,16 @@ cooling, schedules, and hold states:
   devices do not expose a separate preset menu.
 - **SQ610 / SQ610RF Quantum thermostats** — separate HVAC and preset controls.
   HVAC modes are `Off` and `Heat`, with `Cool` added only when the gateway shows
-  the thermostat supports cooling. Presets are `Permanent Hold` and
-  `Follow Schedule`; schedule is not exposed as HVAC `Auto` for SQ610, and
-  standby is represented by HVAC `Off`, not by a separate preset.
+  the thermostat supports cooling. Presets are `Permanent Hold`,
+  `Follow Schedule`, and `Away`; `Schedule Override` is shown only while the
+  thermostat is actively overriding the Salus schedule. Schedule is not exposed
+  as HVAC `Auto` for SQ610, and standby is represented by HVAC `Off`, not by a
+  separate preset.
 - **FC600 fan-coil controllers** — separate HVAC, preset, and fan controls.
   HVAC modes are `Off`, `Heat`, and `Cool`; schedule is handled through presets,
   not HVAC `Auto`. Presets are `Follow Schedule`, `Permanent Hold`, and `Eco`
-  when the device reports Eco support. Fan modes are `auto`, `high`, `medium`,
-  `low`, and `off`.
+  when the device reports Eco support; `Schedule Override` is shown only while
+  active. Fan modes are `auto`, `high`, `medium`, `low`, and `off`.
 
 ### Sensors
 
@@ -137,7 +139,8 @@ The SQ610 Quantum thermostat has additional handling:
 - Separate HVAC and preset controls instead of collapsing schedule into HVAC `Auto`
 - `Cool` mode exposure only when the gateway reports cooling support
 - Direct standby handling via `HoldType`, exposed as HVAC `Off`
-- Simplified preset controls: `Permanent Hold` and `Follow Schedule`
+- Simplified preset controls: `Permanent Hold`, `Follow Schedule`, and `Away`
+- `Schedule Override` exposed only as a reported active state
 - Humidity exposed through the normalized client model
 - Floor temperature from external probe (`OUTSensorProbe`)
 

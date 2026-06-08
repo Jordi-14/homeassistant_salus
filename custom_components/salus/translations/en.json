@@ -93,7 +93,9 @@
                             "eco": "Eco",
                             "follow_schedule": "Follow Salus schedule",
                             "permanent_hold": "Permanent hold",
-                            "standby": "Standby"
+                            "standby": "Standby",
+                            "away": "Away",
+                            "schedule_override": "Schedule override"
                         }
                     }
                 }

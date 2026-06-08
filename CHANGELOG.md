@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0 - 2026-05-23
+
+Device support:
+
+- Require `salus-it600-client 0.6.0`.
+- Add SQ610 Away preset support.
+- Show SQ610 and FC600 `Schedule Override` only while the device reports an
+  active schedule override.
+- Keep `Schedule Override` as a reported state instead of a normal selectable
+  preset.
+
 ## 0.8.2 - 2026-05-22
 
 Polish:

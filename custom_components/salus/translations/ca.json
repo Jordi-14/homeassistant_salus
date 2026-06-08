@@ -91,9 +91,11 @@
                     "preset_mode": {
                         "state": {
                             "eco": "Eco",
-                            "follow_schedule": "Seguir l'horari de Salus",
+                            "follow_schedule": "Seguir horari de Salus",
                             "permanent_hold": "Mantenir permanentment",
-                            "standby": "Aturat"
+                            "standby": "Aturat",
+                            "away": "Fora",
+                            "schedule_override": "Horari sobreescrit"
                         }
                     }
                 }

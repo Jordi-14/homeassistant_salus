@@ -17,6 +17,7 @@ from salus_it600.const import (
     FAN_MODE_HIGH,
     HVAC_MODE_HEAT,
     PRESET_OFF,
+    HoldType,
 )
 from salus_it600.const import (
     PRESET_ECO as RAW_PRESET_ECO,
@@ -35,9 +36,13 @@ from salus_it600.device_models import (
 )
 
 from custom_components.salus._climate_state import (
+    PRESET_AWAY,
     PRESET_ECO,
     PRESET_FOLLOW_SCHEDULE,
     PRESET_PERMANENT_HOLD,
+    PRESET_SCHEDULE_OVERRIDE,
+    RAW_PRESET_AWAY,
+    RAW_PRESET_SCHEDULE_OVERRIDE,
     build_climate_view_state,
 )
 
@@ -72,7 +77,54 @@ def _device(**overrides: Any) -> SimpleNamespace:
         "supports_cooling": False,
     }
     values.update(overrides)
+    if "preset_modes" not in overrides:
+        if values["model"] == "SQ610RF":
+            values["preset_modes"] = [
+                RAW_PRESET_FOLLOW_SCHEDULE,
+                "Permanent Hold",
+                RAW_PRESET_AWAY,
+                PRESET_OFF,
+            ]
+            if "preset_mode" not in overrides:
+                values["preset_mode"] = _raw_sq610_preset_mode(values["hold_type"])
+            if values["preset_mode"] == RAW_PRESET_SCHEDULE_OVERRIDE:
+                values["preset_modes"].insert(1, RAW_PRESET_SCHEDULE_OVERRIDE)
+        elif values["model"] in {"FC600", "FC600NH"}:
+            values["preset_modes"] = [
+                RAW_PRESET_FOLLOW_SCHEDULE,
+                "Permanent Hold",
+                RAW_PRESET_ECO,
+                PRESET_OFF,
+            ]
+            if "preset_mode" not in overrides:
+                values["preset_mode"] = _raw_fc600_preset_mode(values["hold_type"])
+            if values["preset_mode"] == RAW_PRESET_SCHEDULE_OVERRIDE:
+                values["preset_modes"].insert(1, RAW_PRESET_SCHEDULE_OVERRIDE)
     return SimpleNamespace(**values)
+
+
+def _raw_sq610_preset_mode(hold_type: Any) -> str:
+    if hold_type == SQ610_HOLD_STANDBY:
+        return PRESET_OFF
+    if hold_type == HoldType.AWAY:
+        return RAW_PRESET_AWAY
+    if hold_type == HoldType.TEMPORARY_HOLD:
+        return RAW_PRESET_SCHEDULE_OVERRIDE
+    if hold_type == SQ610_HOLD_PERMANENT:
+        return "Permanent Hold"
+    return RAW_PRESET_FOLLOW_SCHEDULE
+
+
+def _raw_fc600_preset_mode(hold_type: Any) -> str:
+    if hold_type == SQ610_HOLD_STANDBY:
+        return PRESET_OFF
+    if hold_type == HoldType.ECO:
+        return RAW_PRESET_ECO
+    if hold_type == HoldType.TEMPORARY_HOLD:
+        return RAW_PRESET_SCHEDULE_OVERRIDE
+    if hold_type == SQ610_HOLD_PERMANENT:
+        return "Permanent Hold"
+    return RAW_PRESET_FOLLOW_SCHEDULE
 
 
 def _state(device_overrides: dict[str, Any] | None = None, **state_kwargs: Any):
@@ -116,7 +168,7 @@ SQ610_COOLING = {
                 HVACAction.COOLING,
                 22.5,
                 PRESET_PERMANENT_HOLD,
-                [PRESET_PERMANENT_HOLD, PRESET_FOLLOW_SCHEDULE],
+                [PRESET_PERMANENT_HOLD, PRESET_FOLLOW_SCHEDULE, PRESET_AWAY],
             ),
             id="sq610_cooling_setpoint",
         ),
@@ -309,7 +361,7 @@ def test_fc600_fan_modes_are_exposed(model: str) -> None:
         True,
         [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL],
         HVACMode.COOL,
-        [PRESET_FOLLOW_SCHEDULE, PRESET_PERMANENT_HOLD, PRESET_ECO],
+        [PRESET_PERMANENT_HOLD, PRESET_FOLLOW_SCHEDULE, PRESET_ECO],
         ["auto", "high"],
     )
     assert state.supported_features & ClimateEntityFeature.FAN_MODE
@@ -363,3 +415,22 @@ def test_fc600_fan_modes_are_exposed(model: str) -> None:
 )
 def test_fc600_view_state_cases(device_overrides, state_kwargs, attrs, expected) -> None:
     assert _attrs(_state(device_overrides, **state_kwargs), *attrs) == expected
+
+
+def test_fc600_reported_schedule_override_is_in_preset_modes_without_hold_type() -> None:
+    """Keep the active FC600 preset available when HoldType is unavailable."""
+    state = _state(
+        {
+            "model": "FC600",
+            "preset_mode": RAW_PRESET_SCHEDULE_OVERRIDE,
+            "hold_type": None,
+        }
+    )
+
+    assert state.preset_mode == PRESET_SCHEDULE_OVERRIDE
+    assert state.preset_modes == [
+        PRESET_PERMANENT_HOLD,
+        PRESET_FOLLOW_SCHEDULE,
+        PRESET_SCHEDULE_OVERRIDE,
+        PRESET_ECO,
+    ]

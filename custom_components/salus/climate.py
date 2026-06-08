@@ -13,10 +13,12 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
+from salus_it600.const import HoldType
 from salus_it600.device_models import (
     SQ610_HOLD_AUTO,
     SQ610_HOLD_PERMANENT,
     SQ610_HOLD_STANDBY,
+    SQ610_HOLD_AWAY,
     SQ610_MODE_COOL,
     SQ610_RUNNING_COOL,
     is_fan_coil_model,
@@ -28,11 +30,14 @@ from ._climate_state import (
     PRESET_FOLLOW_SCHEDULE,
     PRESET_PERMANENT_HOLD,
     PRESET_STANDBY,
+    PRESET_AWAY,
+    PRESET_SCHEDULE_OVERRIDE,
     RAW_PRESET_ECO,
     RAW_PRESET_FOLLOW_SCHEDULE,
     RAW_PRESET_OFF,
     RAW_PRESET_PERMANENT_HOLD,
-    RAW_PRESET_TEMPORARY_HOLD,
+    RAW_PRESET_SCHEDULE_OVERRIDE,
+    RAW_PRESET_AWAY,
     ClimateCapabilities,
     ClimateViewState,
     build_climate_capabilities,
@@ -48,6 +53,7 @@ PARALLEL_UPDATES = 1
 SQ610_RESUME_PRESET_TO_RAW = {
     PRESET_FOLLOW_SCHEDULE: RAW_PRESET_FOLLOW_SCHEDULE,
     PRESET_PERMANENT_HOLD: RAW_PRESET_PERMANENT_HOLD,
+    PRESET_AWAY: RAW_PRESET_AWAY,
 }
 FC600_RESUME_PRESET_TO_RAW = {
     PRESET_FOLLOW_SCHEDULE: RAW_PRESET_FOLLOW_SCHEDULE,
@@ -57,23 +63,28 @@ FC600_RESUME_PRESET_TO_RAW = {
 SQ610_HOLD_TO_PRESET = {
     SQ610_HOLD_AUTO: PRESET_FOLLOW_SCHEDULE,
     SQ610_HOLD_PERMANENT: PRESET_PERMANENT_HOLD,
+    SQ610_HOLD_AWAY: PRESET_AWAY,
+    HoldType.TEMPORARY_HOLD: PRESET_SCHEDULE_OVERRIDE,
     SQ610_HOLD_STANDBY: None,
 }
 SQ610_RAW_PRESET_TO_PRESET = {
     RAW_PRESET_FOLLOW_SCHEDULE: PRESET_FOLLOW_SCHEDULE,
     RAW_PRESET_PERMANENT_HOLD: PRESET_PERMANENT_HOLD,
+    RAW_PRESET_AWAY: PRESET_AWAY,
+    RAW_PRESET_SCHEDULE_OVERRIDE: PRESET_SCHEDULE_OVERRIDE,
 }
 FC600_RAW_PRESET_TO_PRESET = {
     RAW_PRESET_FOLLOW_SCHEDULE: PRESET_FOLLOW_SCHEDULE,
     RAW_PRESET_ECO: PRESET_ECO,
     RAW_PRESET_PERMANENT_HOLD: PRESET_PERMANENT_HOLD,
-    RAW_PRESET_TEMPORARY_HOLD: PRESET_PERMANENT_HOLD,
+    RAW_PRESET_SCHEDULE_OVERRIDE: PRESET_SCHEDULE_OVERRIDE,
 }
 EXPOSED_PRESET_TO_RAW = {
     PRESET_STANDBY: RAW_PRESET_OFF,
     PRESET_PERMANENT_HOLD: RAW_PRESET_PERMANENT_HOLD,
     PRESET_FOLLOW_SCHEDULE: RAW_PRESET_FOLLOW_SCHEDULE,
     PRESET_ECO: RAW_PRESET_ECO,
+    PRESET_AWAY: RAW_PRESET_AWAY,
 }
 
 
@@ -296,7 +307,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
     def _remember_current_sq610_preset(self) -> None:
         """Remember the last active hold/schedule preset for standby resume."""
         preset_mode = self._current_sq610_preset_mode()
-        if preset_mode is not None:
+        if preset_mode is not None and preset_mode in SQ610_RESUME_PRESET_TO_RAW:
             self._sq610_resume_preset_mode = preset_mode
 
     def _current_fc600_preset_mode(self) -> str | None:
@@ -306,7 +317,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
     def _remember_current_fc600_preset(self) -> None:
         """Remember the last active FC600 preset for off-state resume."""
         preset_mode = self._current_fc600_preset_mode()
-        if preset_mode is not None:
+        if preset_mode is not None and preset_mode in FC600_RESUME_PRESET_TO_RAW:
             self._fc600_resume_preset_mode = preset_mode
 
     def _remember_current_family_preset(self) -> None:
@@ -529,8 +540,19 @@ class SalusThermostat(SalusEntity, ClimateEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set the exposed Salus hold mode."""
+        if preset_mode != PRESET_STANDBY and preset_mode not in self.preset_modes:
+            _LOGGER.warning(
+                "Ignoring unsupported preset mode request for %s: %s",
+                self._device_id,
+                preset_mode,
+            )
+            return
+
+        if preset_mode == PRESET_SCHEDULE_OVERRIDE:
+            return
+
         raw_preset_mode = EXPOSED_PRESET_TO_RAW.get(preset_mode)
-        if raw_preset_mode is None or (preset_mode == PRESET_ECO and not self._is_fc600):
+        if raw_preset_mode is None:
             _LOGGER.warning(
                 "Ignoring unsupported preset mode request for %s: %s",
                 self._device_id,
@@ -554,7 +576,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             self._remember_current_family_preset()
             await self._async_set_raw_preset(self._fc600_resume_raw_preset_mode)
             return
-        await self.async_set_preset_mode(PRESET_PERMANENT_HOLD)
+        await self._async_set_raw_preset(RAW_PRESET_PERMANENT_HOLD)
 
     async def async_turn_off(self) -> None:
         """Turn the thermostat off by putting it in standby."""

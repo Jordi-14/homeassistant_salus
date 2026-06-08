@@ -6,8 +6,10 @@
           "preset_mode": {
             "state": {
               "eco": "mdi:leaf",
-              "follow_schedule": "mdi:calendar-clock",
-              "permanent_hold": "mdi:hand-back-right"
+              "follow_schedule": "mdi:calendar",
+              "permanent_hold": "mdi:hand-back-right",
+              "away": "mdi:airplane",
+              "schedule_override": "mdi:calendar-clock"
             }
           }
         }

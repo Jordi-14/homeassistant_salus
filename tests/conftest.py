@@ -10,6 +10,12 @@ import pytest
 
 from custom_components.salus.coordinator import SalusData
 
+RAW_PRESET_AWAY = "Away"
+RAW_PRESET_ECO = "Eco"
+RAW_PRESET_FOLLOW_SCHEDULE = "Follow Schedule"
+RAW_PRESET_OFF = "Off"
+RAW_PRESET_PERMANENT_HOLD = "Permanent Hold"
+
 
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
@@ -154,6 +160,19 @@ def make_climate_device(
     diagnostic_fields: dict | None = None,
 ) -> SimpleNamespace:
     """Create a climate device SimpleNamespace."""
+    if preset_modes is None:
+        preset_modes = [
+            RAW_PRESET_FOLLOW_SCHEDULE,
+            RAW_PRESET_PERMANENT_HOLD,
+            RAW_PRESET_OFF,
+        ]
+        if model in {"SQ610", "SQ610RF"}:
+            preset_modes = [
+                RAW_PRESET_FOLLOW_SCHEDULE,
+                RAW_PRESET_PERMANENT_HOLD,
+                RAW_PRESET_AWAY,
+                RAW_PRESET_OFF,
+            ]
     return _device_base(
         unique_id, name, model=model, available=available,
         temperature_unit=temperature_unit,
@@ -167,7 +186,7 @@ def make_climate_device(
         hvac_action=hvac_action,
         hvac_modes=hvac_modes or ["heat", "cool"],
         preset_mode=preset_mode,
-        preset_modes=preset_modes or ["Follow Schedule", "Permanent Hold", "Off"],
+        preset_modes=preset_modes,
         fan_mode=fan_mode,
         fan_modes=fan_modes,
         locked=locked,
@@ -201,7 +220,12 @@ def make_fc600_device(unique_id: str = "fc600-1", name: str = "Fan Coil") -> Sim
         hvac_mode="heat",
         hvac_modes=["off", "heat", "cool", "auto"],
         preset_mode="Follow Schedule",
-        preset_modes=["Follow Schedule", "Permanent Hold", "Temporary Hold", "Eco", "Off"],
+        preset_modes=[
+            RAW_PRESET_FOLLOW_SCHEDULE,
+            RAW_PRESET_PERMANENT_HOLD,
+            RAW_PRESET_ECO,
+            RAW_PRESET_OFF,
+        ],
         fan_mode="Auto",
         fan_modes=["Auto", "High", "Medium", "Low", "Off"],
         locked=None,
