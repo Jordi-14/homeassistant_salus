@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.1b0 - 2026-06-08
+
+Beta:
+
+- Debounce climate target-temperature writes for 300 ms so rapid UI changes
+  collapse into the latest requested target.
+- Keep the latest requested target temperature visible in Home Assistant while
+  waiting for gateway confirmation, instead of letting stale polls briefly
+  redraw the previous target.
+- Clear the pending target once the gateway reports it, or fall back to the
+  reported gateway value after a timeout or command failure.
+
 ## 0.9.0 - 2026-05-23
 
 Device support:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from homeassistant.components.climate import ClimateEntityFeature, HVACAction, HVACMode
 from homeassistant.const import UnitOfTemperature
@@ -431,6 +433,69 @@ class TestSQ610Commands:
             _gateway_call("set_climate_temperature", device, 23.5),
         )
         assert coord.refresh_requests == 1
+
+    async def test_set_temperature_exposes_pending_target_immediately(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "custom_components.salus.climate.TARGET_TEMPERATURE_DEBOUNCE_SECONDS",
+            0.05,
+        )
+        _, coord, entity = _thermostat()
+
+        task = asyncio.create_task(entity.async_set_temperature(temperature=23.5))
+        await asyncio.sleep(0)
+
+        assert entity.target_temperature == 23.5
+        assert coord.gateway.calls == []
+
+        await task
+
+    async def test_rapid_set_temperature_sends_only_latest_request(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "custom_components.salus.climate.TARGET_TEMPERATURE_DEBOUNCE_SECONDS",
+            0.05,
+        )
+        device, coord, entity = _thermostat()
+
+        first = asyncio.create_task(entity.async_set_temperature(temperature=20.0))
+        await asyncio.sleep(0.01)
+        second = asyncio.create_task(entity.async_set_temperature(temperature=21.0))
+
+        await asyncio.gather(first, second)
+
+        _assert_gateway_calls(
+            coord,
+            _gateway_call("set_climate_temperature", device, 21.0),
+        )
+        assert coord.refresh_requests == 1
+        assert entity.target_temperature == 21.0
+
+    async def test_pending_temperature_ignores_stale_poll_until_confirmation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "custom_components.salus.climate.TARGET_TEMPERATURE_DEBOUNCE_SECONDS",
+            0,
+        )
+        device, _, entity = _thermostat()
+
+        await entity.async_set_temperature(temperature=23.5)
+
+        device.target_temperature = 22.0
+        assert entity._clear_confirmed_pending_target_temperature() is False
+        assert entity.target_temperature == 23.5
+
+        device.target_temperature = 23.5
+        assert entity._clear_confirmed_pending_target_temperature() is True
+
+        device.target_temperature = 19.0
+        assert entity.target_temperature == 19.0
 
     async def test_set_temperature_no_value_is_noop(self):
         _, coord, entity = _thermostat()

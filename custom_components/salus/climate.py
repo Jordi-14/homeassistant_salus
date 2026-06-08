@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -12,7 +13,7 @@ from homeassistant.components.climate.const import (
     HVACMode,
 )
 from homeassistant.const import ATTR_TEMPERATURE
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from salus_it600.const import HoldType
 from salus_it600.device_models import (
     SQ610_HOLD_AUTO,
@@ -49,6 +50,9 @@ from .entity import SalusEntity, async_setup_salus_platform_entities
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
+TARGET_TEMPERATURE_DEBOUNCE_SECONDS = 0.3
+PENDING_TARGET_TEMPERATURE_TIMEOUT_SECONDS = 30.0
+TARGET_TEMPERATURE_CONFIRMATION_EPSILON = 0.01
 
 SQ610_RESUME_PRESET_TO_RAW = {
     PRESET_FOLLOW_SCHEDULE: RAW_PRESET_FOLLOW_SCHEDULE,
@@ -117,6 +121,9 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         self._sq610_supports_cooling = False
         self._sq610_logged_unknown_hold_types: set[str] = set()
         self._fc600_resume_preset_mode: str | None = None
+        self._pending_target_temperature: float | None = None
+        self._pending_target_temperature_expires_at: float | None = None
+        self._target_temperature_request_id = 0
 
     @property
     def _is_sq610(self) -> bool:
@@ -211,6 +218,8 @@ class SalusThermostat(SalusEntity, ClimateEntity):
     @property
     def target_temperature(self) -> float | None:
         """Return the temperature the thermostat tries to reach."""
+        if (pending := self._fresh_pending_target_temperature()) is not None:
+            return pending
         return self._view.target_temperature
 
     @property
@@ -352,6 +361,72 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         if self._sq610_snapshot_supports_cooling():
             self._sq610_supports_cooling = True
 
+    def _loop_time(self) -> float:
+        """Return the event-loop monotonic time."""
+        loop = getattr(getattr(self, "hass", None), "loop", None)
+        if loop is not None:
+            return loop.time()
+        return asyncio.get_running_loop().time()
+
+    def _set_pending_target_temperature(self, temperature: float) -> int:
+        """Store a Home Assistant-facing target temperature while it is pending."""
+        self._target_temperature_request_id += 1
+        self._pending_target_temperature = temperature
+        self._pending_target_temperature_expires_at = (
+            self._loop_time() + PENDING_TARGET_TEMPERATURE_TIMEOUT_SECONDS
+        )
+        self._async_write_state_if_added()
+        return self._target_temperature_request_id
+
+    def _clear_pending_target_temperature(self, request_id: int | None = None) -> None:
+        """Clear a pending target temperature request."""
+        if request_id is not None and request_id != self._target_temperature_request_id:
+            return
+        self._pending_target_temperature = None
+        self._pending_target_temperature_expires_at = None
+
+    def _fresh_pending_target_temperature(self) -> float | None:
+        """Return a pending target temperature unless it timed out."""
+        temperature = self._pending_target_temperature
+        if temperature is None:
+            return None
+
+        expires_at = self._pending_target_temperature_expires_at
+        if expires_at is not None and self._loop_time() >= expires_at:
+            self._clear_pending_target_temperature()
+            return None
+
+        return temperature
+
+    def _pending_target_temperature_is_confirmed(self) -> bool:
+        """Return whether the current gateway snapshot confirms the pending target."""
+        pending = self._pending_target_temperature
+        reported = self._view.target_temperature
+        return (
+            pending is not None
+            and reported is not None
+            and abs(reported - pending) <= TARGET_TEMPERATURE_CONFIRMATION_EPSILON
+        )
+
+    def _clear_confirmed_pending_target_temperature(self) -> bool:
+        """Clear a pending target temperature once the gateway reports it."""
+        if not self._pending_target_temperature_is_confirmed():
+            return False
+        self._clear_pending_target_temperature()
+        return True
+
+    def _async_write_state_if_added(self) -> None:
+        """Write state only once Home Assistant has registered the entity."""
+        if getattr(self, "hass", None) is None or self.entity_id is None:
+            return
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._clear_confirmed_pending_target_temperature()
+        super()._handle_coordinator_update()
+
     @property
     def _sq610_resume_raw_preset_mode(self) -> str:
         """Return the raw Salus preset to restore when leaving SQ610 standby."""
@@ -419,11 +494,41 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         await self._async_run_gateway_command(action, set_mode)
         await self._async_request_climate_command_refresh(is_sq610)
 
+    async def _async_set_debounced_target_temperature(
+        self,
+        temperature: float,
+        *,
+        action: str,
+        is_sq610: bool,
+    ) -> None:
+        """Debounce target temperature writes while exposing the desired value."""
+        request_id = self._set_pending_target_temperature(temperature)
+        await asyncio.sleep(TARGET_TEMPERATURE_DEBOUNCE_SECONDS)
+
+        if request_id != self._target_temperature_request_id:
+            return
+
+        try:
+            await self._async_run_gateway_command(
+                action,
+                lambda: self.coordinator.gateway.set_climate_device_temperature(
+                    self._device_id,
+                    temperature,
+                ),
+            )
+        except Exception:
+            self._clear_pending_target_temperature(request_id)
+            self._async_write_state_if_added()
+            raise
+
+        await self._async_request_climate_command_refresh(is_sq610)
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             return
+        temperature = float(temperature)
 
         if self._is_sq610:
             if getattr(self._device, "hold_type", None) == SQ610_HOLD_STANDBY:
@@ -432,14 +537,11 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                     self._device_id,
                 )
                 return
-            await self._async_run_gateway_command(
-                "set SQ610 target temperature",
-                lambda: self.coordinator.gateway.set_climate_device_temperature(
-                    self._device_id,
-                    temperature,
-                ),
+            await self._async_set_debounced_target_temperature(
+                temperature,
+                action="set SQ610 target temperature",
+                is_sq610=True,
             )
-            await self._async_request_debounced_refresh_after_sq610_write()
             return
 
         if self._is_fc600 and self._device_attr("preset_mode") in {
@@ -453,12 +555,10 @@ class SalusThermostat(SalusEntity, ClimateEntity):
             )
             return
 
-        await self._async_run_gateway_command_and_refresh(
-            "set target temperature",
-            lambda: self.coordinator.gateway.set_climate_device_temperature(
-                self._device_id,
-                temperature,
-            ),
+        await self._async_set_debounced_target_temperature(
+            temperature,
+            action="set target temperature",
+            is_sq610=False,
         )
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
