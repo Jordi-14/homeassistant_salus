@@ -488,11 +488,10 @@ class TestSQ610Commands:
         await entity.async_set_temperature(temperature=23.5)
 
         device.target_temperature = 22.0
-        assert entity._clear_confirmed_pending_target_temperature() is False
         assert entity.target_temperature == 23.5
 
         device.target_temperature = 23.5
-        assert entity._clear_confirmed_pending_target_temperature() is True
+        assert entity.target_temperature == 23.5
 
         device.target_temperature = 19.0
         assert entity.target_temperature == 19.0
@@ -673,6 +672,19 @@ class TestSQ610Commands:
             coord,
             _gateway_call("set_climate_preset", device, raw_preset),
         )
+
+    async def test_set_preset_exposes_pending_mode_until_confirmation(self):
+        device, _, entity = _thermostat()
+
+        await entity.async_set_preset_mode(PRESET_FOLLOW_SCHEDULE)
+
+        assert entity.preset_mode == PRESET_FOLLOW_SCHEDULE
+
+        _set_sq610_hold(device, SQ610_HOLD_AUTO)
+        assert entity.preset_mode == PRESET_FOLLOW_SCHEDULE
+
+        _set_sq610_hold(device, SQ610_HOLD_PERMANENT)
+        assert entity.preset_mode == PRESET_PERMANENT_HOLD
 
     async def test_schedule_override_is_report_only_when_active(self):
         device = make_climate_device()
@@ -876,6 +888,21 @@ class TestFC600Commands:
         await entity.async_set_fan_mode("high")
 
         _assert_gateway_calls(coord, _gateway_call("set_climate_fan_mode", device, "High"))
+
+    async def test_set_fan_mode_exposes_pending_mode_until_confirmation(self):
+        device = make_fc600_device()
+        device.fan_mode = "Auto"
+        _, _, entity = _thermostat(device)
+
+        await entity.async_set_fan_mode("high")
+
+        assert entity.fan_mode == "high"
+
+        device.fan_mode = "High"
+        assert entity.fan_mode == "high"
+
+        device.fan_mode = "Auto"
+        assert entity.fan_mode == "auto"
 
     async def test_set_temperature_non_sq610(self):
         device, coord, entity = _thermostat(make_fc600_device())

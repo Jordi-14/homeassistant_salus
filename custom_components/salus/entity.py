@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.core import callback
@@ -36,6 +38,17 @@ CHILD_ENTITY_TRANSLATION_KEY_BY_UNIQUE_ID_SUFFIX = (
     ("_power", "power"),
     ("_problem", "problem"),
 )
+PENDING_STATE_TIMEOUT_SECONDS = 30.0
+_NO_PENDING = object()
+
+
+@dataclass(slots=True)
+class _PendingStateValue:
+    """One optimistic Home Assistant-facing value."""
+
+    value: Any
+    request_id: int
+    expires_at: float
 
 
 class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
@@ -53,6 +66,8 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         super().__init__(coordinator)
         self._device_id = device_id
         self._attr_unique_id = device_id
+        self._pending_state: dict[str, _PendingStateValue] = {}
+        self._pending_state_request_id = 0
 
     @property
     def _device(self) -> Any | None:
@@ -68,6 +83,125 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         """Return one attribute from the current device snapshot."""
         device = self._device
         return default if device is None else getattr(device, attr, default)
+
+    def _loop_time(self) -> float:
+        """Return the event-loop monotonic time."""
+        loop = getattr(getattr(self, "hass", None), "loop", None)
+        if loop is not None:
+            return loop.time()
+        return asyncio.get_running_loop().time()
+
+    def _pending_values_match(self, pending_value: Any, reported_value: Any) -> bool:
+        """Return whether a reported value confirms a pending value."""
+        return pending_value == reported_value
+
+    def _async_write_state_if_added(self) -> None:
+        """Write state only once Home Assistant has registered the entity."""
+        if getattr(self, "hass", None) is None or self.entity_id is None:
+            return
+        self.async_write_ha_state()
+
+    def _set_pending_state(
+        self,
+        values: Mapping[str, Any],
+        *,
+        timeout: float = PENDING_STATE_TIMEOUT_SECONDS,
+    ) -> tuple[int, tuple[str, ...]]:
+        """Store optimistic Home Assistant-facing values."""
+        self._pending_state_request_id += 1
+        request_id = self._pending_state_request_id
+        keys = tuple(values)
+        expires_at = self._loop_time() + timeout
+        for key, value in values.items():
+            self._pending_state[key] = _PendingStateValue(
+                value=value,
+                request_id=request_id,
+                expires_at=expires_at,
+            )
+        if values:
+            self._async_write_state_if_added()
+        return request_id, keys
+
+    def _clear_pending_state(
+        self,
+        *,
+        request_id: int | None = None,
+        keys: tuple[str, ...] | None = None,
+    ) -> None:
+        """Clear pending state values."""
+        candidate_keys = keys or tuple(self._pending_state)
+        for key in candidate_keys:
+            pending = self._pending_state.get(key)
+            if pending is None:
+                continue
+            if request_id is not None and pending.request_id != request_id:
+                continue
+            self._pending_state.pop(key, None)
+
+    def _pending_command_is_current(
+        self,
+        request_id: int,
+        keys: tuple[str, ...],
+    ) -> bool:
+        """Return whether a debounced command is still the newest request."""
+        return all(
+            (pending := self._pending_state.get(key)) is not None
+            and pending.request_id == request_id
+            for key in keys
+        )
+
+    def _clear_expired_pending_state(self) -> None:
+        """Clear pending state values that have timed out."""
+        now = self._loop_time()
+        expired_keys = [
+            key for key, pending in self._pending_state.items() if now >= pending.expires_at
+        ]
+        for key in expired_keys:
+            self._pending_state.pop(key, None)
+
+    def _fresh_pending_state_value(
+        self,
+        key: str,
+        reported_value: Any,
+        *,
+        equivalent: Callable[[Any, Any], bool] | None = None,
+    ) -> Any:
+        """Return a fresh pending value, or a sentinel when no value is pending."""
+        pending = self._pending_state.get(key)
+        if pending is None:
+            return _NO_PENDING
+
+        if self._loop_time() >= pending.expires_at:
+            self._pending_state.pop(key, None)
+            return _NO_PENDING
+
+        value_matches = equivalent or self._pending_values_match
+        if value_matches(pending.value, reported_value):
+            self._pending_state.pop(key, None)
+            return _NO_PENDING
+
+        return pending.value
+
+    def _pending_or_reported(
+        self,
+        key: str,
+        reported_value: Any,
+        *,
+        equivalent: Callable[[Any, Any], bool] | None = None,
+    ) -> Any:
+        """Return a pending HA-facing value or the reported gateway value."""
+        pending_value = self._fresh_pending_state_value(
+            key,
+            reported_value,
+            equivalent=equivalent,
+        )
+        return reported_value if pending_value is _NO_PENDING else pending_value
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._clear_expired_pending_state()
+        super()._handle_coordinator_update()
 
     def _parent_device_name(
         self,
@@ -186,6 +320,35 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         """Run one gateway command and request the normal post-command refresh."""
         await self._async_run_gateway_command(action, command)
         await self.coordinator.async_request_debounced_refresh()
+
+    async def _async_run_pending_gateway_command(
+        self,
+        action: str,
+        command: Callable[[], Awaitable[None]],
+        pending_state: Mapping[str, Any],
+        *,
+        debounce_seconds: float = 0.0,
+        refresh: Callable[[], Awaitable[None]] | None = None,
+    ) -> None:
+        """Run a gateway command with optimistic Home Assistant-facing state."""
+        request_id, keys = self._set_pending_state(pending_state)
+
+        if debounce_seconds > 0:
+            await asyncio.sleep(debounce_seconds)
+            if not self._pending_command_is_current(request_id, keys):
+                return
+
+        try:
+            await self._async_run_gateway_command(action, command)
+        except Exception:
+            self._clear_pending_state(request_id=request_id, keys=keys)
+            self._async_write_state_if_added()
+            raise
+
+        if refresh is None:
+            await self.coordinator.async_request_debounced_refresh()
+        else:
+            await refresh()
 
     @property
     def available(self) -> bool:

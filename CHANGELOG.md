@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.1b1 - 2026-06-08
+
+Beta:
+
+- Move pending command state into a shared entity helper so command feedback is
+  handled consistently across platforms.
+- Apply optimistic pending state to climate target temperature, preset mode,
+  HVAC mode, fan mode, switch on/off, keypad lock/unlock, and cover
+  open/close/position commands.
+- Keep 300 ms debounce for slider-style commands: climate target temperature
+  and cover target position.
+- Keep discrete commands immediate while still showing the requested state in
+  Home Assistant until the gateway confirms it, fails, or times out.
+
 ## 0.9.1b0 - 2026-06-08
 
 Beta:

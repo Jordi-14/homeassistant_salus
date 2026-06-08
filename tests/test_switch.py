@@ -131,12 +131,42 @@ class TestSalusSwitchCommands:
         await entity.async_turn_on()
         assert coord.refresh_requests == 1
 
+    async def test_turn_on_exposes_pending_state_until_confirmation(self):
+        device = make_switch_device(is_on=False)
+        coord = _coordinator_with_switches(device)
+        entity = SalusSwitch(coord, device.unique_id)
+
+        await entity.async_turn_on()
+
+        assert entity.is_on is True
+
+        device.is_on = True
+        assert entity.is_on is True
+
+        device.is_on = False
+        assert entity.is_on is False
+
     async def test_turn_off_triggers_refresh(self):
         device = make_switch_device()
         coord = _coordinator_with_switches(device)
         entity = SalusSwitch(coord, device.unique_id)
         await entity.async_turn_off()
         assert coord.refresh_requests == 1
+
+    async def test_turn_off_exposes_pending_state_until_confirmation(self):
+        device = make_switch_device(is_on=True)
+        coord = _coordinator_with_switches(device)
+        entity = SalusSwitch(coord, device.unique_id)
+
+        await entity.async_turn_off()
+
+        assert entity.is_on is False
+
+        device.is_on = False
+        assert entity.is_on is False
+
+        device.is_on = True
+        assert entity.is_on is True
 
     async def test_gateway_error_raises(self):
         device = make_switch_device()

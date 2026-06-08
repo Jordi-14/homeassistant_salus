@@ -62,18 +62,20 @@ class SalusSwitch(SalusEntity, SwitchEntity):
     @property
     def is_on(self) -> bool | None:
         """Return true if the switch is on."""
-        return self._device_attr("is_on")
+        return self._pending_or_reported("is_on", self._device_attr("is_on"))
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
-        await self._async_run_gateway_command_and_refresh(
+        await self._async_run_pending_gateway_command(
             "turn on switch",
             lambda: self.coordinator.gateway.turn_on_switch_device(self._device_id),
+            {"is_on": True},
         )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
-        await self._async_run_gateway_command_and_refresh(
+        await self._async_run_pending_gateway_command(
             "turn off switch",
             lambda: self.coordinator.gateway.turn_off_switch_device(self._device_id),
+            {"is_on": False},
         )

@@ -77,6 +77,21 @@ class TestSalusThermostatLockCommands:
         assert ("set_climate_locked", "climate_001", True) in coord.gateway.calls
         assert coord.refresh_requests == 1
 
+    async def test_lock_exposes_pending_state_until_confirmation(self):
+        device = make_climate_device(unique_id="climate_001", locked=False)
+        coord = _coordinator_with_lockable_climate(device)
+        entity = SalusThermostatLock(coord, "climate_001")
+
+        await entity.async_lock()
+
+        assert entity.is_locked is True
+
+        device.locked = True
+        assert entity.is_locked is True
+
+        device.locked = False
+        assert entity.is_locked is False
+
     async def test_async_unlock(self):
         device = make_climate_device(unique_id="climate_001", locked=True)
         coord = _coordinator_with_lockable_climate(device)
@@ -84,6 +99,21 @@ class TestSalusThermostatLockCommands:
         await entity.async_unlock()
         assert ("set_climate_locked", "climate_001", False) in coord.gateway.calls
         assert coord.refresh_requests == 1
+
+    async def test_unlock_exposes_pending_state_until_confirmation(self):
+        device = make_climate_device(unique_id="climate_001", locked=True)
+        coord = _coordinator_with_lockable_climate(device)
+        entity = SalusThermostatLock(coord, "climate_001")
+
+        await entity.async_unlock()
+
+        assert entity.is_locked is False
+
+        device.locked = False
+        assert entity.is_locked is False
+
+        device.locked = True
+        assert entity.is_locked is True
 
     async def test_gateway_error_raises(self):
         device = make_climate_device(locked=False)

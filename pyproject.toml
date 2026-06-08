@@ -1,6 +1,6 @@
 [project]
 name = "homeassistant-salus"
-version = "0.9.1b0"
+version = "0.9.1b1"
 requires-python = ">=3.13"
 license = "MIT OR Apache-2.0"
 license-files = ["LICENSE", "LICENSE-MIT", "LICENSE-APACHE", "NOTICE"]
