@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.9.1b1 - 2026-06-08
+## 0.9.1 - 2026-06-12
 
-Beta:
+Command feedback:
 
 - Move pending command state into a shared entity helper so command feedback is
   handled consistently across platforms.
@@ -13,11 +13,6 @@ Beta:
   and cover target position.
 - Keep discrete commands immediate while still showing the requested state in
   Home Assistant until the gateway confirms it, fails, or times out.
-
-## 0.9.1b0 - 2026-06-08
-
-Beta:
-
 - Debounce climate target-temperature writes for 300 ms so rapid UI changes
   collapse into the latest requested target.
 - Keep the latest requested target temperature visible in Home Assistant while
@@ -25,6 +20,14 @@ Beta:
   redraw the previous target.
 - Clear the pending target once the gateway reports it, or fall back to the
   reported gateway value after a timeout or command failure.
+- Clear stale pending off state when resuming SQ610/FC600 presets.
+
+Maintenance:
+
+- Rely on config-entry runtime data instead of also storing runtime data under
+  `hass.data`.
+- Simplify diagnostics runtime-data lookup and keep the gateway EUID redacted.
+- Declare Home Assistant quality scale `silver`.
 
 ## 0.9.0 - 2026-05-23
 
