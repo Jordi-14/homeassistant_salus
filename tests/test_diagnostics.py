@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
@@ -144,6 +145,7 @@ async def test_diagnostics_redacts_token_and_reports_health(hass: HomeAssistant)
 
     assert diagnostics["entry"]["data"][CONF_HOST] == "192.0.2.10"
     assert diagnostics["entry"]["data"][CONF_TOKEN] == "**REDACTED**"
+    assert "001E5E0D32906128" not in json.dumps(diagnostics)
     assert diagnostics["runtime"]["loaded"] is True
     assert diagnostics["device_counts"]["climate"] == 2
     assert diagnostics["gateway"]["health"]["successful_updates"] == 1

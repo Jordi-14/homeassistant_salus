@@ -267,3 +267,42 @@ async def test_debounced_refresh_waits_for_settle_delay(hass: HomeAssistant) -> 
     await coordinator._debounced_refresh_task
 
     assert coordinator.refresh_count == 1
+
+
+async def test_cancel_debounced_refresh_stops_pending_task(
+    hass: HomeAssistant,
+) -> None:
+    coordinator = _coordinator(
+        hass,
+        FakeGateway(),
+        options={CONF_POST_COMMAND_REFRESH_DELAY: 30},
+    )
+    coordinator.refresh_count = 0
+
+    async def _counting_refresh():
+        coordinator.refresh_count += 1
+
+    coordinator.async_request_refresh = _counting_refresh
+
+    await coordinator.async_request_debounced_refresh()
+    task = coordinator._debounced_refresh_task
+    assert task is not None
+
+    coordinator.async_cancel_debounced_refresh()
+
+    assert coordinator._debounced_refresh_task is None
+    assert coordinator._post_command_refresh_requested_at is None
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert coordinator.refresh_count == 0
+
+
+async def test_cancel_debounced_refresh_is_safe_without_pending_task(
+    hass: HomeAssistant,
+) -> None:
+    coordinator = _coordinator(hass, FakeGateway())
+
+    coordinator.async_cancel_debounced_refresh()
+
+    assert coordinator._debounced_refresh_task is None
+    assert coordinator._post_command_refresh_requested_at is None
