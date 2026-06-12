@@ -11,6 +11,7 @@ from .coordinator import SalusConfigEntry
 from .entity import SalusEntity, async_setup_salus_platform_entities
 
 PARALLEL_UPDATES = 1
+COVER_POSITION_DEBOUNCE_SECONDS = 0.3
 
 COVER_DEVICE_CLASS_BY_MODEL = {
     "RS600": "shutter",
@@ -54,7 +55,10 @@ class SalusCover(SalusEntity, CoverEntity):
     @property
     def current_cover_position(self) -> int | None:
         """Return the current position of the cover."""
-        return self._device_attr("current_cover_position")
+        return self._pending_or_reported(
+            "current_cover_position",
+            self._device_attr("current_cover_position"),
+        )
 
     @property
     def is_opening(self) -> bool | None:
@@ -69,20 +73,22 @@ class SalusCover(SalusEntity, CoverEntity):
     @property
     def is_closed(self) -> bool | None:
         """Return if the cover is closed."""
-        return self._device_attr("is_closed")
+        return self._pending_or_reported("is_closed", self._device_attr("is_closed"))
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
-        await self._async_run_gateway_command_and_refresh(
+        await self._async_run_pending_gateway_command(
             "open cover",
             lambda: self.coordinator.gateway.open_cover(self._device_id),
+            {"current_cover_position": 100, "is_closed": False},
         )
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
-        await self._async_run_gateway_command_and_refresh(
+        await self._async_run_pending_gateway_command(
             "close cover",
             lambda: self.coordinator.gateway.close_cover(self._device_id),
+            {"current_cover_position": 0, "is_closed": True},
         )
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
@@ -91,10 +97,13 @@ class SalusCover(SalusEntity, CoverEntity):
         if position is None:
             return
 
-        await self._async_run_gateway_command_and_refresh(
+        position = int(position)
+        await self._async_run_pending_gateway_command(
             "set cover position",
             lambda: self.coordinator.gateway.set_cover_position(
                 self._device_id,
                 position,
             ),
+            {"current_cover_position": position, "is_closed": position == 0},
+            debounce_seconds=COVER_POSITION_DEBOUNCE_SECONDS,
         )

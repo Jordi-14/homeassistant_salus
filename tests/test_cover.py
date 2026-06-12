@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from homeassistant.components.cover import CoverEntityFeature
 from homeassistant.exceptions import HomeAssistantError
@@ -119,6 +121,26 @@ class TestSalusCoverCommands:
         await entity.async_open_cover()
         assert ("open_cover", "cover_001") in coord.gateway.calls
 
+    async def test_open_cover_exposes_pending_state_until_confirmation(self):
+        device = make_cover_device(is_closed=True, current_cover_position=0)
+        coord = _coordinator_with_covers(device)
+        entity = SalusCover(coord, device.unique_id)
+
+        await entity.async_open_cover()
+
+        assert entity.is_closed is False
+        assert entity.current_cover_position == 100
+
+        device.is_closed = False
+        device.current_cover_position = 100
+        assert entity.is_closed is False
+        assert entity.current_cover_position == 100
+
+        device.is_closed = True
+        device.current_cover_position = 0
+        assert entity.is_closed is True
+        assert entity.current_cover_position == 0
+
     async def test_close_cover(self):
         device = make_cover_device(unique_id="cover_001")
         coord = _coordinator_with_covers(device)
@@ -126,12 +148,54 @@ class TestSalusCoverCommands:
         await entity.async_close_cover()
         assert ("close_cover", "cover_001") in coord.gateway.calls
 
+    async def test_close_cover_exposes_pending_state_until_confirmation(self):
+        device = make_cover_device(is_closed=False, current_cover_position=100)
+        coord = _coordinator_with_covers(device)
+        entity = SalusCover(coord, device.unique_id)
+
+        await entity.async_close_cover()
+
+        assert entity.is_closed is True
+        assert entity.current_cover_position == 0
+
+        device.is_closed = True
+        device.current_cover_position = 0
+        assert entity.is_closed is True
+        assert entity.current_cover_position == 0
+
+        device.is_closed = False
+        device.current_cover_position = 100
+        assert entity.is_closed is False
+        assert entity.current_cover_position == 100
+
     async def test_set_cover_position(self):
         device = make_cover_device(unique_id="cover_001")
         coord = _coordinator_with_covers(device)
         entity = SalusCover(coord, device.unique_id)
         await entity.async_set_cover_position(position=50)
         assert ("set_cover_position", "cover_001", 50) in coord.gateway.calls
+
+    async def test_rapid_set_cover_position_sends_only_latest_request(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "custom_components.salus.cover.COVER_POSITION_DEBOUNCE_SECONDS",
+            0.05,
+        )
+        device = make_cover_device(current_cover_position=0, is_closed=True)
+        coord = _coordinator_with_covers(device)
+        entity = SalusCover(coord, device.unique_id)
+
+        first = asyncio.create_task(entity.async_set_cover_position(position=25))
+        await asyncio.sleep(0.01)
+        second = asyncio.create_task(entity.async_set_cover_position(position=75))
+
+        await asyncio.gather(first, second)
+
+        assert coord.gateway.calls == [("set_cover_position", device.unique_id, 75)]
+        assert entity.current_cover_position == 75
+        assert entity.is_closed is False
 
     async def test_set_cover_position_none_is_noop(self):
         device = make_cover_device()

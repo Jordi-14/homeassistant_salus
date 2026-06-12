@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from homeassistant.components.climate import ClimateEntityFeature, HVACAction, HVACMode
 from homeassistant.const import UnitOfTemperature
@@ -432,6 +434,68 @@ class TestSQ610Commands:
         )
         assert coord.refresh_requests == 1
 
+    async def test_set_temperature_exposes_pending_target_immediately(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "custom_components.salus.climate.TARGET_TEMPERATURE_DEBOUNCE_SECONDS",
+            0.05,
+        )
+        _, coord, entity = _thermostat()
+
+        task = asyncio.create_task(entity.async_set_temperature(temperature=23.5))
+        await asyncio.sleep(0)
+
+        assert entity.target_temperature == 23.5
+        assert coord.gateway.calls == []
+
+        await task
+
+    async def test_rapid_set_temperature_sends_only_latest_request(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "custom_components.salus.climate.TARGET_TEMPERATURE_DEBOUNCE_SECONDS",
+            0.05,
+        )
+        device, coord, entity = _thermostat()
+
+        first = asyncio.create_task(entity.async_set_temperature(temperature=20.0))
+        await asyncio.sleep(0.01)
+        second = asyncio.create_task(entity.async_set_temperature(temperature=21.0))
+
+        await asyncio.gather(first, second)
+
+        _assert_gateway_calls(
+            coord,
+            _gateway_call("set_climate_temperature", device, 21.0),
+        )
+        assert coord.refresh_requests == 1
+        assert entity.target_temperature == 21.0
+
+    async def test_pending_temperature_ignores_stale_poll_until_confirmation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "custom_components.salus.climate.TARGET_TEMPERATURE_DEBOUNCE_SECONDS",
+            0,
+        )
+        device, _, entity = _thermostat()
+
+        await entity.async_set_temperature(temperature=23.5)
+
+        device.target_temperature = 22.0
+        assert entity.target_temperature == 23.5
+
+        device.target_temperature = 23.5
+        assert entity.target_temperature == 23.5
+
+        device.target_temperature = 19.0
+        assert entity.target_temperature == 19.0
+
     async def test_set_temperature_no_value_is_noop(self):
         _, coord, entity = _thermostat()
 
@@ -609,6 +673,19 @@ class TestSQ610Commands:
             _gateway_call("set_climate_preset", device, raw_preset),
         )
 
+    async def test_set_preset_exposes_pending_mode_until_confirmation(self):
+        device, _, entity = _thermostat()
+
+        await entity.async_set_preset_mode(PRESET_FOLLOW_SCHEDULE)
+
+        assert entity.preset_mode == PRESET_FOLLOW_SCHEDULE
+
+        _set_sq610_hold(device, SQ610_HOLD_AUTO)
+        assert entity.preset_mode == PRESET_FOLLOW_SCHEDULE
+
+        _set_sq610_hold(device, SQ610_HOLD_PERMANENT)
+        assert entity.preset_mode == PRESET_PERMANENT_HOLD
+
     async def test_schedule_override_is_report_only_when_active(self):
         device = make_climate_device()
         _, coord, entity = _thermostat(
@@ -777,6 +854,21 @@ class TestSQ610Commands:
             _gateway_call("set_climate_preset", device, RAW_PRESET_FOLLOW_SCHEDULE),
         )
 
+    async def test_turn_on_replaces_pending_off_state(self):
+        device = make_climate_device()
+        _, _, entity = _thermostat(
+            device,
+            _fields(device, hold_type=SQ610_HOLD_AUTO),
+        )
+
+        await entity.async_turn_off()
+        assert entity.hvac_mode == HVACMode.OFF
+
+        await entity.async_turn_on()
+
+        assert entity.hvac_mode == HVACMode.HEAT
+        assert entity.preset_mode == PRESET_FOLLOW_SCHEDULE
+
     async def test_commands_trigger_refresh(self):
         _, coord, entity = _thermostat()
 
@@ -811,6 +903,21 @@ class TestFC600Commands:
         await entity.async_set_fan_mode("high")
 
         _assert_gateway_calls(coord, _gateway_call("set_climate_fan_mode", device, "High"))
+
+    async def test_set_fan_mode_exposes_pending_mode_until_confirmation(self):
+        device = make_fc600_device()
+        device.fan_mode = "Auto"
+        _, _, entity = _thermostat(device)
+
+        await entity.async_set_fan_mode("high")
+
+        assert entity.fan_mode == "high"
+
+        device.fan_mode = "High"
+        assert entity.fan_mode == "high"
+
+        device.fan_mode = "Auto"
+        assert entity.fan_mode == "auto"
 
     async def test_set_temperature_non_sq610(self):
         device, coord, entity = _thermostat(make_fc600_device())
