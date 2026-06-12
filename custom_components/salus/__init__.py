@@ -48,7 +48,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: SalusConfigEntry) -> boo
         coordinator.gateway_id = gateway_info.unique_id
         _async_register_gateway_device(hass, entry, gateway_info)
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime_data
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     except Exception:
@@ -59,7 +58,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: SalusConfigEntry) -> boo
             and getattr(entry, "runtime_data", None) is runtime_data
         ):
             entry.runtime_data = None
-        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
         raise
 
     return True
@@ -130,6 +128,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: SalusConfigEntry) -> bo
 
     if unload_ok:
         await runtime_data.gateway.close()
-        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
 
     return unload_ok
