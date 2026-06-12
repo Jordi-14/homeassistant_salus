@@ -407,11 +407,14 @@ class SalusThermostat(SalusEntity, ClimateEntity):
 
         pending_preset_mode = RAW_TO_HA_PRESET.get(raw_preset_mode)
         if self._capabilities.uses_independent_preset_control:
-            return (
+            pending_state = (
                 {"preset_mode": pending_preset_mode}
                 if pending_preset_mode is not None
                 else {}
             )
+            if pending_state and self.hvac_mode == HVACMode.OFF:
+                pending_state["hvac_mode"] = HVACMode.HEAT
+            return pending_state
 
         if raw_preset_mode == RAW_PRESET_FOLLOW_SCHEDULE:
             return {"hvac_mode": HVACMode.AUTO}
@@ -664,8 +667,6 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         else:
             self._remember_requested_resume_preset(preset_mode)
         pending_state = self._pending_state_for_raw_preset(raw_preset_mode)
-        if preset_mode != PRESET_STANDBY and self.hvac_mode == HVACMode.OFF:
-            pending_state["hvac_mode"] = HVACMode.HEAT
         await self._async_set_raw_preset(
             raw_preset_mode,
             pending_state=pending_state,

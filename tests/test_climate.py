@@ -854,6 +854,21 @@ class TestSQ610Commands:
             _gateway_call("set_climate_preset", device, RAW_PRESET_FOLLOW_SCHEDULE),
         )
 
+    async def test_turn_on_replaces_pending_off_state(self):
+        device = make_climate_device()
+        _, _, entity = _thermostat(
+            device,
+            _fields(device, hold_type=SQ610_HOLD_AUTO),
+        )
+
+        await entity.async_turn_off()
+        assert entity.hvac_mode == HVACMode.OFF
+
+        await entity.async_turn_on()
+
+        assert entity.hvac_mode == HVACMode.HEAT
+        assert entity.preset_mode == PRESET_FOLLOW_SCHEDULE
+
     async def test_commands_trigger_refresh(self):
         _, coord, entity = _thermostat()
 
