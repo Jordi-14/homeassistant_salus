@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 from homeassistant.const import Platform
 
 DOMAIN = "salus"
@@ -21,7 +19,6 @@ CONF_SCAN_INTERVAL = "scan_interval"
 DEFAULT_SCAN_INTERVAL_SECONDS = 20
 MIN_SCAN_INTERVAL_SECONDS = 10
 MAX_SCAN_INTERVAL_SECONDS = 300
-DEFAULT_SCAN_INTERVAL = timedelta(seconds=DEFAULT_SCAN_INTERVAL_SECONDS)
 DEFAULT_POST_COMMAND_REFRESH_DELAY = 5.0
 CONNECT_RETRIES = 3
 CONNECT_RETRY_DELAY = 3
