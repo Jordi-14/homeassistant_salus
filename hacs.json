@@ -1,5 +1,7 @@
 {
   "name": "Salus iT600",
   "render_readme": true,
-  "homeassistant": "2024.8.0"
+  "homeassistant": "2024.8.0",
+  "zip_release": true,
+  "filename": "salus.zip"
 }
