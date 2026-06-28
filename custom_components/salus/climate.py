@@ -42,6 +42,7 @@ from ._climate_state import (
     ClimateViewState,
     build_climate_capabilities,
     build_climate_view_state,
+    _running_state_matches,
 )
 from .coordinator import SalusConfigEntry, is_sq610_device
 from .entity import SalusEntity, async_setup_salus_platform_entities
@@ -356,7 +357,10 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                 getattr(device, "supports_cooling", False)
                 or HVACMode.COOL in (getattr(device, "hvac_modes", None) or [])
                 or getattr(device, "system_mode", None) == SQ610_MODE_COOL
-                or getattr(device, "running_state", None) == SQ610_RUNNING_COOL
+                or _running_state_matches(
+                    getattr(device, "running_state", None),
+                    SQ610_RUNNING_COOL,
+                )
             )
         )
 
