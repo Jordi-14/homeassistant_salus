@@ -434,3 +434,40 @@ def test_fc600_reported_schedule_override_is_in_preset_modes_without_hold_type()
         PRESET_SCHEDULE_OVERRIDE,
         PRESET_ECO,
     ]
+
+
+@pytest.mark.parametrize(
+    ("running_state", "system_mode", "expected_action"),
+    [
+        # running_state is a bitmask that also encodes the fan stage. The cool
+        # bit (SQ610_RUNNING_COOL == 2) is set for every cooling value, the heat
+        # bit (SQ610_RUNNING_HEAT == 1) for every heating value - regardless of
+        # which fan-stage bits (4 / 32 / 64) are also set.
+        pytest.param(SQ610_RUNNING_COOL, SQ610_MODE_COOL, HVACAction.COOLING, id="cool"),
+        pytest.param(6, SQ610_MODE_COOL, HVACAction.COOLING, id="cool_fan"),
+        pytest.param(34, SQ610_MODE_COOL, HVACAction.COOLING, id="cool_fan_2nd"),
+        pytest.param(66, SQ610_MODE_COOL, HVACAction.COOLING, id="cool_fan_3rd"),
+        pytest.param(SQ610_RUNNING_HEAT, SQ610_MODE_HEAT, HVACAction.HEATING, id="heat"),
+        pytest.param(5, SQ610_MODE_HEAT, HVACAction.HEATING, id="heat_fan"),
+        pytest.param(33, SQ610_MODE_HEAT, HVACAction.HEATING, id="heat_fan_2nd"),
+        pytest.param(65, SQ610_MODE_HEAT, HVACAction.HEATING, id="heat_fan_3rd"),
+        # neither bit set -> idle (0 = idle, 4 = fan running but no demand)
+        pytest.param(0, SQ610_MODE_COOL, HVACAction.IDLE, id="idle"),
+        pytest.param(4, SQ610_MODE_COOL, HVACAction.IDLE, id="fan_only"),
+    ],
+)
+def test_sq610_running_state_bitmask_hvac_action(
+    running_state, system_mode, expected_action
+) -> None:
+    """hvac_action follows the running_state bit, not an exact fan-stage value."""
+    state = _state(
+        {
+            "model": "SQ610RF",
+            "system_mode": system_mode,
+            "running_state": running_state,
+            "supports_cooling": True,
+            "hold_type": SQ610_HOLD_AUTO,
+        }
+    )
+
+    assert state.hvac_action == expected_action
