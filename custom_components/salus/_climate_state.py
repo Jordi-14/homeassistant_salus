@@ -79,10 +79,6 @@ RAW_HVAC_ACTION_TO_HA = {
     "heating (idling)": HVACAction.IDLE,
     "cooling (idling)": HVACAction.IDLE,
 }
-SQ610_RUNNING_ACTION_TO_HA = {
-    SQ610_RUNNING_HEAT: HVACAction.HEATING,
-    SQ610_RUNNING_COOL: HVACAction.COOLING,
-}
 SQ610_SYSTEM_IDLE_MODES = {
     SQ610_MODE_COOL,
     SQ610_MODE_HEAT,
@@ -103,6 +99,16 @@ TURN_ON_OFF_FEATURES = (
     getattr(ClimateEntityFeature, "TURN_ON", ClimateEntityFeature(0))
     | getattr(ClimateEntityFeature, "TURN_OFF", ClimateEntityFeature(0))
 )
+
+
+def _running_state_matches(running_state: Any, mask: int) -> bool:
+    """Return whether a Salus running-state bit is set."""
+    return (
+        isinstance(running_state, int)
+        and not isinstance(running_state, bool)
+        and running_state >= 0
+        and bool(running_state & int(mask))
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -314,11 +320,14 @@ def _effective_hvac_mode(
         running_state = getattr(device, "running_state", None)
         if hold_type == SQ610_HOLD_STANDBY:
             return HVACMode.OFF
-        if system_mode == SQ610_MODE_COOL or running_state == SQ610_RUNNING_COOL:
+        if system_mode == SQ610_MODE_COOL or _running_state_matches(
+            running_state,
+            SQ610_RUNNING_COOL,
+        ):
             return HVACMode.COOL
         if (
             system_mode in {SQ610_MODE_HEAT, SQ610_MODE_EMERGENCY_HEAT}
-            or running_state == SQ610_RUNNING_HEAT
+            or _running_state_matches(running_state, SQ610_RUNNING_HEAT)
         ):
             return HVACMode.HEAT
         return HVACMode.HEAT
@@ -463,8 +472,10 @@ def _hvac_action(
         system_mode = getattr(device, "system_mode", None)
         if hold_type == SQ610_HOLD_STANDBY:
             return HVACAction.OFF
-        if running_state in SQ610_RUNNING_ACTION_TO_HA:
-            return SQ610_RUNNING_ACTION_TO_HA[running_state]
+        if _running_state_matches(running_state, SQ610_RUNNING_HEAT):
+            return HVACAction.HEATING
+        if _running_state_matches(running_state, SQ610_RUNNING_COOL):
+            return HVACAction.COOLING
         if system_mode in SQ610_SYSTEM_IDLE_MODES:
             return HVACAction.IDLE
         return None
