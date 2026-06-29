@@ -22,11 +22,10 @@ from salus_it600.device_models import (
     SQ610_MODE_COOL,
     SQ610_MODE_EMERGENCY_HEAT,
     SQ610_MODE_HEAT,
-    SQ610_RUNNING_COOL,
-    SQ610_RUNNING_HEAT,
     is_fan_coil_model,
     is_sq610_model,
 )
+from salus_it600.models import running_state_is_cooling, running_state_is_heating
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,10 +77,6 @@ RAW_HVAC_ACTION_TO_HA = {
     "idle": HVACAction.IDLE,
     "heating (idling)": HVACAction.IDLE,
     "cooling (idling)": HVACAction.IDLE,
-}
-SQ610_RUNNING_ACTION_TO_HA = {
-    SQ610_RUNNING_HEAT: HVACAction.HEATING,
-    SQ610_RUNNING_COOL: HVACAction.COOLING,
 }
 SQ610_SYSTEM_IDLE_MODES = {
     SQ610_MODE_COOL,
@@ -314,11 +309,11 @@ def _effective_hvac_mode(
         running_state = getattr(device, "running_state", None)
         if hold_type == SQ610_HOLD_STANDBY:
             return HVACMode.OFF
-        if system_mode == SQ610_MODE_COOL or running_state == SQ610_RUNNING_COOL:
+        if system_mode == SQ610_MODE_COOL or running_state_is_cooling(running_state):
             return HVACMode.COOL
         if (
             system_mode in {SQ610_MODE_HEAT, SQ610_MODE_EMERGENCY_HEAT}
-            or running_state == SQ610_RUNNING_HEAT
+            or running_state_is_heating(running_state)
         ):
             return HVACMode.HEAT
         return HVACMode.HEAT
@@ -463,8 +458,10 @@ def _hvac_action(
         system_mode = getattr(device, "system_mode", None)
         if hold_type == SQ610_HOLD_STANDBY:
             return HVACAction.OFF
-        if running_state in SQ610_RUNNING_ACTION_TO_HA:
-            return SQ610_RUNNING_ACTION_TO_HA[running_state]
+        if running_state_is_heating(running_state):
+            return HVACAction.HEATING
+        if running_state_is_cooling(running_state):
+            return HVACAction.COOLING
         if system_mode in SQ610_SYSTEM_IDLE_MODES:
             return HVACAction.IDLE
         return None

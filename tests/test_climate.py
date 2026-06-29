@@ -805,6 +805,7 @@ class TestSQ610Commands:
         [
             {"system_mode": SQ610_MODE_COOL},
             {"running_state": SQ610_RUNNING_COOL},
+            {"running_state": 66},
         ],
     )
     async def test_sq610_runtime_cooling_state_proves_cooling_support(self, fields):

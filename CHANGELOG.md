@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.3 - 2026-06-28
+
+Bug fixes:
+
+- Require `salus-it600-client 0.6.1` so FC600 fan-stage running-state values
+  report active heating/cooling instead of idle.
+- Treat SQ610 `running_state` values as bitmasks in the integration fallback
+  state mapper.
+
 ## 0.9.1 - 2026-06-12
 
 Command feedback:

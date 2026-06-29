@@ -301,6 +301,45 @@ def test_sq610_view_state_cases(device_overrides, state_kwargs, attrs, expected)
 
 
 @pytest.mark.parametrize(
+    ("running_state", "expected_mode", "expected_action"),
+    [
+        (1, HVACMode.HEAT, HVACAction.HEATING),
+        (5, HVACMode.HEAT, HVACAction.HEATING),
+        (33, HVACMode.HEAT, HVACAction.HEATING),
+        (65, HVACMode.HEAT, HVACAction.HEATING),
+        (129, HVACMode.HEAT, HVACAction.HEATING),
+        (193, HVACMode.HEAT, HVACAction.HEATING),
+        (192, HVACMode.HEAT, HVACAction.IDLE),
+        (2, HVACMode.COOL, HVACAction.COOLING),
+        (6, HVACMode.COOL, HVACAction.COOLING),
+        (34, HVACMode.COOL, HVACAction.COOLING),
+        (66, HVACMode.COOL, HVACAction.COOLING),
+    ],
+)
+def test_sq610_running_state_bitmask_maps_hvac_action(
+    running_state,
+    expected_mode,
+    expected_action,
+) -> None:
+    state = _state(
+        {
+            "model": "SQ610RF",
+            "hold_type": SQ610_HOLD_AUTO,
+            "system_mode": SQ610_MODE_HEAT,
+            "running_state": running_state,
+            "heating_setpoint": 21.0,
+            "cooling_setpoint": 22.5,
+            "supports_cooling": True,
+        }
+    )
+
+    assert _attrs(state, "hvac_mode", "hvac_action") == (
+        expected_mode,
+        expected_action,
+    )
+
+
+@pytest.mark.parametrize(
     ("device_overrides", "attrs", "expected"),
     [
         pytest.param(
