@@ -22,11 +22,10 @@ from salus_it600.device_models import (
     SQ610_MODE_COOL,
     SQ610_MODE_EMERGENCY_HEAT,
     SQ610_MODE_HEAT,
-    SQ610_RUNNING_COOL,
-    SQ610_RUNNING_HEAT,
     is_fan_coil_model,
     is_sq610_model,
 )
+from salus_it600.models import running_state_is_cooling, running_state_is_heating
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -99,16 +98,6 @@ TURN_ON_OFF_FEATURES = (
     getattr(ClimateEntityFeature, "TURN_ON", ClimateEntityFeature(0))
     | getattr(ClimateEntityFeature, "TURN_OFF", ClimateEntityFeature(0))
 )
-
-
-def _running_state_matches(running_state: Any, mask: int) -> bool:
-    """Return whether a Salus running-state bit is set."""
-    return (
-        isinstance(running_state, int)
-        and not isinstance(running_state, bool)
-        and running_state >= 0
-        and bool(running_state & int(mask))
-    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -320,14 +309,11 @@ def _effective_hvac_mode(
         running_state = getattr(device, "running_state", None)
         if hold_type == SQ610_HOLD_STANDBY:
             return HVACMode.OFF
-        if system_mode == SQ610_MODE_COOL or _running_state_matches(
-            running_state,
-            SQ610_RUNNING_COOL,
-        ):
+        if system_mode == SQ610_MODE_COOL or running_state_is_cooling(running_state):
             return HVACMode.COOL
         if (
             system_mode in {SQ610_MODE_HEAT, SQ610_MODE_EMERGENCY_HEAT}
-            or _running_state_matches(running_state, SQ610_RUNNING_HEAT)
+            or running_state_is_heating(running_state)
         ):
             return HVACMode.HEAT
         return HVACMode.HEAT
@@ -472,9 +458,9 @@ def _hvac_action(
         system_mode = getattr(device, "system_mode", None)
         if hold_type == SQ610_HOLD_STANDBY:
             return HVACAction.OFF
-        if _running_state_matches(running_state, SQ610_RUNNING_HEAT):
+        if running_state_is_heating(running_state):
             return HVACAction.HEATING
-        if _running_state_matches(running_state, SQ610_RUNNING_COOL):
+        if running_state_is_cooling(running_state):
             return HVACAction.COOLING
         if system_mode in SQ610_SYSTEM_IDLE_MODES:
             return HVACAction.IDLE
