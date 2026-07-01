@@ -144,11 +144,7 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         keys: tuple[str, ...],
     ) -> bool:
         """Return whether a debounced command is still the newest request."""
-        return all(
-            (pending := self._pending_state.get(key)) is not None
-            and pending.request_id == request_id
-            for key in keys
-        )
+        return request_id == self._pending_state_request_id
 
     def _clear_expired_pending_state(self) -> None:
         """Clear pending state values that have timed out."""

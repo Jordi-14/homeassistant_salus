@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.4b1 - 2026-07-01
+
+Bug fixes:
+
+- Fix RS600 cover percentage positioning from the Home Assistant slider. A
+  pending-state debounce guard could treat a valid position command as stale
+  when Home Assistant read an already-matching pending cover state during the
+  300 ms debounce window, so the gateway write was never sent.
+
 ## 0.9.3 - 2026-06-28
 
 Bug fixes:
