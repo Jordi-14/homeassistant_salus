@@ -20,7 +20,7 @@ from salus_it600.exceptions import (
 )
 from salus_it600.gateway import IT600Gateway
 
-from .const import CONNECT_RETRIES, CONNECT_RETRY_DELAY, DOMAIN, PLATFORMS
+from .const import CONNECT_RETRIES, CONNECT_RETRY_DELAY, DOMAIN, GATEWAY_OPERATION_TIMEOUT_SECONDS, PLATFORMS
 from .coordinator import SalusConfigEntry, SalusDataUpdateCoordinator, SalusRuntimeData
 
 CONFIG_SCHEMA = config_entry_only_config_schema(DOMAIN)
@@ -74,7 +74,7 @@ async def _async_connect_gateway(gateway: IT600Gateway) -> None:
 
     for attempt in range(CONNECT_RETRIES):
         try:
-            async with asyncio.timeout(10):
+            async with asyncio.timeout(GATEWAY_OPERATION_TIMEOUT_SECONDS):
                 await gateway.connect()
             return
         except IT600AuthenticationError as ex:
