@@ -175,6 +175,26 @@ class TestSalusCoverCommands:
         await entity.async_set_cover_position(position=50)
         assert ("set_cover_position", "cover_001", 50) in coord.gateway.calls
 
+    async def test_set_cover_position_sends_after_matching_pending_state_read(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "custom_components.salus.cover.COVER_POSITION_DEBOUNCE_SECONDS",
+            0.05,
+        )
+        device = make_cover_device(current_cover_position=75, is_closed=False)
+        coord = _coordinator_with_covers(device)
+        entity = SalusCover(coord, device.unique_id)
+
+        task = asyncio.create_task(entity.async_set_cover_position(position=50))
+        await asyncio.sleep(0.01)
+
+        assert entity.is_closed is False
+        await task
+
+        assert coord.gateway.calls == [("set_cover_position", device.unique_id, 50)]
+
     async def test_rapid_set_cover_position_sends_only_latest_request(
         self,
         monkeypatch: pytest.MonkeyPatch,

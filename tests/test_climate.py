@@ -920,6 +920,36 @@ class TestFC600Commands:
         device.fan_mode = "Auto"
         assert entity.fan_mode == "auto"
 
+    async def test_unrelated_fan_mode_does_not_cancel_debounced_temperature(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "custom_components.salus.climate.TARGET_TEMPERATURE_DEBOUNCE_SECONDS",
+            0.05,
+        )
+        device, coord, entity = _thermostat(make_fc600_device())
+
+        temperature_task = asyncio.create_task(
+            entity.async_set_temperature(temperature=23.5)
+        )
+        await asyncio.sleep(0)
+        await entity.async_set_fan_mode("high")
+
+        assert entity.target_temperature == 23.5
+        _assert_gateway_calls(
+            coord,
+            _gateway_call("set_climate_fan_mode", device, "High"),
+        )
+
+        await temperature_task
+
+        _assert_gateway_calls(
+            coord,
+            _gateway_call("set_climate_fan_mode", device, "High"),
+            _gateway_call("set_climate_temperature", device, 23.5),
+        )
+
     async def test_set_temperature_non_sq610(self):
         device, coord, entity = _thermostat(make_fc600_device())
 

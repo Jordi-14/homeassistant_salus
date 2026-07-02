@@ -68,6 +68,7 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         self._attr_unique_id = device_id
         self._pending_state: dict[str, _PendingStateValue] = {}
         self._pending_state_request_id = 0
+        self._pending_state_request_id_by_key: dict[str, int] = {}
 
     @property
     def _device(self) -> Any | None:
@@ -118,6 +119,7 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
                 request_id=request_id,
                 expires_at=expires_at,
             )
+            self._pending_state_request_id_by_key[key] = request_id
         if values:
             self._async_write_state_if_added()
         return request_id, keys
@@ -138,6 +140,16 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
                 continue
             self._pending_state.pop(key, None)
 
+    def _clear_pending_request_ids(
+        self,
+        request_id: int,
+        keys: tuple[str, ...],
+    ) -> None:
+        """Clear command freshness markers for keys owned by a request."""
+        for key in keys:
+            if self._pending_state_request_id_by_key.get(key) == request_id:
+                self._pending_state_request_id_by_key.pop(key, None)
+
     def _pending_command_is_current(
         self,
         request_id: int,
@@ -145,8 +157,7 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
     ) -> bool:
         """Return whether a debounced command is still the newest request."""
         return all(
-            (pending := self._pending_state.get(key)) is not None
-            and pending.request_id == request_id
+            self._pending_state_request_id_by_key.get(key) == request_id
             for key in keys
         )
 
@@ -342,8 +353,10 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
             await self._async_run_gateway_command(action, command)
         except Exception:
             self._clear_pending_state(request_id=request_id, keys=keys)
+            self._clear_pending_request_ids(request_id, keys)
             self._async_write_state_if_added()
             raise
+        self._clear_pending_request_ids(request_id, keys)
 
         if refresh is None:
             await self.coordinator.async_request_debounced_refresh()

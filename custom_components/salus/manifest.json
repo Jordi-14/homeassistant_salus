@@ -11,5 +11,5 @@
   "loggers": ["salus_it600"],
   "quality_scale": "silver",
   "requirements": ["salus-it600-client==0.6.1"],
-  "version": "0.9.3"
+  "version": "0.9.4"
 }
