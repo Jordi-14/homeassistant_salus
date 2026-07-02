@@ -23,6 +23,13 @@ DEFAULT_POST_COMMAND_REFRESH_DELAY = 5.0
 CONNECT_RETRIES = 3
 CONNECT_RETRY_DELAY = 3
 
+# Timeout applied to a single gateway operation (connect or status poll).
+GATEWAY_OPERATION_TIMEOUT_SECONDS = 10
+
+# Debounce windows that collapse rapid slider/setpoint changes into one write.
+TARGET_TEMPERATURE_DEBOUNCE_SECONDS = 0.3
+COVER_POSITION_DEBOUNCE_SECONDS = 0.3
+
 CONF_POLL_FAILURE_THRESHOLD = "poll_failure_threshold"
 DEFAULT_POLL_FAILURE_THRESHOLD = 3
 MIN_POLL_FAILURE_THRESHOLD = 0

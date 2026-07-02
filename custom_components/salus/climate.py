@@ -43,13 +43,13 @@ from ._climate_state import (
     build_climate_capabilities,
     build_climate_view_state,
 )
+from .const import TARGET_TEMPERATURE_DEBOUNCE_SECONDS
 from .coordinator import SalusConfigEntry, is_sq610_device
 from .entity import SalusEntity, async_setup_salus_platform_entities
 
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
-TARGET_TEMPERATURE_DEBOUNCE_SECONDS = 0.3
 TARGET_TEMPERATURE_CONFIRMATION_EPSILON = 0.01
 
 SQ610_RESUME_PRESET_TO_RAW = {
@@ -625,9 +625,6 @@ class SalusThermostat(SalusEntity, ClimateEntity):
                     pending_state={"hvac_mode": HVACMode.HEAT},
                 )
                 return
-            if hvac_mode == HVACMode.COOL and not self._supports_cooling:
-                return
-
         if not self._supports_cooling:
             return
 

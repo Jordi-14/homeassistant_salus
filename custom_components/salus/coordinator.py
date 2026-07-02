@@ -28,6 +28,7 @@ from .const import (
     DEFAULT_POST_COMMAND_REFRESH_DELAY,
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DOMAIN,
+    GATEWAY_OPERATION_TIMEOUT_SECONDS,
     MAX_POST_COMMAND_REFRESH_DELAY,
     MAX_SCAN_INTERVAL_SECONDS,
     MIN_POST_COMMAND_REFRESH_DELAY,
@@ -303,7 +304,7 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
     async def _async_update_data(self) -> SalusData:
         """Fetch all Salus device data from the gateway."""
         try:
-            async with asyncio.timeout(10):
+            async with asyncio.timeout(GATEWAY_OPERATION_TIMEOUT_SECONDS):
                 async with self.gateway_lock:
                     await self.gateway.poll_status()
                     climate_devices = dict(self.gateway.get_climate_devices() or {})

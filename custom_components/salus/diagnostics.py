@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 
 from .coordinator import SalusConfigEntry, SalusData, SalusRuntimeData
 
-TO_REDACT = {CONF_TOKEN}
+TO_REDACT = {CONF_HOST, CONF_TOKEN}
 
 CLIMATE_SUPPORT_FIELDS = (
     "UniID",
@@ -94,11 +94,14 @@ async def async_get_config_entry_diagnostics(
     diagnostics.update(
         {
             "runtime": {"loaded": True},
-            "gateway": {
-                "id": coordinator.gateway_id,
-                "host": getattr(entry, "data", {}).get(CONF_HOST),
-                "health": coordinator.gateway_diagnostics(),
-            },
+            "gateway": async_redact_data(
+                {
+                    "id": coordinator.gateway_id,
+                    "host": getattr(entry, "data", {}).get(CONF_HOST),
+                    "health": coordinator.gateway_diagnostics(),
+                },
+                TO_REDACT,
+            ),
             "device_counts": _device_counts(data),
             "device_availability": coordinator.device_availability_diagnostics(),
             "climate": _climate_diagnostics(data),

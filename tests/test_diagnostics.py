@@ -143,8 +143,10 @@ async def test_diagnostics_redacts_token_and_reports_health(hass: HomeAssistant)
     coordinator.data = await coordinator._async_update_data()
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert diagnostics["entry"]["data"][CONF_HOST] == "192.0.2.10"
+    assert diagnostics["entry"]["data"][CONF_HOST] == "**REDACTED**"
     assert diagnostics["entry"]["data"][CONF_TOKEN] == "**REDACTED**"
+    assert diagnostics["gateway"]["host"] == "**REDACTED**"
+    assert "192.0.2.10" not in json.dumps(diagnostics)
     assert "001E5E0D32906128" not in json.dumps(diagnostics)
     assert diagnostics["runtime"]["loaded"] is True
     assert diagnostics["device_counts"]["climate"] == 2

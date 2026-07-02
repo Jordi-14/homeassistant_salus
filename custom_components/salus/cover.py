@@ -7,11 +7,11 @@ from typing import Any
 from homeassistant.components.cover import ATTR_POSITION, CoverEntity
 from homeassistant.core import HomeAssistant
 
+from .const import COVER_POSITION_DEBOUNCE_SECONDS
 from .coordinator import SalusConfigEntry
 from .entity import SalusEntity, async_setup_salus_platform_entities
 
 PARALLEL_UPDATES = 1
-COVER_POSITION_DEBOUNCE_SECONDS = 0.3
 
 COVER_DEVICE_CLASS_BY_MODEL = {
     "RS600": "shutter",
