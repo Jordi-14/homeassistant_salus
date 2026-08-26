@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/Jordi-14/homeassistant_salus?display_name=tag)](https://github.com/Jordi-14/homeassistant_salus/releases)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.8%2B-41BDF5?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
-[![License](https://img.shields.io/github/license/Jordi-14/homeassistant_salus)](LICENSE)
+[![License](https://img.shields.io/github/license/Jordi-14/homeassistant_salus)](#license)
 
 A custom [Home Assistant](https://www.home-assistant.io/) integration that lets you control and monitor your [Salus iT600](https://salus-controls.com/) smart home devices **locally** through the UGE600 or UG800 gateway — thermostats, smart plugs, roller shutters, sensors, and more, all without cloud dependency.
 
@@ -255,5 +255,5 @@ Protocol and parsing logic lives in the reusable [`salus-it600-client`](https://
 
 Licensed under either the Apache License, Version 2.0
 ([LICENSE-APACHE](LICENSE-APACHE)) or the MIT License
-([LICENSE-MIT](LICENSE-MIT)), at your option. See [LICENSE](LICENSE) and
-[NOTICE](NOTICE) for the license expression and attribution details.
+([LICENSE-MIT](LICENSE-MIT)), at your option. See [NOTICE](NOTICE) for
+attribution details.
