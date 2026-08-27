@@ -22,6 +22,22 @@ STATE_CLASS_BY_DEVICE_CLASS = {
 }
 
 
+def sensor_device_registry_unique_id(device: Any) -> str | None:
+    """Return the physical-device UniID a standalone sensor groups under.
+
+    Returns None when the snapshot carries no usable UniID, in which case the
+    sensor falls back to its own unique_id as the device-registry identifier.
+    Shared with async_remove_config_entry_device so the removal guard uses the
+    same device identity as SalusSensor.device_info.
+    """
+    device_data = getattr(device, "data", None)
+    if isinstance(device_data, dict):
+        unique_id = device_data.get("UniID")
+        if isinstance(unique_id, str):
+            return unique_id
+    return None
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: SalusConfigEntry,
@@ -48,11 +64,9 @@ class SalusSensor(SalusEntity, SensorEntity):
 
     def _device_info_unique_id(self, device: Any) -> str:
         """Group primary standalone sensors under their physical Salus device."""
-        device_data = getattr(device, "data", None)
-        if isinstance(device_data, dict):
-            unique_id = device_data.get("UniID")
-            if isinstance(unique_id, str):
-                return unique_id
+        unique_id = sensor_device_registry_unique_id(device)
+        if unique_id is not None:
+            return unique_id
         return super()._device_info_unique_id(device)
 
     @property
