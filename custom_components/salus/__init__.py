@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from contextlib import suppress
 from typing import Any
 
@@ -21,7 +22,11 @@ from salus_it600.exceptions import (
 from salus_it600.gateway import IT600Gateway
 
 from .const import CONNECT_RETRIES, CONNECT_RETRY_DELAY, DOMAIN, GATEWAY_OPERATION_TIMEOUT_SECONDS, PLATFORMS
-from .coordinator import SalusConfigEntry, SalusDataUpdateCoordinator, SalusRuntimeData
+from .coordinator import SalusConfigEntry, SalusData, SalusDataUpdateCoordinator, SalusRuntimeData
+from .sensor import sensor_device_registry_unique_id
+from .switch import switch_device_registry_unique_id
+
+_LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = config_entry_only_config_schema(DOMAIN)
 
@@ -116,6 +121,96 @@ def _async_register_gateway_device(
         name=gateway_info.name,
         model=gateway_info.model,
         sw_version=gateway_info.sw_version,
+    )
+
+
+def _live_device_registry_identifiers(data: SalusData) -> set[str]:
+    """Return the device-registry identifier values currently in use.
+
+    Mirrors how entities pick their device identity in device_info: a child
+    entity attaches to its parent's device, standalone sensors and grouped
+    switch endpoints attach to the physical device's UniID, and every other
+    primary entity uses the device snapshot's own unique_id.
+    """
+    known: set[str] = set()
+
+    for collection_name in (
+        "climate_devices",
+        "binary_sensor_devices",
+        "switch_devices",
+        "cover_devices",
+        "sensor_devices",
+    ):
+        for device in getattr(data, collection_name).values():
+            parent_unique_id = getattr(device, "parent_unique_id", None)
+            if parent_unique_id:
+                known.add(parent_unique_id)
+                continue
+
+            identifier: str | None = None
+            if collection_name == "sensor_devices":
+                identifier = sensor_device_registry_unique_id(device)
+            elif collection_name == "switch_devices":
+                identifier = switch_device_registry_unique_id(device, data)
+            if identifier is None:
+                identifier = getattr(device, "unique_id", None)
+            if identifier is not None:
+                known.add(identifier)
+
+    return known
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,
+    config_entry: SalusConfigEntry,
+    device_entry: dr.DeviceEntry,
+) -> bool:
+    """Allow deleting a device from the UI once the gateway stops providing it.
+
+    Without this, Home Assistant answers every delete with "Config entry does
+    not support device removal", so registry entries the integration no longer
+    provides - devices unpaired from the gateway, or per-entity devices left
+    behind by older forks that did not group entities under one physical
+    device - stay on the integration page forever.
+
+    Only devices the gateway no longer provides may be removed: the guard
+    collects the device-registry identifiers everything currently known
+    registers under, and refuses the delete if this device is among them, so a
+    live thermostat cannot be deleted by accident. The comparison uses
+    device-level identity (parent_unique_id / UniID grouping), not each
+    entity's own unique_id: a stale per-entity device must stay deletable even
+    while its old identifier lives on as an entity unique_id. Refusing on any
+    error is deliberate - if we cannot prove the device is gone, we keep it.
+    """
+    runtime_data = getattr(config_entry, "runtime_data", None)
+    if runtime_data is None:
+        return True
+
+    coordinator = runtime_data.coordinator
+    try:
+        data = coordinator.data
+        if data is None:
+            _LOGGER.warning(
+                "No Salus data snapshot available, refusing removal of device %s",
+                device_entry.id,
+            )
+            return False
+
+        known = _live_device_registry_identifiers(data)
+        if coordinator.gateway_id is not None:
+            known.add(coordinator.gateway_id)
+    except Exception as ex:  # never let a delete crash on an unexpected model
+        _LOGGER.warning(
+            "Could not determine live Salus devices, refusing removal of device %s: %s",
+            device_entry.id,
+            ex,
+        )
+        return False
+
+    return not any(
+        identifier in known
+        for domain, identifier in device_entry.identifiers
+        if domain == DOMAIN
     )
 
 
