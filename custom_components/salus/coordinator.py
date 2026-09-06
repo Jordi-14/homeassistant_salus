@@ -213,6 +213,7 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         self._config_entry = config_entry
         self.gateway_lock = asyncio.Lock()
         self.gateway_id: str | None = None
+        self.gateway_device_id: str | None = None
         self._debounced_refresh_task: asyncio.Task[None] | None = None
         self._post_command_refresh_requested_at: float | None = None
         self._gateway_health = SalusGatewayHealth()

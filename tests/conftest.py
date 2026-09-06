@@ -81,6 +81,7 @@ class FakeCoordinator:
     - .gateway (FakeGateway)
     - .gateway_lock (asyncio.Lock)
     - .gateway_id (str)
+    - .gateway_device_id (str)
     - .async_request_debounced_refresh()
     """
 
@@ -88,6 +89,7 @@ class FakeCoordinator:
         self.gateway = FakeGateway()
         self.gateway_lock = asyncio.Lock()
         self.gateway_id = "gateway-1"
+        self.gateway_device_id = "gateway-device-1"
         self.refresh_requests = 0
         self.last_update_success = True
         self.data = data or SalusData(
