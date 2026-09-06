@@ -108,7 +108,7 @@ def _async_register_gateway_device(
         gateway_info: Device info from gateway.get_gateway_device()
     """
     device_registry = dr.async_get(hass)
-    device_registry.async_get_or_create(
+    device = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         connections={(dr.CONNECTION_NETWORK_MAC, gateway_info.unique_id)},
         identifiers={(DOMAIN, gateway_info.unique_id)},
@@ -117,6 +117,7 @@ def _async_register_gateway_device(
         model=gateway_info.model,
         sw_version=gateway_info.sw_version,
     )
+    entry.runtime_data.coordinator.gateway_device_id = device.id
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: SalusConfigEntry) -> bool:

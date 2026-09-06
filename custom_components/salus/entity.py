@@ -397,8 +397,11 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
             "sw_version": getattr(device, "sw_version", None),
         }
 
-        if self.coordinator.gateway_id and self.coordinator.gateway_id != unique_id:
-            device_info["via_device"] = (DOMAIN, self.coordinator.gateway_id)
+        if (
+            self.coordinator.gateway_device_id
+            and self.coordinator.gateway_id != unique_id
+        ):
+            device_info["via_device_id"] = self.coordinator.gateway_device_id
 
         return device_info
 
