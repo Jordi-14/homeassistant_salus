@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.5 - 2026-09-28
+
+Maintenance:
+
+- Use the gateway device registry ID for `via_device_id`, replacing the deprecated
+  `via_device` field.
+- Allow stale Salus devices to be removed from the Home Assistant device registry
+  while keeping devices present in the current gateway snapshot protected.
+
 ## 0.9.4 - 2026-07-01
 
 Bug fixes:
