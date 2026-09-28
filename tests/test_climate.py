@@ -291,7 +291,7 @@ class TestSQ610Properties:
         assert info["manufacturer"] == "SALUS"
         assert info["model"] == "SQ610RF"
         assert (DOMAIN, "climate_001") in info["identifiers"]
-        assert info["via_device"] == (DOMAIN, "gateway-1")
+        assert info["via_device_id"] == "gateway-device-1"
 
     def test_available_true(self):
         device = make_climate_device(available=True)
