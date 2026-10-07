@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.7 - 2026-10-07
+
+- Require `salus-it600-client 0.6.2` for thermostat signal diagnostics, it600WC
+  wiring centre data, and the read-only SQ610 advanced-settings model.
+- Give RSSI and LQI sensors measurement state classes and translated names.
+- Retain the older Home Assistant device registration fix from 0.9.6.
+
 ## 0.9.6 - 2026-10-07
 
 Bug fixes:

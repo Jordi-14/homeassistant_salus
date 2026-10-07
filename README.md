@@ -42,6 +42,8 @@ cooling, schedules, and hold states:
 | **Battery** | Battery level for wireless thermostats and standalone sensors (%) |
 | **Power** | Instantaneous power draw from smart plugs (W) |
 | **Energy** | Cumulative energy consumption from smart plugs (kWh) |
+| **Signal strength** | Last reported RSSI for supported thermostats and wiring centres (dBm, diagnostic) |
+| **Link quality** | Last reported LQI for supported thermostats and wiring centres (0-255, diagnostic) |
 
 ### Binary sensors
 
@@ -53,6 +55,8 @@ cooling, schedules, and hold states:
 | **Low battery** | Battery warning for wireless sensors and TRVs (it600MINITRV via TRVError22) |
 | **Thermostat problem** | Aggregated thermostat error flags with human-readable descriptions as attributes |
 | **Battery problem** | Battery-specific thermostat error indicator |
+| **Wiring centre connectivity** | Online state reported for it600WC (diagnostic) |
+| **Wiring centre problem** | it600WC fault-register summary (diagnostic) |
 
 ### Covers
 

@@ -17,6 +17,7 @@ STATE_CLASS_BY_DEVICE_CLASS = {
     "battery": SensorStateClass.MEASUREMENT,
     "humidity": SensorStateClass.MEASUREMENT,
     "power": SensorStateClass.MEASUREMENT,
+    "signal_strength": SensorStateClass.MEASUREMENT,
     "temperature": SensorStateClass.MEASUREMENT,
     "energy": SensorStateClass.TOTAL_INCREASING,
 }
@@ -84,6 +85,8 @@ class SalusSensor(SalusEntity, SensorEntity):
         """Return the long-term statistics behavior for numeric sensors."""
         if self._device is None:
             return None
+        if self._device_id.endswith("_lqi"):
+            return SensorStateClass.MEASUREMENT
         return STATE_CLASS_BY_DEVICE_CLASS.get(self._device.device_class)
 
     @property

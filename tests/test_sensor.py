@@ -157,6 +157,48 @@ class TestSalusBatterySensor:
         assert entity.translation_key == "battery"
 
 
+class TestSalusSignalSensors:
+    """Signal diagnostics have names, numeric statistics and parent grouping."""
+
+    def test_signal_strength_is_a_translated_measurement(self):
+        device = make_sensor_device(
+            unique_id="climate_001_rssi",
+            name="Living Room Signal strength",
+            state=-58,
+            unit_of_measurement="dBm",
+            device_class="signal_strength",
+            parent_unique_id="climate_001",
+            entity_category="diagnostic",
+        )
+        coord = _coordinator_with_sensors(device)
+        entity = SalusSensor(coord, device.unique_id)
+        assert entity.translation_key == "signal_strength"
+        assert entity.native_value == -58
+        assert entity.native_unit_of_measurement == "dBm"
+        assert entity.state_class == SensorStateClass.MEASUREMENT
+        assert entity.entity_category == EntityCategory.DIAGNOSTIC
+        assert entity.device_info["identifiers"] == {(DOMAIN, "climate_001")}
+
+    def test_link_quality_is_a_unitless_translated_measurement(self):
+        device = make_sensor_device(
+            unique_id="climate_001_lqi",
+            name="Living Room Link quality",
+            state=240,
+            unit_of_measurement=None,
+            device_class=None,
+            parent_unique_id="climate_001",
+            entity_category="diagnostic",
+        )
+        coord = _coordinator_with_sensors(device)
+        entity = SalusSensor(coord, device.unique_id)
+        assert entity.translation_key == "link_quality"
+        assert entity.native_value == 240
+        assert entity.native_unit_of_measurement is None
+        assert entity.state_class == SensorStateClass.MEASUREMENT
+        assert entity.entity_category == EntityCategory.DIAGNOSTIC
+        assert entity.device_info["identifiers"] == {(DOMAIN, "climate_001")}
+
+
 class TestSalusHumiditySensor:
     """Test humidity sensor."""
 

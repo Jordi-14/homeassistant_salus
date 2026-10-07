@@ -119,8 +119,14 @@
             "humidity": {
                 "name": "Humidity"
             },
+            "link_quality": {
+                "name": "Link quality"
+            },
             "power": {
                 "name": "Power"
+            },
+            "signal_strength": {
+                "name": "Signal strength"
             },
             "temperature": {
                 "name": "Temperature"
