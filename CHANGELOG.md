@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.6 - 2026-10-07
+
+Bug fixes:
+
+- Restore climate, lock, and other primary entity registration on Home Assistant
+  versions whose device registry does not support `via_device_id`. Use the
+  supported gateway relationship field for the installed Home Assistant version.
+- Test device registration against both Home Assistant 2026.5.4 and 2026.9.4.
+
 ## 0.9.5 - 2026-09-28
 
 Maintenance:
