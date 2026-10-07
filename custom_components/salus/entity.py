@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
@@ -15,6 +15,8 @@ from salus_it600.exceptions import IT600CommandError, IT600ConnectionError
 
 from .const import DOMAIN
 from .coordinator import SalusConfigEntry, SalusData, SalusDataUpdateCoordinator
+
+_SUPPORTS_VIA_DEVICE_ID = "via_device_id" in DeviceInfo.__annotations__
 
 CHILD_ENTITY_TRANSLATION_KEY_BY_DEVICE_CLASS = {
     "battery": "battery",
@@ -397,11 +399,15 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
             "sw_version": getattr(device, "sw_version", None),
         }
 
-        if (
-            self.coordinator.gateway_device_id
-            and self.coordinator.gateway_id != unique_id
-        ):
-            device_info["via_device_id"] = self.coordinator.gateway_device_id
+        if self.coordinator.gateway_id and self.coordinator.gateway_id != unique_id:
+            if _SUPPORTS_VIA_DEVICE_ID:
+                if self.coordinator.gateway_device_id:
+                    device_info["via_device_id"] = self.coordinator.gateway_device_id
+            else:
+                device_info = cast(
+                    DeviceInfo,
+                    {**device_info, "via_device": (DOMAIN, self.coordinator.gateway_id)},
+                )
 
         return device_info
 

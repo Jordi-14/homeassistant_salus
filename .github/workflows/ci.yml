@@ -24,15 +24,22 @@ jobs:
         run: python -m ruff check .
 
   tests:
-    name: Tests
+    name: Tests (HA ${{ matrix.homeassistant }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - homeassistant: "2026.5.4"
+            test_plugin: "0.13.333"
+          - homeassistant: "2026.9.4"
+            test_plugin: "0.13.367"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Install test dependencies
-        run: python -m pip install -r requirements_test.txt
+        run: python -m pip install -r requirements_test.txt "pytest-homeassistant-custom-component==${{ matrix.test_plugin }}"
       - name: Validate translation and manifest JSON
         run: |
           python -m json.tool custom_components/salus/manifest.json > /dev/null
