@@ -24,6 +24,7 @@ CHILD_ENTITY_TRANSLATION_KEY_BY_DEVICE_CLASS = {
     "humidity": "humidity",
     "power": "power",
     "problem": "problem",
+    "signal_strength": "signal_strength",
     "temperature": "temperature",
     "window": "open_window",
 }
@@ -39,6 +40,8 @@ CHILD_ENTITY_TRANSLATION_KEY_BY_UNIQUE_ID_SUFFIX = (
     ("_humidity", "humidity"),
     ("_power", "power"),
     ("_problem", "problem"),
+    ("_rssi", "signal_strength"),
+    ("_lqi", "link_quality"),
 )
 PENDING_STATE_TIMEOUT_SECONDS = 30.0
 _NO_PENDING = object()
