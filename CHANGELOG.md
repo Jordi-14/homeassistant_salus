@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.8 - 2026-10-19
+
+- Use the MIT license consistently in the root license file, project metadata,
+  and documentation, retaining the upstream copyright notices.
+- Include `LICENSE` and `NOTICE` in the HACS release archive.
+
 ## 0.9.7 - 2026-10-07
 
 - Require `salus-it600-client 0.6.2` for thermostat signal diagnostics, it600WC

@@ -35,9 +35,8 @@ The branch-testing examples use owner placeholders:
 ## Licensing Contributions
 
 Unless explicitly stated otherwise in a contribution, all contributions to this
-repository are submitted under the repository license expression
-`MIT OR Apache-2.0`. Upstream MIT notices remain preserved in
-[LICENSE-MIT](LICENSE-MIT), with project attribution in [NOTICE](NOTICE).
+repository are submitted under the [MIT License](LICENSE). Upstream MIT
+notices remain preserved in that file, with project attribution in [NOTICE](NOTICE).
 
 ## Local Checks
 
