@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.10 - 2026-10-19
+
+- Run HACS validation with all checks enabled, including brands.
+
 ## 0.9.9 - 2026-10-19
 
 - Expose each thermostat's current room temperature as a separate sensor, using
