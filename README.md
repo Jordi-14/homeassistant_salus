@@ -37,7 +37,7 @@ cooling, schedules, and hold states:
 
 | Sensor | Description |
 |---|---|
-| **Temperature** | Current temperature reading (°C) |
+| **Temperature** | Current temperature reading (°C), including a separate sensor for each thermostat |
 | **Humidity** | Relative humidity (%) |
 | **Battery** | Battery level for wireless thermostats and standalone sensors (%) |
 | **Power** | Instantaneous power draw from smart plugs (W) |

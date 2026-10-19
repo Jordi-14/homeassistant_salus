@@ -281,3 +281,78 @@ class TestSalusHumiditySensor:
         entity = SalusSensor(coord, child.unique_id)
         assert entity.translation_key is None
         assert entity.name == "Unknown metric"
+
+
+class TestThermostatTemperatureSensor:
+    """Verify cached readings, identity, and availability for issue #49."""
+
+    def test_reading_updates_and_groups_with_thermostat(self):
+        from custom_components.salus.sensor import SalusThermostatTemperatureSensor
+        from tests.conftest import make_climate_device
+
+        device = make_climate_device(current_temperature=19.5)
+        coord = _coordinator_with_sensors()
+        coord.data.climate_devices[device.unique_id] = device
+        entity = SalusThermostatTemperatureSensor(coord, device.unique_id)
+        assert entity.unique_id == f"{device.unique_id}_temperature"
+        assert entity.device_info["identifiers"] == {(DOMAIN, device.unique_id)}
+        assert entity.translation_key == "temperature"
+        assert entity.native_unit_of_measurement == "°C"
+        assert entity.device_class == SensorDeviceClass.TEMPERATURE
+        assert entity.state_class == SensorStateClass.MEASUREMENT
+        assert entity.native_value == 19.5
+        coord.data.climate_devices[device.unique_id] = make_climate_device(
+            current_temperature=0.0
+        )
+        assert entity.native_value == 0.0
+        assert coord.gateway.calls == []
+        assert coord.refresh_requests == 0
+
+    def test_missing_reading_and_device_availability(self):
+        from custom_components.salus.sensor import SalusThermostatTemperatureSensor
+        from tests.conftest import make_climate_device
+
+        device = make_climate_device(current_temperature=None)
+        coord = _coordinator_with_sensors()
+        coord.data.climate_devices[device.unique_id] = device
+        entity = SalusThermostatTemperatureSensor(coord, device.unique_id)
+        assert entity.native_value is None
+        assert entity.available
+        coord.last_update_success = False
+        assert not entity.available
+        coord.last_update_success = True
+        device.available = False
+        assert not entity.available
+        coord.data.climate_devices.clear()
+        assert entity.native_value is None
+        assert not entity.available
+
+    async def test_setup_discovers_thermostats_added_after_startup(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+
+        from custom_components.salus.sensor import (
+            SalusThermostatTemperatureSensor,
+            async_setup_entry,
+        )
+        from tests.conftest import make_climate_device
+
+        coord = _coordinator_with_sensors()
+        coord.async_add_listener = Mock(return_value=lambda: None)
+        entry = SimpleNamespace(
+            runtime_data=SimpleNamespace(coordinator=coord), async_on_unload=Mock()
+        )
+        add_entities = Mock()
+        await async_setup_entry(None, entry, add_entities)
+        add_entities.assert_not_called()
+        device = make_climate_device()
+        coord.data.climate_devices[device.unique_id] = device
+        for call in coord.async_add_listener.call_args_list:
+            call.args[0]()
+        add_entities.assert_called_once()
+        assert isinstance(
+            add_entities.call_args.args[0][0], SalusThermostatTemperatureSensor
+        )
+        for call in coord.async_add_listener.call_args_list:
+            call.args[0]()
+        add_entities.assert_called_once()

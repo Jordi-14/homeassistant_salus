@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.9 - 2026-10-19
+
+- Expose each thermostat's current room temperature as a separate sensor, using
+  the existing coordinator data without additional gateway requests (#49).
+
 ## 0.9.8 - 2026-10-19
 
 - Use the MIT license consistently in the root license file, project metadata,

@@ -52,6 +52,37 @@ async def async_setup_entry(
         lambda data: data.sensor_devices,
     )
 
+    async_setup_salus_platform_entities(
+        config_entry,
+        async_add_entities,
+        SalusThermostatTemperatureSensor,
+        lambda data: data.climate_devices,
+    )
+
+
+class SalusThermostatTemperatureSensor(SalusEntity, SensorEntity):
+    """Expose a thermostat's cached room temperature as a sensor."""
+
+    _data_collection = "climate_devices"
+    _attr_translation_key = "temperature"
+    _attr_device_class = "temperature"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, device_id: str) -> None:
+        """Keep the thermostat identity for snapshots and device grouping."""
+        super().__init__(coordinator, device_id)
+        self._attr_unique_id = f"{device_id}_temperature"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current reading from the shared coordinator snapshot."""
+        return self._device_attr("current_temperature")
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """Use the same temperature unit as the climate entity."""
+        return self._device_attr("temperature_unit")
+
 
 class SalusSensor(SalusEntity, SensorEntity):
     """Representation of a Salus sensor."""
