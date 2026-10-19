@@ -11,6 +11,7 @@ from pathlib import Path
 DOMAIN = "salus"
 INTEGRATION_ROOT = Path("custom_components") / DOMAIN
 DEFAULT_OUTPUT = Path(f"{DOMAIN}.zip")
+LEGAL_FILES = (Path("LICENSE"), Path("NOTICE"))
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,8 +41,13 @@ def build_zip(output: Path) -> None:
     files = tracked_integration_files()
     if not files:
         raise SystemExit(f"No tracked files found under {INTEGRATION_ROOT}")
+    for path in LEGAL_FILES:
+        if not path.is_file():
+            raise SystemExit(f"Required release file is missing: {path}")
 
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in LEGAL_FILES:
+            archive.write(path, path.name)
         for path in files:
             archive.write(path, path.relative_to(INTEGRATION_ROOT).as_posix())
 

@@ -257,7 +257,5 @@ Protocol and parsing logic lives in the reusable [`salus-it600-client`](https://
 
 ## License
 
-Licensed under either the Apache License, Version 2.0
-([LICENSE-APACHE](LICENSE-APACHE)) or the MIT License
-([LICENSE-MIT](LICENSE-MIT)), at your option. See [NOTICE](NOTICE) for
+Licensed under the [MIT License](LICENSE). See [NOTICE](NOTICE) for
 attribution details.
