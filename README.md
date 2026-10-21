@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Jordi-14/homeassistant_salus?display_name=tag)](https://github.com/Jordi-14/homeassistant_salus/releases)
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/default/pull/9741)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.8%2B-41BDF5?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/github/license/Jordi-14/homeassistant_salus)](#license)
 
@@ -76,11 +76,27 @@ Minimum supported Home Assistant version: `2024.8.0`.
 
 ### HACS (recommended)
 
-1. Open HACS in your Home Assistant instance.
-2. Go to **Integrations** → **⋮** → **Custom repositories**.
-3. Add `https://github.com/Jordi-14/homeassistant_salus` as an **Integration**.
-4. Search for **Salus iT600** and install it.
-5. Restart Home Assistant.
+Salus iT600 is included in the default HACS catalog. Choose the path that
+matches your installation:
+
+| Your starting point | What to do |
+|---|---|
+| New installation | Follow the steps below. No custom repository is needed. |
+| Installed from the old `epoplavskis/homeassistant_salus` HACS listing | Follow [migration from the old HACS default](docs/migration-from-older-forks.md#from-the-old-hacs-default-epoplavskis). |
+| Installed `Jordi-14/homeassistant_salus` as a custom repository | Follow [existing custom repository installations](docs/migration-from-older-forks.md#from-this-repository-added-as-a-hacs-custom-repository). No reinstall is needed. |
+
+#### New installation
+
+1. Open HACS and search for **Salus iT600**. Clear any downloaded-only filter
+   if it is active.
+2. Open the result and confirm its repository is
+   `Jordi-14/homeassistant_salus`.
+3. Download the latest stable release.
+4. Restart Home Assistant.
+5. Follow [Configuration](#configuration) to add your gateway.
+
+If the listing does not appear, allow HACS to refresh its catalog and try again.
+You do not need to add a custom repository.
 
 ### Manual
 
