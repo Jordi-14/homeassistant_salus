@@ -46,10 +46,7 @@ from custom_components.salus._climate_state import (
     build_climate_view_state,
 )
 
-TURN_ON_OFF_FEATURES = (
-    getattr(ClimateEntityFeature, "TURN_ON", ClimateEntityFeature(0))
-    | getattr(ClimateEntityFeature, "TURN_OFF", ClimateEntityFeature(0))
-)
+TURN_ON_OFF_FEATURES = ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
 
 
 def _device(**overrides: Any) -> SimpleNamespace:

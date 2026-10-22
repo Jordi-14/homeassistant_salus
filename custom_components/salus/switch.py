@@ -6,6 +6,7 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import SalusConfigEntry, SalusData
 from .entity import SalusEntity, async_setup_salus_platform_entities
@@ -46,7 +47,7 @@ def switch_device_registry_unique_id(
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: SalusConfigEntry,
-    async_add_entities,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Salus switches from a config entry."""
     async_setup_salus_platform_entities(

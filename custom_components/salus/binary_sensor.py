@@ -7,8 +7,9 @@ from typing import Any
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import SalusConfigEntry
+from .coordinator import SalusConfigEntry, SalusDataUpdateCoordinator
 from .entity import SalusEntity, async_setup_salus_platform_entities
 
 PARALLEL_UPDATES = 0
@@ -17,7 +18,7 @@ PARALLEL_UPDATES = 0
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: SalusConfigEntry,
-    async_add_entities,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Salus binary sensors from a config entry."""
     async_setup_salus_platform_entities(
@@ -33,7 +34,7 @@ class SalusBinarySensor(SalusEntity, BinarySensorEntity):
 
     _data_collection = "binary_sensor_devices"
 
-    def __init__(self, coordinator, device_id: str) -> None:
+    def __init__(self, coordinator: SalusDataUpdateCoordinator, device_id: str) -> None:
         """Initialize a Salus binary sensor entity."""
         super().__init__(coordinator, device_id)
         self._set_child_entity_name_metadata(self._device)

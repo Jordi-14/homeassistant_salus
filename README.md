@@ -3,7 +3,7 @@
 [![CI](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Jordi-14/homeassistant_salus?display_name=tag)](https://github.com/Jordi-14/homeassistant_salus/releases)
 [![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/default/pull/9741)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.8%2B-41BDF5?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.11%2B-41BDF5?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/github/license/Jordi-14/homeassistant_salus)](#license)
 
 A custom [Home Assistant](https://www.home-assistant.io/) integration that lets you control and monitor your [Salus iT600](https://salus-controls.com/) smart home devices **locally** through the UGE600 or UG800 gateway — thermostats, smart plugs, roller shutters, sensors, and more, all without cloud dependency.
@@ -44,6 +44,7 @@ cooling, schedules, and hold states:
 | **Energy** | Cumulative energy consumption from smart plugs (kWh) |
 | **Signal strength** | Last reported RSSI for supported thermostats and wiring centres (dBm, diagnostic) |
 | **Link quality** | Last reported LQI for supported thermostats and wiring centres (0-255, diagnostic) |
+| **Temperature calibration** | SQ610 temperature offset from the thermostat's Advanced Settings (°C, diagnostic, read-only) |
 
 ### Binary sensors
 
@@ -72,7 +73,7 @@ One lock entity per thermostat that supports child lock. Allows **locking/unlock
 
 ## Installation
 
-Minimum supported Home Assistant version: `2024.8.0`.
+Minimum supported Home Assistant version: `2024.11.0`.
 
 ### HACS (recommended)
 
@@ -209,8 +210,9 @@ This method is useful for one-off troubleshooting since it automatically reverts
 3. Open the three-dot menu → **Download diagnostics**.
 
 Diagnostics include integration version, gateway health counters, device counts,
-availability history, and shared climate diagnostics with normalized fields plus
-whitelisted support fields for each thermostat. The gateway EUID/token is
+availability history, and shared climate diagnostics with normalized fields,
+whitelisted support fields, and decoded SQ610 Advanced Settings for each
+thermostat. The gateway EUID/token is
 redacted automatically.
 
 Review the file before posting publicly — it may contain your gateway IP and device IDs.

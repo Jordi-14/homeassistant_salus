@@ -18,7 +18,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from salus_it600.exceptions import IT600AuthenticationError, IT600ConnectionError
 from salus_it600.gateway import IT600Gateway
-from salus_it600.device_models import is_sq610_model
 
 from .const import (
     CONF_POLL_FAILURE_THRESHOLD,
@@ -146,11 +145,6 @@ class SalusRuntimeData:
 
 
 type SalusConfigEntry = ConfigEntry[SalusRuntimeData]
-
-
-def is_sq610_device(device: Any) -> bool:
-    """Return whether the device is a Quantum thermostat."""
-    return is_sq610_model(getattr(device, "model", None))
 
 
 def _iter_device_collections(

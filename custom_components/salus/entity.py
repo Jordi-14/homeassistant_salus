@@ -8,12 +8,13 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from homeassistant.core import callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from salus_it600.exceptions import IT600CommandError, IT600ConnectionError
 
-from .const import DOMAIN
+from .const import DOMAIN, GATEWAY_COMMAND_TIMEOUT_SECONDS
 from .coordinator import SalusConfigEntry, SalusData, SalusDataUpdateCoordinator
 
 _SUPPORTS_VIA_DEVICE_ID = "via_device_id" in DeviceInfo.__annotations__
@@ -322,20 +323,25 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         """Run one gateway command and convert client failures to HA service errors."""
         try:
             async with self.coordinator.gateway_lock:
-                await command()
+                async with asyncio.timeout(GATEWAY_COMMAND_TIMEOUT_SECONDS):
+                    await command()
+        except (ValueError, KeyError) as ex:
+            # The client raises IT600ValidationError (a ValueError) for values the
+            # device does not accept and IT600DeviceNotFoundError (a KeyError) for
+            # devices that left the gateway cache. Older clients raise the plain
+            # built-in types, so catch those.
+            raise ServiceValidationError(
+                f"Cannot {action} for Salus device {self._device_id}: {ex}"
+            ) from ex
+        except TimeoutError as ex:
+            raise HomeAssistantError(
+                f"Failed to {action} for Salus device {self._device_id}: "
+                "the gateway did not respond in time"
+            ) from ex
         except (IT600CommandError, IT600ConnectionError) as ex:
             raise HomeAssistantError(
                 f"Failed to {action} for Salus device {self._device_id}: {ex}"
             ) from ex
-
-    async def _async_run_gateway_command_and_refresh(
-        self,
-        action: str,
-        command: Callable[[], Awaitable[None]],
-    ) -> None:
-        """Run one gateway command and request the normal post-command refresh."""
-        await self._async_run_gateway_command(action, command)
-        await self.coordinator.async_request_debounced_refresh()
 
     async def _async_run_pending_gateway_command(
         self,
@@ -344,7 +350,6 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         pending_state: Mapping[str, Any],
         *,
         debounce_seconds: float = 0.0,
-        refresh: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         """Run a gateway command with optimistic Home Assistant-facing state."""
         request_id, keys = self._set_pending_state(pending_state)
@@ -362,11 +367,7 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
             self._async_write_state_if_added()
             raise
         self._clear_pending_request_ids(request_id, keys)
-
-        if refresh is None:
-            await self.coordinator.async_request_debounced_refresh()
-        else:
-            await refresh()
+        await self.coordinator.async_request_debounced_refresh()
 
     @property
     def available(self) -> bool:
@@ -418,7 +419,7 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
 def async_add_salus_entities(
     config_entry: SalusConfigEntry,
     coordinator: SalusDataUpdateCoordinator,
-    async_add_entities: Callable[[list[SalusEntity]], None],
+    async_add_entities: AddEntitiesCallback,
     entity_factory: Callable[[str], SalusEntity],
     devices_getter: Callable[[SalusData], Mapping[str, Any]],
 ) -> None:
@@ -448,7 +449,7 @@ def async_add_salus_entities(
 
 def async_setup_salus_platform_entities(
     config_entry: SalusConfigEntry,
-    async_add_entities: Callable[[list[SalusEntity]], None],
+    async_add_entities: AddEntitiesCallback,
     entity_factory: Callable[[SalusDataUpdateCoordinator, str], SalusEntity],
     devices_getter: Callable[[SalusData], Mapping[str, Any]],
 ) -> None:

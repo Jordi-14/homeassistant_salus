@@ -11,6 +11,7 @@ import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_TOKEN
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 import custom_components.salus as salus_init
@@ -128,6 +129,34 @@ async def test_setup_entry_uses_configured_scan_interval(
 
     assert result is True
     assert entry.runtime_data.coordinator.update_interval == timedelta(seconds=45)
+
+
+async def test_setup_entry_retries_when_gateway_device_missing(
+    hass: HomeAssistant,
+) -> None:
+    """A poll without the gateway's own record must retry setup, not crash."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_HOST: "192.0.2.10", CONF_TOKEN: "001E5E0D32906128"},
+        state=ConfigEntryState.SETUP_IN_PROGRESS,
+    )
+    entry.add_to_hass(hass)
+
+    class GatewayWithoutDevice(FakeGateway):
+        def get_gateway_device(self) -> None:
+            return None
+
+    with (
+        patch.object(salus_init, "IT600Gateway", GatewayWithoutDevice),
+        patch.object(
+            hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
+        ) as mock_forward,
+        pytest.raises(ConfigEntryNotReady, match="device information"),
+    ):
+        await async_setup_entry(hass, entry)
+
+    mock_forward.assert_not_called()
+    assert FakeGateway.instances[0].closed
 
 
 # ---------------------------------------------------------------------------

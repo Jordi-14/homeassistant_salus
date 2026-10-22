@@ -26,6 +26,10 @@ CONNECT_RETRY_DELAY = 3
 # Timeout applied to a single gateway operation (connect or status poll).
 GATEWAY_OPERATION_TIMEOUT_SECONDS = 10
 
+# Timeout for one user command. Some commands send two writes (mode, then the
+# preset to restore), and the client retries a write once after a disconnect.
+GATEWAY_COMMAND_TIMEOUT_SECONDS = 15
+
 # Debounce windows that collapse rapid slider/setpoint changes into one write.
 TARGET_TEMPERATURE_DEBOUNCE_SECONDS = 0.3
 COVER_POSITION_DEBOUNCE_SECONDS = 0.3

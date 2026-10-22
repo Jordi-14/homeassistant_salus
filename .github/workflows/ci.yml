@@ -29,17 +29,27 @@ jobs:
     strategy:
       matrix:
         include:
+          # Oldest version declared in hacs.json. josepy and pycares are pinned
+          # because their current releases break this older Home Assistant.
+          - homeassistant: "2024.11.0"
+            test_plugin: "0.13.181"
+            python: "3.12"
+            extra_requirements: "'josepy<2' 'pycares==4.4.0'"
           - homeassistant: "2026.5.4"
             test_plugin: "0.13.333"
+            python: "3.14"
+            extra_requirements: ""
           - homeassistant: "2026.9.4"
             test_plugin: "0.13.367"
+            python: "3.14"
+            extra_requirements: ""
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: ${{ matrix.python }}
       - name: Install test dependencies
-        run: python -m pip install -r requirements_test.txt "pytest-homeassistant-custom-component==${{ matrix.test_plugin }}"
+        run: python -m pip install -r requirements_test.txt "pytest-homeassistant-custom-component==${{ matrix.test_plugin }}" ${{ matrix.extra_requirements }}
       - name: Validate translation and manifest JSON
         run: |
           python -m json.tool custom_components/salus/manifest.json > /dev/null

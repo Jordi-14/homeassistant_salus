@@ -130,6 +130,9 @@
             },
             "temperature": {
                 "name": "Temperatura"
+            },
+            "temperature_calibration": {
+                "name": "Calibratge de temperatura"
             }
         }
     }

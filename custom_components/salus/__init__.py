@@ -50,6 +50,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: SalusConfigEntry) -> boo
         await coordinator.async_config_entry_first_refresh()
 
         gateway_info = gateway.get_gateway_device()
+        if gateway_info is None:
+            raise ConfigEntryNotReady(
+                "Salus gateway did not report its own device information"
+            )
         coordinator.gateway_id = gateway_info.unique_id
         _async_register_gateway_device(hass, entry, gateway_info)
 

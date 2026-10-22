@@ -70,13 +70,23 @@ def mock_setup_entry():
 
 
 async def test_user_step_success_creates_entry(hass: HomeAssistant) -> None:
-    with patch.object(config_flow, "IT600Gateway", FakeGateway):
+    # Creating the entry starts integration setup; keep it off the network.
+    with (
+        patch.object(config_flow, "IT600Gateway", FakeGateway),
+        patch(
+            "custom_components.salus.async_setup_entry", return_value=True
+        ) as mock_setup_entry,
+        patch("custom_components.salus.async_unload_entry", return_value=True),
+    ):
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": "user"}
         )
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], _input()
         )
+        await hass.async_block_till_done()
+        mock_setup_entry.assert_called_once()
+        assert await hass.config_entries.async_unload(result["result"].entry_id)
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "Gateway"

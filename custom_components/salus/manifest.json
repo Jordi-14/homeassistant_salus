@@ -1,7 +1,7 @@
 {
   "domain": "salus",
   "name": "Salus iT600",
-  "codeowners": ["@Jordi-14"],
+  "codeowners": ["@Jordi-14", "@leonardpitzu"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/Jordi-14/homeassistant_salus",
