@@ -283,6 +283,76 @@ class TestSalusHumiditySensor:
         assert entity.name == "Unknown metric"
 
 
+class TestThermostatCalibrationSensor:
+    """SQ610 temperature calibration offset from the decoded Advanced Settings."""
+
+    def test_reports_offset_as_diagnostic_without_temperature_class(self):
+        from salus_it600.models import ThermostatAdvancedSettings
+
+        from custom_components.salus.sensor import SalusThermostatCalibrationSensor
+        from tests.conftest import make_climate_device
+
+        device = make_climate_device()
+        device.advanced_settings = ThermostatAdvancedSettings(
+            temperature_calibration=-0.5
+        )
+        coord = _coordinator_with_sensors()
+        coord.data.climate_devices[device.unique_id] = device
+        entity = SalusThermostatCalibrationSensor(coord, device.unique_id)
+
+        assert entity.unique_id == f"{device.unique_id}_temperature_calibration"
+        assert entity.device_info["identifiers"] == {(DOMAIN, device.unique_id)}
+        assert entity.translation_key == "temperature_calibration"
+        assert entity.entity_category == EntityCategory.DIAGNOSTIC
+        assert entity.native_unit_of_measurement == "°C"
+        assert entity.device_class is None
+        assert entity.state_class is None
+        assert entity.native_value == -0.5
+
+        device.advanced_settings = None
+        assert entity.native_value is None
+
+    async def test_setup_only_adds_thermostats_with_a_decoded_offset(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+
+        from salus_it600.models import ThermostatAdvancedSettings
+
+        from custom_components.salus.sensor import (
+            SalusThermostatCalibrationSensor,
+            async_setup_entry,
+        )
+        from tests.conftest import make_climate_device
+
+        with_offset = make_climate_device("sq610-a")
+        with_offset.advanced_settings = ThermostatAdvancedSettings(
+            temperature_calibration=1.0
+        )
+        undecoded = make_climate_device("sq610-b")
+        undecoded.advanced_settings = ThermostatAdvancedSettings()
+        legacy = make_climate_device("it600-c", model="iT600")
+
+        coord = _coordinator_with_sensors()
+        for device in (with_offset, undecoded, legacy):
+            coord.data.climate_devices[device.unique_id] = device
+        coord.async_add_listener = Mock(return_value=lambda: None)
+        entry = SimpleNamespace(
+            runtime_data=SimpleNamespace(coordinator=coord), async_on_unload=Mock()
+        )
+        add_entities = Mock()
+        await async_setup_entry(None, entry, add_entities)
+
+        calibration = [
+            entity
+            for call in add_entities.call_args_list
+            for entity in call.args[0]
+            if isinstance(entity, SalusThermostatCalibrationSensor)
+        ]
+        assert [entity.unique_id for entity in calibration] == [
+            "sq610-a_temperature_calibration"
+        ]
+
+
 class TestThermostatTemperatureSensor:
     """Verify cached readings, identity, and availability for issue #49."""
 

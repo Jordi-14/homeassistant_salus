@@ -5,10 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
-from homeassistant.const import EntityCategory
+from homeassistant.const import EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import SalusConfigEntry
+from .coordinator import SalusConfigEntry, SalusDataUpdateCoordinator
 from .entity import SalusEntity, async_setup_salus_platform_entities
 
 PARALLEL_UPDATES = 0
@@ -42,7 +43,7 @@ def sensor_device_registry_unique_id(device: Any) -> str | None:
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: SalusConfigEntry,
-    async_add_entities,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Salus sensors from a config entry."""
     async_setup_salus_platform_entities(
@@ -59,6 +60,23 @@ async def async_setup_entry(
         lambda data: data.climate_devices,
     )
 
+    async_setup_salus_platform_entities(
+        config_entry,
+        async_add_entities,
+        SalusThermostatCalibrationSensor,
+        lambda data: {
+            device_id: device
+            for device_id, device in data.climate_devices.items()
+            if _temperature_calibration(device) is not None
+        },
+    )
+
+
+def _temperature_calibration(device: Any) -> float | None:
+    """Return the decoded SQ610 temperature calibration offset, if known."""
+    settings = getattr(device, "advanced_settings", None)
+    return getattr(settings, "temperature_calibration", None)
+
 
 class SalusThermostatTemperatureSensor(SalusEntity, SensorEntity):
     """Expose a thermostat's cached room temperature as a sensor."""
@@ -68,7 +86,7 @@ class SalusThermostatTemperatureSensor(SalusEntity, SensorEntity):
     _attr_device_class = "temperature"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
-    def __init__(self, coordinator, device_id: str) -> None:
+    def __init__(self, coordinator: SalusDataUpdateCoordinator, device_id: str) -> None:
         """Keep the thermostat identity for snapshots and device grouping."""
         super().__init__(coordinator, device_id)
         self._attr_unique_id = f"{device_id}_temperature"
@@ -84,12 +102,37 @@ class SalusThermostatTemperatureSensor(SalusEntity, SensorEntity):
         return self._device_attr("temperature_unit")
 
 
+class SalusThermostatCalibrationSensor(SalusEntity, SensorEntity):
+    """Expose an SQ610 thermostat's temperature calibration offset.
+
+    The value comes from the read-only Advanced Settings the client decodes.
+    No temperature device class is set: the value is an offset, and Home
+    Assistant would convert it as an absolute temperature for Fahrenheit users.
+    """
+
+    _data_collection = "climate_devices"
+    _attr_translation_key = "temperature_calibration"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_suggested_display_precision = 1
+
+    def __init__(self, coordinator: SalusDataUpdateCoordinator, device_id: str) -> None:
+        """Keep the thermostat identity for snapshots and device grouping."""
+        super().__init__(coordinator, device_id)
+        self._attr_unique_id = f"{device_id}_temperature_calibration"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the calibration offset from the latest snapshot."""
+        return _temperature_calibration(self._device)
+
+
 class SalusSensor(SalusEntity, SensorEntity):
     """Representation of a Salus sensor."""
 
     _data_collection = "sensor_devices"
 
-    def __init__(self, coordinator, device_id: str) -> None:
+    def __init__(self, coordinator: SalusDataUpdateCoordinator, device_id: str) -> None:
         """Initialize a Salus sensor entity."""
         super().__init__(coordinator, device_id)
         self._set_child_entity_name_metadata(self._device)

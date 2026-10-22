@@ -23,8 +23,20 @@ DEFAULT_POST_COMMAND_REFRESH_DELAY = 5.0
 CONNECT_RETRIES = 3
 CONNECT_RETRY_DELAY = 3
 
-# Timeout applied to a single gateway operation (connect or status poll).
-GATEWAY_OPERATION_TIMEOUT_SECONDS = 10
+# The client gives each gateway request 5 seconds. These caps sit above what
+# its normal request sequences can take, so they only stop a stuck operation.
+#
+# Connect: protocol detection tries up to three encryption variants and then
+# probes the gateway, each one a request.
+GATEWAY_CONNECT_TIMEOUT_SECONDS = 30
+# Poll: readall plus one combined detail request, or up to 8 per-family detail
+# requests on gateways that need them. Waiting for a running command to release
+# the gateway is not counted.
+GATEWAY_POLL_TIMEOUT_SECONDS = 60
+
+# Timeout for one user command. Some commands send two writes (mode, then the
+# preset to restore), and the client retries a write once after a disconnect.
+GATEWAY_COMMAND_TIMEOUT_SECONDS = 15
 
 # Debounce windows that collapse rapid slider/setpoint changes into one write.
 TARGET_TEMPERATURE_DEBOUNCE_SECONDS = 0.3

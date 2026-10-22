@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from salus_it600.exceptions import IT600ConnectionError
 
+import custom_components.salus.entity as salus_entity
 from custom_components.salus.const import DOMAIN
 from custom_components.salus.coordinator import SalusData
 from custom_components.salus.switch import SalusSwitch
@@ -175,3 +178,39 @@ class TestSalusSwitchCommands:
         entity = SalusSwitch(coord, device.unique_id)
         with pytest.raises(HomeAssistantError, match="Failed to"):
             await entity.async_turn_on()
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ValueError("setpoint out of range"),
+            KeyError("switch device not found with id: switch_001_1"),
+        ],
+    )
+    async def test_client_validation_error_raises_service_validation_error(
+        self, error
+    ):
+        device = make_switch_device()
+        coord = _coordinator_with_switches(device)
+        coord.gateway.command_error = error
+        entity = SalusSwitch(coord, device.unique_id)
+        with pytest.raises(ServiceValidationError, match="Cannot turn on switch"):
+            await entity.async_turn_on()
+        assert entity.is_on is False
+
+    async def test_command_timeout_raises_home_assistant_error(self, monkeypatch):
+        device = make_switch_device(is_on=False)
+        coord = _coordinator_with_switches(device)
+        monkeypatch.setattr(salus_entity, "GATEWAY_COMMAND_TIMEOUT_SECONDS", 0.01)
+
+        async def hang(device_id: str) -> None:
+            await asyncio.sleep(1)
+
+        coord.gateway.turn_on_switch_device = hang
+        entity = SalusSwitch(coord, device.unique_id)
+        with pytest.raises(
+            HomeAssistantError, match="did not respond in time"
+        ) as exc_info:
+            await entity.async_turn_on()
+        assert not isinstance(exc_info.value, ServiceValidationError)
+        assert entity.is_on is False
+        assert coord.refresh_requests == 0

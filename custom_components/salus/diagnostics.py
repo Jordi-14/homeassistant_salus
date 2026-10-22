@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict, is_dataclass
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
@@ -148,6 +149,7 @@ def _climate_diagnostics(data: SalusData | None) -> dict[str, Any]:
             "field_count": len(diagnostic_fields),
             "present_fields": sorted(diagnostic_fields),
             "normalized_fields": _normalized_climate_fields(device),
+            "advanced_settings": _advanced_settings(device),
             "support_fields": {
                 field: diagnostic_fields.get(field)
                 for field in CLIMATE_SUPPORT_FIELDS
@@ -156,6 +158,17 @@ def _climate_diagnostics(data: SalusData | None) -> dict[str, Any]:
         }
 
     return {"devices": devices}
+
+
+def _advanced_settings(device: Any) -> dict[str, Any] | None:
+    """Return decoded SQ610 Advanced Settings, if the client provided them.
+
+    The client never decodes the thermostat PIN, so nothing here needs redacting.
+    """
+    settings = getattr(device, "advanced_settings", None)
+    if settings is None or not is_dataclass(settings) or isinstance(settings, type):
+        return None
+    return asdict(settings)
 
 
 def _normalized_climate_fields(device: Any) -> dict[str, Any]:

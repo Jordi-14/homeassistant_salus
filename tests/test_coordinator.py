@@ -17,6 +17,7 @@ from salus_it600.exceptions import (
     IT600ConnectionError,
 )
 
+import custom_components.salus.coordinator as salus_coordinator
 from custom_components.salus.const import (
     CONF_POLL_FAILURE_THRESHOLD,
     CONF_POST_COMMAND_REFRESH_DELAY,
@@ -171,6 +172,52 @@ async def test_update_data_maps_connection_failure(hass: HomeAssistant) -> None:
         await coordinator._async_update_data()
 
     assert "IT600ConnectionError: offline" in coordinator.gateway_diagnostics()["last_update_error"]
+
+
+async def test_stuck_poll_times_out_as_connection_failure(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gateway = FakeGateway()
+    monkeypatch.setattr(salus_coordinator, "GATEWAY_POLL_TIMEOUT_SECONDS", 0.01)
+
+    async def hang() -> None:
+        await asyncio.sleep(1)
+
+    gateway.poll_status = hang
+    coordinator = _coordinator(hass, gateway)
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    assert coordinator.gateway_diagnostics()["consecutive_update_failures"] == 1
+
+
+async def test_waiting_for_a_command_does_not_count_toward_poll_timeout(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gateway = FakeGateway()
+    monkeypatch.setattr(salus_coordinator, "GATEWAY_POLL_TIMEOUT_SECONDS", 0.05)
+    coordinator = _coordinator(hass, gateway)
+
+    await coordinator.gateway_lock.acquire()
+    poll = asyncio.ensure_future(coordinator._async_update_data())
+    await asyncio.sleep(0.1)
+    assert not poll.done()
+    coordinator.gateway_lock.release()
+
+    data = await poll
+
+    assert "sq610-1" in data.climate_devices
+    assert coordinator.gateway_diagnostics()["failed_updates"] == 0
+
+
+async def test_diagnostics_report_combined_detail_mode(hass: HomeAssistant) -> None:
+    gateway = FakeGateway()
+    coordinator = _coordinator(hass, gateway)
+    assert coordinator.gateway_diagnostics()["combined_detail_requests"] is None
+
+    gateway.combined_detail_requests = False
+    assert coordinator.gateway_diagnostics()["combined_detail_requests"] is False
 
 
 async def test_connection_failures_keep_last_data_until_threshold(hass: HomeAssistant) -> None:

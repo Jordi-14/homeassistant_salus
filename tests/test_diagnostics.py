@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 from homeassistant.const import CONF_HOST, CONF_TOKEN
 from homeassistant.core import HomeAssistant
+from salus_it600.models import ThermostatAdvancedSettings
 
 from custom_components.salus.coordinator import (
     SalusDataUpdateCoordinator,
@@ -43,6 +44,10 @@ def _sq610_device() -> SimpleNamespace:
         cooling_control=0,
         supports_cooling=True,
         cooling_capability_source="cooling_control",
+        advanced_settings=ThermostatAdvancedSettings(
+            temperature_calibration=-0.5,
+            valve_protection=True,
+        ),
         diagnostic_fields={
             "OnlineStatus_i": 1,
             "CoolingControl": 0,
@@ -178,6 +183,11 @@ async def test_diagnostics_redacts_token_and_reports_health(hass: HomeAssistant)
     assert diagnostics["climate"]["devices"]["fc600-1"]["normalized_fields"][
         "supports_fan"
     ] is True
+    sq610_settings = diagnostics["climate"]["devices"]["sq610-1"]["advanced_settings"]
+    assert sq610_settings["temperature_calibration"] == -0.5
+    assert sq610_settings["valve_protection"] is True
+    assert sq610_settings["optimum_start"] is None
+    assert diagnostics["climate"]["devices"]["fc600-1"]["advanced_settings"] is None
 
 
 async def test_diagnostics_handles_unloaded_entry(hass: HomeAssistant) -> None:

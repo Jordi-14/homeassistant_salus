@@ -18,7 +18,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from salus_it600.exceptions import IT600AuthenticationError, IT600ConnectionError
 from salus_it600.gateway import IT600Gateway
-from salus_it600.device_models import is_sq610_model
 
 from .const import (
     CONF_POLL_FAILURE_THRESHOLD,
@@ -28,7 +27,7 @@ from .const import (
     DEFAULT_POST_COMMAND_REFRESH_DELAY,
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DOMAIN,
-    GATEWAY_OPERATION_TIMEOUT_SECONDS,
+    GATEWAY_POLL_TIMEOUT_SECONDS,
     MAX_POST_COMMAND_REFRESH_DELAY,
     MAX_SCAN_INTERVAL_SECONDS,
     MIN_POST_COMMAND_REFRESH_DELAY,
@@ -148,11 +147,6 @@ class SalusRuntimeData:
 type SalusConfigEntry = ConfigEntry[SalusRuntimeData]
 
 
-def is_sq610_device(device: Any) -> bool:
-    """Return whether the device is a Quantum thermostat."""
-    return is_sq610_model(getattr(device, "model", None))
-
-
 def _iter_device_collections(
     data: SalusData,
 ) -> Iterator[tuple[str, Mapping[str, Any]]]:
@@ -228,6 +222,11 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         )
         diagnostics["post_command_refresh_delay_seconds"] = (
             self._post_command_refresh_delay()
+        )
+        # Whether the client fetches all device details in one request per poll.
+        # None with clients older than the version that added it.
+        diagnostics["combined_detail_requests"] = getattr(
+            self.gateway, "combined_detail_requests", None
         )
         return diagnostics
 
@@ -305,8 +304,8 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
     async def _async_update_data(self) -> SalusData:
         """Fetch all Salus device data from the gateway."""
         try:
-            async with asyncio.timeout(GATEWAY_OPERATION_TIMEOUT_SECONDS):
-                async with self.gateway_lock:
+            async with self.gateway_lock:
+                async with asyncio.timeout(GATEWAY_POLL_TIMEOUT_SECONDS):
                     await self.gateway.poll_status()
                     climate_devices = dict(self.gateway.get_climate_devices() or {})
 

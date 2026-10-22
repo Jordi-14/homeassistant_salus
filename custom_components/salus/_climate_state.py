@@ -94,10 +94,7 @@ MANUAL_PRESET_MODES = {
     RAW_PRESET_PERMANENT_HOLD,
     RAW_PRESET_ECO,
 }
-TURN_ON_OFF_FEATURES = (
-    getattr(ClimateEntityFeature, "TURN_ON", ClimateEntityFeature(0))
-    | getattr(ClimateEntityFeature, "TURN_OFF", ClimateEntityFeature(0))
-)
+TURN_ON_OFF_FEATURES = ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
 
 
 @dataclass(frozen=True, slots=True)

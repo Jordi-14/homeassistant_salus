@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- Declare Home Assistant 2024.11.0 as the minimum version, as requested in the
+  HACS review, and run the test suite against it in CI.
+- Add a diagnostic **Temperature calibration** sensor for SQ610 thermostats and
+  include the decoded SQ610 Advanced Settings in diagnostics.
+- Retry setup instead of failing when the gateway poll does not include the
+  gateway's own device record.
+- Report values the device does not accept (for example a setpoint outside the
+  active range) as service validation errors instead of unexpected errors.
+- Time out a gateway command after 15 seconds instead of waiting indefinitely.
+- Give connects up to 30 seconds and polls up to 60 seconds before treating
+  them as failed. The previous 10-second cap could cut off a slow but working
+  gateway partway through a poll or during protocol detection. Time spent
+  waiting for a running command no longer counts toward the poll limit.
+- Show in diagnostics whether the client fetches all device details in one
+  request per poll (needs a client release that supports it).
+- Correct the README: diagnostics redact the gateway IP address as well as the
+  EUID.
+- Remove duplicate helpers and pass-through refresh code, and type the platform
+  setup callbacks.
+- Add @leonardpitzu as a code owner.
+
 ## 0.9.10 - 2026-10-19
 
 - Run HACS validation with all checks enabled, including brands.
