@@ -27,7 +27,7 @@ from .const import (
     DEFAULT_POST_COMMAND_REFRESH_DELAY,
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DOMAIN,
-    GATEWAY_OPERATION_TIMEOUT_SECONDS,
+    GATEWAY_POLL_TIMEOUT_SECONDS,
     MAX_POST_COMMAND_REFRESH_DELAY,
     MAX_SCAN_INTERVAL_SECONDS,
     MIN_POST_COMMAND_REFRESH_DELAY,
@@ -223,6 +223,11 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
         diagnostics["post_command_refresh_delay_seconds"] = (
             self._post_command_refresh_delay()
         )
+        # Whether the client fetches all device details in one request per poll.
+        # None with clients older than the version that added it.
+        diagnostics["combined_detail_requests"] = getattr(
+            self.gateway, "combined_detail_requests", None
+        )
         return diagnostics
 
     def device_availability_diagnostics(self) -> dict[str, dict[str, Any]]:
@@ -299,8 +304,8 @@ class SalusDataUpdateCoordinator(DataUpdateCoordinator[SalusData]):
     async def _async_update_data(self) -> SalusData:
         """Fetch all Salus device data from the gateway."""
         try:
-            async with asyncio.timeout(GATEWAY_OPERATION_TIMEOUT_SECONDS):
-                async with self.gateway_lock:
+            async with self.gateway_lock:
+                async with asyncio.timeout(GATEWAY_POLL_TIMEOUT_SECONDS):
                     await self.gateway.poll_status()
                     climate_devices = dict(self.gateway.get_climate_devices() or {})
 

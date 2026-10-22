@@ -21,7 +21,13 @@ from salus_it600.exceptions import (
 )
 from salus_it600.gateway import IT600Gateway
 
-from .const import CONNECT_RETRIES, CONNECT_RETRY_DELAY, DOMAIN, GATEWAY_OPERATION_TIMEOUT_SECONDS, PLATFORMS
+from .const import (
+    CONNECT_RETRIES,
+    CONNECT_RETRY_DELAY,
+    DOMAIN,
+    GATEWAY_CONNECT_TIMEOUT_SECONDS,
+    PLATFORMS,
+)
 from .coordinator import SalusConfigEntry, SalusData, SalusDataUpdateCoordinator, SalusRuntimeData
 from .sensor import sensor_device_registry_unique_id
 from .switch import switch_device_registry_unique_id
@@ -83,7 +89,7 @@ async def _async_connect_gateway(gateway: IT600Gateway) -> None:
 
     for attempt in range(CONNECT_RETRIES):
         try:
-            async with asyncio.timeout(GATEWAY_OPERATION_TIMEOUT_SECONDS):
+            async with asyncio.timeout(GATEWAY_CONNECT_TIMEOUT_SECONDS):
                 await gateway.connect()
             return
         except IT600AuthenticationError as ex:

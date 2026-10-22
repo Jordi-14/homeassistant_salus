@@ -212,10 +212,10 @@ This method is useful for one-off troubleshooting since it automatically reverts
 Diagnostics include integration version, gateway health counters, device counts,
 availability history, and shared climate diagnostics with normalized fields,
 whitelisted support fields, and decoded SQ610 Advanced Settings for each
-thermostat. The gateway EUID/token is
-redacted automatically.
+thermostat. The gateway IP address and EUID are redacted automatically.
 
-Review the file before posting publicly — it may contain your gateway IP and device IDs.
+Review the file before posting publicly. It still contains device IDs, the
+gateway MAC address, and the names you gave your devices.
 
 For support requests, include:
 

@@ -11,6 +11,14 @@
 - Report values the device does not accept (for example a setpoint outside the
   active range) as service validation errors instead of unexpected errors.
 - Time out a gateway command after 15 seconds instead of waiting indefinitely.
+- Give connects up to 30 seconds and polls up to 60 seconds before treating
+  them as failed. The previous 10-second cap could cut off a slow but working
+  gateway partway through a poll or during protocol detection. Time spent
+  waiting for a running command no longer counts toward the poll limit.
+- Show in diagnostics whether the client fetches all device details in one
+  request per poll (needs a client release that supports it).
+- Correct the README: diagnostics redact the gateway IP address as well as the
+  EUID.
 - Remove duplicate helpers and pass-through refresh code, and type the platform
   setup callbacks.
 - Add @leonardpitzu as a code owner.
