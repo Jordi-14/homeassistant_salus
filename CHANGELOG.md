@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.9.11b1 - 2026-10-22
+
+- Test client 0.7.0b1 with combined detail requests, read retries, and preserved
+  multi-channel endpoints. This is a beta for real gateway testing.
 
 - Declare Home Assistant 2024.11.0 as the minimum version, as requested in the
   HACS review, and run the test suite against it in CI.
