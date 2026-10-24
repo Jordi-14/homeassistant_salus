@@ -71,6 +71,26 @@ One switch entity per smart plug or relay (SP600, SPE600, SR600, and RS600 relay
 
 One lock entity per thermostat that supports child lock. Allows **locking/unlocking** the thermostat keypad.
 
+### Comfort Warm Floor (feature branch)
+
+An experimental **Comfort warm floor** select offers Off and levels 1/2/3 for
+devices explicitly enabled by the matching client feature branch. The entity
+is disabled by default; enable it in the device's entity settings for testing.
+Its value follows the gateway's reported configuration, which may take tens
+of seconds to update after a command. It does not report optimistic success.
+
+This is initially restricted to SQ610RFNH firmware `00000054` and verified
+settings/counter states. It is not general SQ610 write support. The guarded
+client prototype stops after save counter 9; additional protocol evidence is
+needed before expanding this range. Unknown profiles and pending settings
+commands cannot be changed through this control.
+
+The production manifest intentionally retains its existing published client
+pin. These new controls require the corresponding unreleased client changes;
+they will not appear with the currently pinned published client. Follow the
+two-repository feature-branch workflow in [CONTRIBUTING.md](CONTRIBUTING.md).
+Do not treat this branch as an installable production release.
+
 ## Installation
 
 Minimum supported Home Assistant version: `2024.11.0`.
