@@ -81,7 +81,7 @@ of seconds to update after a command. It does not report optimistic success.
 
 This is initially restricted to SQ610RFNH firmware `00000054` and verified
 settings/counter states. It is not general SQ610 write support. The guarded
-client prototype stops after save counter 9; additional protocol evidence is
+client prototype stops after save counter 34; additional protocol evidence is
 needed before expanding this range. Unknown profiles and pending settings
 commands cannot be changed through this control.
 
