@@ -43,6 +43,10 @@ jobs:
             test_plugin: "0.13.367"
             python: "3.14"
             extra_requirements: ""
+          - homeassistant: "2026.10.3"
+            test_plugin: "0.13.374"
+            python: "3.14"
+            extra_requirements: ""
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

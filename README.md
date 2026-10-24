@@ -90,15 +90,10 @@ client prototype stops after save counter 255; additional protocol evidence is
 needed before expanding this range. Unknown profiles and pending settings
 commands cannot be changed through this control.
 
-The production manifest intentionally retains its existing published client
-pin. These new controls require the corresponding unreleased client changes;
-they will not appear with the currently pinned published client. Follow the
-two-repository feature-branch workflow in [CONTRIBUTING.md](CONTRIBUTING.md).
-Do not treat this branch as an installable production release.
-
-## Installation
-
-Minimum supported Home Assistant version: `2024.11.0`.
+This beta manifest pins the fork client wheel by SHA-256; it installs without
+Git or a compiler. Follow [BETA-INSTALL.md](BETA-INSTALL.md) for installation,
+private pre-write backups, confirmation and return to the previous integration.
+The separate upstream contribution branch still retains its published client pin.
 
 ### HACS (recommended)
 

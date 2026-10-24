@@ -9,7 +9,7 @@ Do not delete the configured Salus integration, its devices or its entity regist
 
 1. Record your Home Assistant version, current SALUS repository and installed
    version. This beta's Linux test matrix covers HA 2024.11.0, 2026.5.4 and
-   2026.9.4. Compatibility with an unknown installed fork is not established.
+   2026.9.4 and 2026.10.3. Compatibility with an unknown installed fork is not established.
 2. Create and download a full Home Assistant backup that includes configuration.
    Separately copy the entire existing `custom_components/salus` directory to a
    folder outside `custom_components` and record the existing manifest version.
