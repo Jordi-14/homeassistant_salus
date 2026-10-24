@@ -1,4 +1,4 @@
-> **Fork beta 0.9.11b2:** installation, rollback and limitations are in
+> **Fork beta 0.9.11b3:** installation, rollback and limitations are in
 > [BETA-INSTALL.md](BETA-INSTALL.md). Uses a checksum-pinned fork client wheel.
 > Hardware evidence ends at counter 35; the beta permits non-wrapping counters
 > up to 255 using the upstream formula and stops at 255. No rollover support.

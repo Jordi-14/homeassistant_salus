@@ -1,4 +1,4 @@
-# Floor Comfort beta 0.9.11b2
+# Floor Comfort beta 0.9.11b3
 
 This fork beta adds the Off / Level 1 / Level 2 / Level 3 configuration select.
 It replaces the code in `custom_components/salus`; do not run two integrations
@@ -24,7 +24,7 @@ Do not delete the configured Salus integration, its devices or its entity regist
    before downloading this fork. Keep your configured integration and registry;
    do not uninstall blindly. Manual installation below avoids that ambiguity.
 3. On the repository download/version screen enable prerelease/beta versions,
-   select **v0.9.11b2**, and download. The release asset is `salus.zip`.
+   select **v0.9.11b3**, and download. The release asset is `salus.zip`.
    Do not select the default branch, which does not contain this beta.
 4. Restart Home Assistant once. The manifest installs the checksum-pinned fork
    client wheel automatically; no Python/Git installation or manual library edits
@@ -92,3 +92,11 @@ or remove validation as a workaround. This beta is not a complete daily-use rele
    Assistant backup. Keep the new select disabled while investigating.
 
 No running Home Assistant was changed while preparing this release.
+
+## Beta 0.9.11b3 fix
+
+The select retains its last reported value while a command from the vendor app
+is pending. An in-flight command is a temporary write restriction, not an
+offline device. New writes still validate fresh state and refuse a pending or
+unrecognized command echo. The existing entity IDs and opt-in choices are
+unchanged; update the installed fork to v0.9.11b3 and restart Home Assistant.

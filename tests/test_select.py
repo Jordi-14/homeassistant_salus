@@ -172,3 +172,39 @@ def test_old_backup_cannot_masquerade_as_new_backup(tmp_path, monkeypatch):
     monkeypatch.setattr("custom_components.salus.floor_backup.write_utf8_file_atomic", Mock())
     with pytest.raises(OSError, match="did not match"):
         persist_floor_backup(str(path), {"before": "new"})
+
+async def test_app_update_keeps_entity_available_until_off_is_reported():
+    import copy
+
+    from salus_it600.comfort_warm_floor import build_comfort_warm_floor_command
+    from salus_it600.parsers.climate import parse_climate_device
+
+    # Anonymized captured layout, with a synthetic identity and level 1.
+    blob = bytearray.fromhex('720701000001050040000000000104002700100006003500050040000500010000000101800000000dfe010000000100ffffffffffffffffffffffffffffffffffffffffffffffffffffff0000')
+    blob[39] = 1
+    before = {
+        'status': 'success',
+        'data': {'UniID': 'test-floor', 'Endpoint': 9, 'DeviceType': 100},
+        'DeviceL': {'ModelIdentifier_i': 'SQ610RFNH'},
+        'sZDO': {'FirmwareVersion': '00000054'},
+        'sZDOInfo': {'OnlineStatus_i': 1},
+        'sIT600TH': {'Schedule': blob.hex(), 'Status_2_d': blob.hex(),
+                     'PairedTRVShortID': 'F' * 24, 'PairedWCNumber': 1,
+                     'SystemMode': 4, 'HoldType': 2, 'HeatingSetpoint_x100': 2100},
+        'sIT600I': {'CommandResponse_d': '42313173' + blob[1:60].hex() + '00'},
+    }
+    command = build_comfort_warm_floor_command(before, 0)
+    pending = copy.deepcopy(before)
+    pending['sIT600I']['CommandResponse_d'] = command + '00'
+    after = copy.deepcopy(pending)
+    after['sIT600TH']['Schedule'] = after['sIT600TH']['Status_2_d'] = '72' + command[8:] + blob[60:].hex()
+    coordinator = FakeCoordinator()
+    entity = SalusComfortWarmFloorSelect(coordinator, 'test-floor')
+    for status, option in [(before, 'level_1'), (pending, 'level_1'), (after, 'off')]:
+        coordinator.data.climate_devices['test-floor'] = parse_climate_device(status)
+        assert entity.available
+        assert entity.current_option == option
+    offline = copy.deepcopy(after)
+    offline['sZDOInfo']['OnlineStatus_i'] = 0
+    coordinator.data.climate_devices['test-floor'] = parse_climate_device(offline)
+    assert not entity.available

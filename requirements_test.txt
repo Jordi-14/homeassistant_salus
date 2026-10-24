@@ -4,4 +4,4 @@ pytest-asyncio>=0.23
 pytest-cov>=4.0
 pytest-homeassistant-custom-component>=0.13.0
 ruff>=0.11
-salus-it600-client@https://github.com/MichaelBusackBertelsen/salus-it600-client/releases/download/floor-beta-1/salus_it600_client-0.7.0b2.dev20261024-py3-none-any.whl#sha256=e12843114407295daa156630d7784c95749772ba25bc76b773739d945527ec6b
+salus-it600-client@https://github.com/MichaelBusackBertelsen/salus-it600-client/releases/download/floor-beta-2/salus_it600_client-0.7.0b2.dev20261024%2Bfloor2-py3-none-any.whl#sha256=62d8a2c3ed2f581e122a5de2ffcacf0c38f5b48339dd8ada7fee9bdb21eca754
