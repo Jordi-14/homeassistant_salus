@@ -319,11 +319,13 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         self,
         action: str,
         command: Callable[[], Awaitable[None]],
+        *,
+        timeout: float | None = None,
     ) -> None:
         """Run one gateway command and convert client failures to HA service errors."""
         try:
             async with self.coordinator.gateway_lock:
-                async with asyncio.timeout(GATEWAY_COMMAND_TIMEOUT_SECONDS):
+                async with asyncio.timeout(GATEWAY_COMMAND_TIMEOUT_SECONDS if timeout is None else timeout):
                     await command()
         except (ValueError, KeyError) as ex:
             # The client raises IT600ValidationError (a ValueError) for values the

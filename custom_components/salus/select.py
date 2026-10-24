@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from hashlib import sha256
+
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -10,6 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import SalusConfigEntry, SalusDataUpdateCoordinator
 from .entity import SalusEntity, async_setup_salus_platform_entities
+from .floor_backup import persist_floor_backup
 
 PARALLEL_UPDATES = 1
 _OPTIONS = ("off", "level_1", "level_2", "level_3")
@@ -69,12 +73,27 @@ class SalusComfortWarmFloorSelect(SalusEntity, SelectEntity):
             raise ServiceValidationError("Unknown Comfort Warm Floor option")
         if not self.available:
             raise ServiceValidationError("Comfort Warm Floor control is unavailable")
+
+        async def save_backup(snapshot: dict) -> None:
+            key = sha256(self._device_id.encode()).hexdigest()[:24]
+            try:
+                await self.hass.async_add_executor_job(persist_floor_backup,
+                    self.hass.config.path(".storage", f"salus_floor_backup_{key}.json"), {
+                    "saved_at": datetime.now(UTC).isoformat(),
+                    "requested_level": _OPTIONS.index(option),
+                    "before": snapshot,
+                })
+            except Exception as error:
+                raise HomeAssistantError("Floor-comfort backup failed; no command was sent") from error
+
         try:
             await self._async_run_gateway_command(
                 "set comfort warm floor",
                 lambda: self.coordinator.gateway.set_climate_device_comfort_warm_floor(
                     self._device_id, _OPTIONS.index(option),
+                    before_write=save_backup, confirmation_timeout=120,
                 ),
+                timeout=150,
             )
         except ServiceValidationError:
             raise

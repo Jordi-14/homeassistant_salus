@@ -1,15 +1,20 @@
 {
   "domain": "salus",
   "name": "Salus iT600",
-  "codeowners": ["@Jordi-14", "@leonardpitzu"],
+  "codeowners": [
+    "@MichaelBusackBertelsen"
+  ],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/Jordi-14/homeassistant_salus",
+  "documentation": "https://github.com/MichaelBusackBertelsen/homeassistant_salus/blob/feature/comfort-warm-floor-beta/BETA-INSTALL.md",
   "integration_type": "hub",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/Jordi-14/homeassistant_salus/issues",
-  "loggers": ["salus_it600"],
-  "quality_scale": "silver",
-  "requirements": ["salus-it600-client==0.7.0b1"],
-  "version": "0.9.11b1"
+  "issue_tracker": "https://github.com/MichaelBusackBertelsen/homeassistant_salus/issues",
+  "loggers": [
+    "salus_it600"
+  ],
+  "requirements": [
+    "salus-it600-client@https://github.com/MichaelBusackBertelsen/salus-it600-client/releases/download/floor-beta-1/salus_it600_client-0.7.0b2.dev20261024-py3-none-any.whl#sha256=e12843114407295daa156630d7784c95749772ba25bc76b773739d945527ec6b"
+  ],
+  "version": "0.9.11b2"
 }

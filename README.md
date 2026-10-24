@@ -1,3 +1,8 @@
+> **Fork beta 0.9.11b2:** installation, rollback and limitations are in
+> [BETA-INSTALL.md](BETA-INSTALL.md). Uses a checksum-pinned fork client wheel.
+> Hardware evidence ends at counter 35; the beta permits non-wrapping counters
+> up to 255 using the upstream formula and stops at 255. No rollover support.
+
 # Salus iT600 for Home Assistant
 
 [![CI](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml)
@@ -81,7 +86,7 @@ of seconds to update after a command. It does not report optimistic success.
 
 This is initially restricted to SQ610RFNH firmware `00000054` and verified
 settings/counter states. It is not general SQ610 write support. The guarded
-client prototype stops after save counter 34; additional protocol evidence is
+client prototype stops after save counter 255; additional protocol evidence is
 needed before expanding this range. Unknown profiles and pending settings
 commands cannot be changed through this control.
 

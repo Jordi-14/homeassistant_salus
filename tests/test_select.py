@@ -1,7 +1,7 @@
 """Floor-comfort discovery, confirmed state and command failures."""
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import ANY, AsyncMock, Mock
 
 import pytest
 from homeassistant.const import EntityCategory
@@ -45,7 +45,9 @@ def test_metadata_and_device_grouping():
 async def test_command_keeps_reported_value_until_poll_confirms():
     entity, coordinator, device = setup_select()
     await entity.async_select_option("level_3")
-    coordinator.gateway.set_climate_device_comfort_warm_floor.assert_awaited_once_with(device.unique_id, 3)
+    coordinator.gateway.set_climate_device_comfort_warm_floor.assert_awaited_once_with(
+        device.unique_id, 3, before_write=ANY, confirmation_timeout=120,
+    )
     assert coordinator.refresh_requests == 1
     assert entity.current_option == "off"
     device.advanced_settings.comfort_warm_floor = 3
@@ -108,3 +110,65 @@ async def test_discovery_adds_only_supported_and_handles_late_devices():
     for call in coordinator.async_add_listener.call_args_list:
         call.args[0]()
     assert add_entities.call_count == 2
+
+
+async def test_select_persists_backup_before_gateway_dispatch(tmp_path):
+    import json
+
+    entity, coordinator, _ = setup_select()
+    path = tmp_path / "private" / "backup.json"
+    entity.hass = SimpleNamespace(
+        config=SimpleNamespace(path=lambda *args: str(path)),
+        async_add_executor_job=AsyncMock(side_effect=lambda function, *args: function(*args)),
+    )
+    snapshot = {"private": "thermostat settings"}
+
+    async def command(*args, before_write, **kwargs):
+        await before_write(snapshot)
+        assert json.loads(path.read_text())["before"] == snapshot
+
+    coordinator.gateway.set_climate_device_comfort_warm_floor.side_effect = command
+    await entity.async_select_option("level_1")
+    data = json.loads(path.read_text())
+    assert data["requested_level"] == 1
+    assert data["saved_at"]
+
+
+async def test_backup_disk_error_blocks_dispatch(monkeypatch):
+    entity, coordinator, _ = setup_select()
+    entity.hass = SimpleNamespace(
+        config=SimpleNamespace(path=lambda *args: "backup.json"),
+        async_add_executor_job=AsyncMock(side_effect=OSError("disk full")),
+    )
+    dispatched = False
+
+    async def command(*args, before_write, **kwargs):
+        nonlocal dispatched
+        await before_write({"snapshot": True})
+        dispatched = True
+
+    coordinator.gateway.set_climate_device_comfort_warm_floor.side_effect = command
+    with pytest.raises(HomeAssistantError, match="backup failed"):
+        await entity.async_select_option("level_1")
+    assert not dispatched
+    assert coordinator.refresh_requests == 1
+
+
+def test_atomic_writer_failure_is_not_swallowed(tmp_path, monkeypatch):
+    from homeassistant.util.file import WriteError
+
+    from custom_components.salus.floor_backup import persist_floor_backup
+
+    writer = Mock(side_effect=WriteError("disk full"))
+    monkeypatch.setattr("custom_components.salus.floor_backup.write_utf8_file_atomic", writer)
+    with pytest.raises(WriteError):
+        persist_floor_backup(str(tmp_path / "backup.json"), {"before": "snapshot"})
+
+
+def test_old_backup_cannot_masquerade_as_new_backup(tmp_path, monkeypatch):
+    from custom_components.salus.floor_backup import persist_floor_backup
+    path = tmp_path / "backup.json"
+    path.write_text('{"before": "old"}')
+    monkeypatch.setattr("custom_components.salus.floor_backup.write_utf8_file_atomic", Mock())
+    with pytest.raises(OSError, match="did not match"):
+        persist_floor_backup(str(path), {"before": "new"})
