@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add an experimental Comfort Warm Floor select with Off/1/2/3 for profiles
+  explicitly enabled by the client. Disabled by default; displays confirmed
+  device state and requests a refresh after commands. Requires the matching
+  unreleased client change; the production dependency pin is unchanged.
+
 ## 0.9.11b1 - 2026-10-22
 
 - Test client 0.7.0b1 with combined detail requests, read retries, and preserved
