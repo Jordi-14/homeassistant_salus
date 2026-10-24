@@ -1,0 +1,7 @@
+Kopiér teksten nedenfor til Udviklerværktøjer → Skabeloner i Home Assistant.
+Det er kun en aflæsning. Kopiér resultatet tilbage til chatten.
+
+{% set ids = integration_entities('salus') %}
+{% for e in states if e.entity_id in ids and e.domain in ['climate', 'select'] %}
+{{ e.entity_id }} | {{ e.name }} | {{ e.state }}{% if e.domain == 'climate' %} | fugt: {{ e.attributes.get('current_humidity', 'mangler') }}{% endif %}
+{% endfor %}

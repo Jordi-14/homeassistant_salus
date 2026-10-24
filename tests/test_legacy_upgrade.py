@@ -49,7 +49,7 @@ async def test_legacy_config_and_renamed_climate_entity_survive_beta_setup(hass)
         assert entities.async_get_entity_id('climate', DOMAIN, 'thermostat-1') == old_entity.entity_id
         select_id = entities.async_get_entity_id('select', DOMAIN, 'thermostat-1_comfort_warm_floor')
         assert select_id is not None
-        assert entities.async_get(select_id).disabled_by is not None
+        assert entities.async_get(select_id).disabled_by is None
         assert entry.data['host'] == '192.0.2.10'
         assert entry.data['token'] == '0000000000000000'
         assert await hass.config_entries.async_unload(entry.entry_id)

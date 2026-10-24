@@ -1,0 +1,57 @@
+SALUS dashboard 1.0.0 – baseret på den godkendte mockup
+
+Pakken indeholder ét genbrugeligt rumkort og en visning til alle syv rum.
+Kortet viser temperatur, luftfugtighed, ønsket temperatur og Gulvkomfort
+med Fra/1/2/3. Det følger Home Assistants tema og Sections-visningens layout.
+Ingen Mushroom, button-card eller card-mod er nødvendig.
+
+FØRST MANGLER DINE FAKTISKE ENTITETS-ID'ER
+Dashboardets udskift_...-id'er er tydeligt markerede pladsholdere. De er ikke
+fundet på din installation. Brug find-entiteter.txt til at hente de korrekte
+id'er i én aflæsning, og send resultatet tilbage til chatten. Så kan vi gøre
+dashboard.yaml helt færdig. Luftfugtigheden læses fra termostatens attribut.
+Hvis den mangler, vises —. En separat fugtsensor kan angives med humidity_sensor.
+
+INSTALLATION
+1. Tag en Home Assistant-backup. Brug et nyt dashboard til første afprøvning.
+2. Kopiér mappen www/salus-dashboard fra pakken til /config/www/salus-dashboard.
+   Den færdige fil skal hedde /config/www/salus-dashboard/salus-room-card.js.
+3. Tilføj en dashboard-ressource med URL:
+   /local/salus-dashboard/salus-room-card.js?v=1.0.0
+   Ressourcetype: JavaScript-modul. Ressourcer findes under Indstillinger →
+   Dashboards og menuen Ressourcer; avanceret tilstand kan være nødvendig.
+4. Opdatér browseren. Opret et nyt, tomt dashboard, og indsæt dashboard.yaml
+   i dets rå konfigurationseditor, når entitets-id'erne er rettet.
+   et-rum.yaml er en alternativ første prøve med kun Hall som manuelt kort.
+5. Kontrollér målingerne, og prøv én ændring fra kortet. Gulvkomfort-entiteterne
+   skal være aktiveret. Beta 0.9.11b3 eller nyere anbefales pga. unavailable-fixen.
+
+ADFÆRD
+Kun tryk på temperaturknapperne eller Gulvkomfort sender en handling.
+Visning, åbning og opdatering af dashboardet sender ingen skrivekommandoer.
+Temperaturknapperne benytter climate.set_temperature. Gulvkomfort benytter
+select.select_option med de oprindelige off/level_1/level_2/level_3-værdier.
+Kortet sender aldrig rå gatewaykommandoer og omgår ikke integrationens backup,
+validering eller tællergrænse. Et klik gentages ikke automatisk ved fejl.
+Under en ændring vises Afventer aflæsning, og knapperne låses på dette rumkort.
+Værdierne følger Home Assistants entiteter; kortet opfinder ikke en bekræftelse.
+Hvis en måling er ukendt eller utilgængelig, vises — frem for nul.
+
+KORTETS VALGFRIE FELTER
+name: rumtitel. icon: et mdi:-ikon.
+temperature_sensor: sensor.dit_id (ellers climate.current_temperature).
+humidity_sensor: sensor.dit_id (ellers climate.current_humidity).
+
+TILBAGEFØRSEL
+Fjern det nye dashboard/kort og dashboard-ressourcen. Der ændres ingen
+konfiguration i SALUS-integrationen ved at installere eller fjerne kortet.
+En temperatur eller Gulvkomfort-værdi valgt via kortet forbliver på enheden,
+indtil du ændrer den igen med en normal handling.
+
+Pakken er afprøvet med simulerede Home Assistant-tilstande og handlinger i en
+browser. Den er endnu ikke installeret eller afprøvet på din Home Assistant.
+
+Dokumentation:
+https://contributors.home-assistant.io/frontend/custom-ui/card/
+https://www.home-assistant.io/dashboards/dashboards/
+https://www.home-assistant.io/dashboards/sections/

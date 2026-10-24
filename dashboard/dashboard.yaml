@@ -1,0 +1,80 @@
+# De markerede udskift_...-id'er er pladsholdere. Indsæt dine faktiske id'er.
+# Dette er et selvstændigt dashboard. Indsæt i et NYT dashboards rå konfiguration.
+title: Indeklima
+views:
+  - title: Rum & varme
+    path: indeklima
+    icon: mdi:home-thermometer-outline
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: custom:salus-room-card
+            name: "Stuen"
+            icon: mdi:sofa-outline
+            climate: climate.udskift_stuen
+            comfort: select.udskift_stuen_gulvkomfort
+            grid_options:
+              columns: 12
+              rows: auto
+      - type: grid
+        cards:
+          - type: custom:salus-room-card
+            name: "Hall"
+            icon: mdi:door-open
+            climate: climate.udskift_hall
+            comfort: select.udskift_hall_gulvkomfort
+            grid_options:
+              columns: 12
+              rows: auto
+      - type: grid
+        cards:
+          - type: custom:salus-room-card
+            name: "Bryggers"
+            icon: mdi:washing-machine
+            climate: climate.udskift_bryggers
+            comfort: select.udskift_bryggers_gulvkomfort
+            grid_options:
+              columns: 12
+              rows: auto
+      - type: grid
+        cards:
+          - type: custom:salus-room-card
+            name: "Køkken"
+            icon: mdi:pot-steam-outline
+            climate: climate.udskift_kokken
+            comfort: select.udskift_kokken_gulvkomfort
+            grid_options:
+              columns: 12
+              rows: auto
+      - type: grid
+        cards:
+          - type: custom:salus-room-card
+            name: "Kontor"
+            icon: mdi:desk
+            climate: climate.udskift_kontor
+            comfort: select.udskift_kontor_gulvkomfort
+            grid_options:
+              columns: 12
+              rows: auto
+      - type: grid
+        cards:
+          - type: custom:salus-room-card
+            name: "Stort badeværelse"
+            icon: mdi:bathtub-outline
+            climate: climate.udskift_stort_badevaerelse
+            comfort: select.udskift_stort_badevaerelse_gulvkomfort
+            grid_options:
+              columns: 12
+              rows: auto
+      - type: grid
+        cards:
+          - type: custom:salus-room-card
+            name: "Lille badeværelse"
+            icon: mdi:shower-head
+            climate: climate.udskift_lille_badevaerelse
+            comfort: select.udskift_lille_badevaerelse_gulvkomfort
+            grid_options:
+              columns: 12
+              rows: auto

@@ -11,6 +11,19 @@ permissions:
   contents: read
 
 jobs:
+  dashboard:
+    name: Dashboard browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install --no-save --package-lock=false playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node --check dashboard/www/salus-dashboard/salus-room-card.js
+      - run: node scripts/test_dashboard_card.cjs
+
   ruff:
     name: Lint (Ruff)
     runs-on: ubuntu-latest

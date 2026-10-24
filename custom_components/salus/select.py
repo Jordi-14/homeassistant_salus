@@ -39,7 +39,7 @@ class SalusComfortWarmFloorSelect(SalusEntity, SelectEntity):
     """Change floor comfort while displaying only gateway-reported state."""
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_entity_registry_enabled_default = False
+    _attr_entity_registry_enabled_default = True
     _attr_translation_key = "comfort_warm_floor"
     _attr_icon = "mdi:heating-coil"
     _attr_options = list(_OPTIONS)

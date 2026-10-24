@@ -1,0 +1,6 @@
+# Tilføj som et manuelt kort. Erstat de to id'er før brug.
+type: custom:salus-room-card
+name: Hall
+icon: mdi:door-open
+climate: climate.udskift_hall
+comfort: select.udskift_hall_gulvkomfort

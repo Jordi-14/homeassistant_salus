@@ -1,0 +1,11 @@
+Pending next beta (not part of the published v0.9.11b3 tag):
+
+Enable supported Comfort Warm Floor selects by default. Existing selects
+that were disabled by the integration's earlier default are enabled before
+platform setup. Explicit user disables, unsupported profiles, other gateways
+and diagnostic entities remain unchanged. This activates HA entities only:
+it sends no thermostat commands and changes no floor-comfort level.
+
+The separately installed dashboard resource is in dashboard/. It uses native
+HA actions and existing climate/select entities. The sample YAML deliberately
+uses udskift_ placeholders until the actual registry IDs are supplied.

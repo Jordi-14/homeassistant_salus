@@ -11,6 +11,7 @@ from homeassistant.const import CONF_HOST, CONF_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.config_validation import config_entry_only_config_schema
 
@@ -63,6 +64,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SalusConfigEntry) -> boo
         coordinator.gateway_id = gateway_info.unique_id
         _async_register_gateway_device(hass, entry, gateway_info)
 
+        _async_enable_floor_comfort_entities(hass, entry, coordinator.data)
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     except Exception:
@@ -76,6 +78,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: SalusConfigEntry) -> boo
         raise
 
     return True
+
+
+def _async_enable_floor_comfort_entities(
+    hass: HomeAssistant, entry: SalusConfigEntry, data: SalusData,
+) -> None:
+    """Enable supported floor selects disabled by earlier integration defaults.
+
+    Preserve deliberate user disables and every unrelated entity. Run before
+    platform forwarding so existing registry entries load on this setup.
+    """
+    supported = {
+        f"{device_id}_comfort_warm_floor"
+        for device_id, device in data.climate_devices.items()
+        if getattr(device, "supports_comfort_warm_floor", False)
+    }
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if (
+            entity.domain == "select" and entity.platform == DOMAIN
+            and entity.unique_id in supported
+            and entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+        ):
+            registry.async_update_entity(entity.entity_id, disabled_by=None)
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: SalusConfigEntry) -> None:

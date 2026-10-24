@@ -37,7 +37,7 @@ def test_metadata_and_device_grouping():
     assert entity.unique_id == f"{device.unique_id}_comfort_warm_floor"
     assert entity.device_info["identifiers"] == {(DOMAIN, device.unique_id)}
     assert entity.entity_category == EntityCategory.CONFIG
-    assert entity.entity_registry_enabled_default is False
+    assert entity.entity_registry_enabled_default is True
     assert entity.translation_key == "comfort_warm_floor"
     assert entity.options == ["off", "level_1", "level_2", "level_3"]
 
