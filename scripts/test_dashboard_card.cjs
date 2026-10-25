@@ -157,6 +157,12 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
   if(!geometry.path.includes('H')||!geometry.path.includes('V')||geometry.path.includes('L'))throw Error('Actual temperature is not stepped');
   if(geometry.heatHeight<geometry.height/3)throw Error('Heat still in detached strip');
   if(!await card.locator('#legend-target').textContent().then(t=>t.includes('22,0')))throw Error('Legend value missing');
+  const beforeHover=await card.evaluate(el=>el.getBoundingClientRect().height);
+  await card.locator('#history-chart').hover();
+  if(!await card.locator('#history-detail').isVisible())throw Error('Floating hover detail missing');
+  if(Math.abs(beforeHover-await card.evaluate(el=>el.getBoundingClientRect().height))>.75)throw Error('Hover changed card height');
+  await card.locator('#name').hover();
+  if(!await card.locator('#history-detail').isHidden())throw Error('Tooltip did not close');
   const before=await page.evaluate(()=>historyCalls.length);
   await card.locator('[data-series="temperature"]').click();
   if(await card.locator('.actual-line').isVisible())throw Error('Legend did not hide line');
