@@ -168,6 +168,18 @@ class ComfortRules:
             return None
         return state.state
 
+    def _current_temperature(self, config: dict) -> tuple[float | None, dict]:
+        """Stop against the actual current outdoor value, never a future minimum."""
+        source = self.hass.states.get(config["source"])
+        detail = {"status": "unavailable", "source": config["source"], "explanation": "Aktuel udetemperatur mangler eller er utilgængelig; temperaturslukning afventer."}
+        if source is None or source.state in ("unavailable", "unknown"):
+            return None, detail
+        weather = config["source"].startswith("weather.")
+        value = _celsius(source.attributes.get("temperature") if weather else source.state,
+                         source.attributes.get("temperature_unit" if weather else "unit_of_measurement"))
+        detail.update(status="valid" if value is not None else "invalid", explanation="Aktuel udetemperatur nu fra vejrtjenesten eller udeføleren; bruges til slukgrænsen." if value is not None else "Aktuel udetemperatur eller enhed er ugyldig; temperaturslukning afventer.")
+        return value, detail
+
     async def _temperature(self, config: dict) -> float | None:
         source = self.hass.states.get(config["source"])
         detail = {"status": "unavailable", "explanation": "Temperaturkilden mangler eller er utilgængelig."}
@@ -244,7 +256,7 @@ class ComfortRules:
         await self._persist()
         ir.async_delete_issue(self.hass, DOMAIN, f"comfort_rule_{entity}")
 
-    async def _advance(self, entity: str, record: dict, config: dict, temperature: float | None, *, allow_start: bool) -> None:
+    async def _advance(self, entity: str, record: dict, config: dict, temperature: float | None, *, allow_start: bool, stop_temperature: float | None = None) -> None:
         now = self._now()
         current = self._floor(entity)
         if current is None:
@@ -278,31 +290,36 @@ class ComfortRules:
                 self._explain(entity, "manual_change", "En manuel ændring respekteres; automatisk styring venter og starter pausen.")
                 return
             expired = record.get("deadline") is not None and now >= record["deadline"]
-            warm = temperature is not None and config["use_stop_temperature"] and temperature >= config["stop_at"]
+            warm = self._warm_now(config, stop_temperature)
             removed = entity not in config["floor_entities"]
             if expired or warm or removed:
-                reason = "Maksimal køretid er udløbet." if expired else "Temperaturgrundlaget har nået slukgrænsen." if warm else "Rummet er fjernet fra reglen."
+                reason = "Maksimal køretid er udløbet." if expired else "Den aktuelle udetemperatur har nået slukgrænsen." if warm else "Rummet er fjernet fra reglen."
                 self._explain(entity, "stopped", reason + " Gulvkomfort sættes til Fra.", "off")
                 record.update(phase="stopping", confirmed=False, settle_until=now + 30)
                 await self._command(entity, "off", record)
             else:
-                self._explain(entity, "continue", "Komforten fortsætter; ingen slukbetingelse er nået, og ingen ny kommando sendes." if temperature is not None else "Komforten fortsætter uden gyldig temperaturvurdering; en gemt maksimal køretid gælder stadig.")
+                self._explain(entity, "continue", "Komforten fortsætter; ingen slukbetingelse er nået, og ingen ny kommando sendes." if stop_temperature is not None else "Komforten fortsætter uden gyldig aktuel udetemperatur; en gemt maksimal køretid gælder stadig.")
             return
-        if record["phase"] == "cooldown" and now >= record["restart_after"] and allow_start and current == "off" and temperature is not None and temperature < config["start_below"]:
+        if record["phase"] == "cooldown" and now >= record["restart_after"] and allow_start and current == "off" and temperature is not None and temperature < config["start_below"] and not self._warm_now(config, stop_temperature):
             await self._start(entity, config)
         elif record["phase"] == "cooldown":
             if now < record["restart_after"]:
                 self._explain(entity, "cooldown", "Minimumspausen er ikke udløbet; ny start er blokeret.")
             else:
-                self._waiting(entity, config, current, temperature, allow_start)
+                self._waiting(entity, config, current, temperature, allow_start, stop_temperature)
 
-    def _waiting(self, entity: str, config: dict, current: str | None, temperature: float | None, enabled: bool) -> None:
+    def _warm_now(self, config: dict, value: float | None) -> bool:
+        return config["use_stop_temperature"] and value is not None and value >= config["stop_at"]
+
+    def _waiting(self, entity: str, config: dict, current: str | None, temperature: float | None, enabled: bool, stop_temperature: float | None = None) -> None:
         if current is None:
             self._explain(entity, "unavailable", "Rummets Gulvkomfort er utilgængelig; ingen kommando sendes.")
         elif not enabled:
             self._explain(entity, "disabled", "Automationen er deaktiveret; ingen ny start tillades.")
         elif current != "off":
             self._explain(entity, "manual_level", "Komforten er allerede tændt manuelt og overtages ikke af reglen.")
+        elif self._warm_now(config, stop_temperature):
+            self._explain(entity, "warm_now", "Den aktuelle udetemperatur er ved eller over slukgrænsen; rummet forbliver Fra, selv om prognosen er kold.")
         elif temperature is None:
             self._explain(entity, "missing_temperature", "Der er ingen gyldig temperatur for perioden; rummet tændes ikke.")
         else:
@@ -322,7 +339,7 @@ class ComfortRules:
         async with self.lock:
             result = {"evaluated_at": self._time(self._now()), "rule_id": config["rule_id"], "source": config["source"],
                       "source_mode": config["source_mode"], "forecast_hours": config["forecast_hours"] if config["source_mode"] == "forecast" else None,
-                      "temperature_c": None, "start_below_c": config["start_below"], "stop_at_c": config["stop_at"] if config["use_stop_temperature"] else None,
+                      "temperature_c": None, "stop_temperature_c": None, "start_below_c": config["start_below"], "stop_at_c": config["stop_at"] if config["use_stop_temperature"] else None,
                       "max_runtime_enabled": config["use_max_runtime"], "rooms": {}}
             self._evaluation = result
             try:
@@ -340,6 +357,15 @@ class ComfortRules:
                 for entity, record in list(self.data["devices"].items()):
                     if record["owner"] == config["rule_id"]:
                         await self._advance(entity, record, config, None, allow_start=False)
+                stop_temperature, stop_data = self._current_temperature(config) if enabled else (None, {"status": "not_evaluated", "explanation": "Automationen er deaktiveret."})
+                result["stop_temperature_c"] = stop_temperature
+                result["current_temperature_data"] = stop_data
+                # A warm-current stop does not depend on a valid forecast or on
+                # waiting for the forecast provider to respond.
+                if enabled:
+                    for entity, record in list(self.data["devices"].items()):
+                        if record["owner"] == config["rule_id"]:
+                            await self._advance(entity, record, config, None, allow_start=False, stop_temperature=stop_temperature)
                 temperature = await self._temperature(config) if enabled else None
                 result["temperature_c"] = temperature
                 result["automation_enabled"] = enabled
@@ -349,24 +375,25 @@ class ComfortRules:
                     record = self.data["devices"].get(entity)
                     if record is not None:
                         if record["owner"] == config["rule_id"]:
-                            await self._advance(entity, record, config, temperature, allow_start=enabled)
+                            await self._advance(entity, record, config, temperature, allow_start=enabled, stop_temperature=stop_temperature)
                         elif record["phase"] == "cooldown" and self._now() >= record["restart_after"] and enabled:
                             previous = self.hass.states.get(record["owner"])
-                            if (previous is None or previous.state != "on") and temperature is not None and temperature < config["start_below"] and self._floor(entity) == "off":
+                            if (previous is None or previous.state != "on") and temperature is not None and temperature < config["start_below"] and self._floor(entity) == "off" and not self._warm_now(config, stop_temperature):
                                 await self._start(entity, config)
                         if record["owner"] != config["rule_id"] and entity not in result["rooms"]:
                             self._explain(entity, "other_rule", "Rummet tilhører en anden komfortregel eller dennes pause; denne regel ændrer det ikke.")
-                    elif enabled and temperature is not None and temperature < config["start_below"] and self._floor(entity) == "off":
+                    elif enabled and temperature is not None and temperature < config["start_below"] and self._floor(entity) == "off" and not self._warm_now(config, stop_temperature):
                         await self._start(entity, config)
                     else:
-                        self._waiting(entity, config, self._floor(entity), temperature, enabled)
+                        self._waiting(entity, config, self._floor(entity), temperature, enabled, stop_temperature)
                 for entity, item in result["rooms"].items():
                     record = self.data["devices"].get(entity, {})
                     state = self.hass.states.get(entity)
                     item.update(reported_level=state.state if state else None, phase=record.get("phase"),
                                 started_at=self._time(record.get("started_at")), maximum_stop_at=self._time(record.get("deadline")),
                                 next_start_not_before=self._time(record.get("restart_after")), owner=record.get("owner"))
-                result["explanation"] = "Temperaturgrundlag: " + (f"{temperature:.2f} °C." if temperature is not None else "ingen gyldig temperatur.")
+                result["explanation"] = "Tændgrundlag: " + (f"{temperature:.2f} °C." if temperature is not None else "ingen gyldig temperatur.")
+                result["explanation"] += " Udetemperatur nu (slukgrundlag): " + (f"{stop_temperature:.2f} °C." if stop_temperature is not None else "ingen gyldig aktuel udetemperatur.")
                 result["explanation"] += " " + " ".join(f"{entity}: {item['explanation']}" for entity, item in result["rooms"].items())
                 return result
             finally:

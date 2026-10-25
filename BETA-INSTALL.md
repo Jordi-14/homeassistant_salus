@@ -1,4 +1,32 @@
-# SALUS beta 0.9.11b10
+# SALUS beta 0.9.11b11
+
+## New in b11: comfort-only writes and separate start/stop temperatures
+
+Floor writes now copy counter metadata unchanged from fresh state. Only comfort
+is changed (plus the required write-frame marker). Two actual hardware tests
+confirmed Off → 1 → Off with outgoing counters 40/41 unchanged and read-back
+counters 41/42 maintained by the device. Confirmation and durable-journal
+recovery compare actual comfort and every protected setting, without predicting
+metadata. Older journals remain resolvable. The artificial 255 cutoff is removed;
+the software never increments, calculates or resets counter bytes. Actual device
+rollover remains unobserved; simulated boundary tests are not hardware proof.
+
+With forecast enabled, **start uses the minimum in the next X hours** and
+**temperature stop uses the current outdoor value** from the weather entity.
+An outdoor sensor uses its current reading for both. A cold forecast does not
+prevent a warm-current stop; a failed forecast does not block a valid warm stop.
+If current temperature already reaches the enabled stop threshold, starting is
+blocked to avoid immediate on/off cycling. With temperature stop disabled this
+gate does not apply. Missing current data never falls back to a future forecast
+for stopping; maximum runtime remains independent of all weather data.
+
+Update HACS to **v0.9.11b11**, restart HA, re-import the simple comfort blueprint
+and reload automations under **Settings → Tools → YAML**. Input names, configured
+values and stored cycle deadlines are retained. No extra automation is needed.
+In the Resultat trace step, `taendgrundlag_c` is the start temperature and
+`slukgrundlag_c` is the current outdoor stop temperature. `slukdata` reports
+current data validity separately from `vejrdata` (forecast). The previous
+`temperaturgrundlag_c` field remains an alias of the start temperature.
 
 ## New in b10: see the actual comfort-rule decision
 
@@ -47,7 +75,7 @@ and use **Nulstil blokeret Gulvkomfort-regel** after checking the actual setting
 
 The new controller uses the existing select backup/read-back path. This release
 was tested with simulated services and clocks; no real thermostat test writes
-were performed. The counter-255 beta restriction remains. Card version 1.3.1
+were performed. At the b9 release the counter-255 restriction remained; it is removed in b11. Card version 1.3.1
 and the existing dashboard layout are unchanged.
 
 ## New in b8: rooms without floor comfort
@@ -166,15 +194,15 @@ A fresh backup is atomically written, fsynced and checked from disk before an
 actual floor-comfort write. The latest pre-write journal for each thermostat
 is kept privately in `.storage/salus_floor_backup_<hash>.json`. A backup error
 prevents dispatch. The journal marks a new write pending before dispatch and
-is finalized only after exact read-back. Pending journals survive restart;
-they cannot be overwritten by another command until exact fresh state resolves
+is finalized only after protected-settings and level read-back. Pending journals survive restart;
+they cannot be overwritten by another command until verified fresh state resolves
 the original outcome. Journals from earlier beta versions are still readable.
 
-The client sends at most once and verifies the complete expected settings.
+The client sends at most once and verifies the level and all protected settings.
+Device-maintained counter metadata may change independently.
 A lost response triggers reading, not replay. An observed shared `B34L`
 response no longer incorrectly blocks all future changes: it requires two
-unchanged fresh settings reads before dispatch. Unknown or newer settings
-responses remain blocked. The undocumented meaning of B34L is not assumed.
+unchanged fresh settings reads before dispatch. Unknown settings-response layouts and pending same-counter changes remain blocked. The undocumented meaning of B34L is not assumed.
 Unrelated edits or unexpected results preserve the backup for review.
 There is no blind automatic rollback or replay-backup action.
 
@@ -188,14 +216,15 @@ advanced-settings alias. Writer alias checks remain strict.
 Floor-comfort writes remain restricted to SQ610RFNH firmware 00000054, heating
 mode, a paired underfloor wiring centre, no TRVs and the validated no-PIN format.
 75-write trial vectors and subsequent manual changes/read captures support the
-implementation. The full counter range is not hardware-proven. The beta uses
-the upstream non-wrapping equations through 255 and stops there; counter reset,
-rollover, arbitrary PIN encodings and other firmware are unsupported.
+historical incrementing strategy. Two further hardware captures verify the new
+comfort-only strategy, without client-side counter arithmetic. The artificial
+255 cutoff is removed. Actual hardware rollover, arbitrary PIN-required settings
+and other firmware remain unverified.
 
 The test matrix covers HA 2024.11.0, 2026.5.4, 2026.9.4 and the user's 2026.10.3.
 Browser tests use simulated HA states/services; the release is not automatically
-installed on the user's running instance. No physical setting changes are made
-during this review. Installations on untested releases still require checking.
+installed on the user's running instance. The two explicitly authorized comfort-only hardware changes are captured in
+the client fixtures. Installation itself sends no thermostat changes. Installations on untested releases still require checking.
 
 ## Return to the previous beta
 

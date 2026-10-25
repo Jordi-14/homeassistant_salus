@@ -1,11 +1,11 @@
-> **Fork beta 0.9.11b10:** includes the auto-loaded **SALUS rumkort** card,
+> **Fork beta 0.9.11b11:** includes the auto-loaded **SALUS rumkort** card,
 > graphical editor, click-only temperature/heat-demand history, enabled floor
 > entities and reviewed command/backup handling. [Install and use](BETA-INSTALL.md).
-> Floor-comfort counter rollover remains unsupported.
+> Counter metadata is device-owned; actual hardware rollover remains unobserved.
 
 > **Simple comfort rule (b9):** [Import and configure one rule](blueprints/README.md)
-> using measured outdoor temperature or the forecast minimum, an optional warm
-> stop threshold, maximum runtime and a minimum restart pause. Timers persist
+> using measured outdoor temperature or the forecast minimum to start, current
+> outdoor temperature to stop, maximum runtime and a minimum restart pause. Timers persist
 > across Home Assistant restarts. Install b9 and restart before importing.
 
 
@@ -92,10 +92,10 @@ Its value follows the gateway's reported configuration, which may take tens
 of seconds to update after a command. It does not report optimistic success.
 
 This is initially restricted to SQ610RFNH firmware `00000054` and verified
-settings/counter states. It is not general SQ610 write support. The guarded
-client prototype stops after save counter 255; additional protocol evidence is
-needed before expanding this range. Unknown profiles and pending settings
-commands cannot be changed through this control.
+settings profiles. It is not general SQ610 write support. Counter bytes are
+copied unchanged from fresh state and updated by the device. The artificial
+255 cutoff has been removed; actual hardware rollover remains unobserved.
+Unknown profiles and pending settings commands remain guarded.
 
 This beta manifest pins the fork client wheel by SHA-256; it installs without
 Git or a compiler. Follow [BETA-INSTALL.md](BETA-INSTALL.md) for installation,

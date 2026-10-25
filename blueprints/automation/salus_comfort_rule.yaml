@@ -2,7 +2,7 @@ blueprint:
   name: SALUS – enkel gulvkomfort med slukgrænse og pause
   description: >-
     Én regel: koldt nok → tænd Gulvkomfort → sluk ved varmegrænsen eller maksimal
-    køretid → vent minimumspausen → tillad ny start. Kræver SALUS beta b10 eller
+    køretid → vent minimumspausen → tillad ny start. Kræver SALUS beta b11 eller
     nyere. Timerne gemmes af integrationen og fortsætter efter HA-genstart;
     du skal ikke oprette hjælpere. Fra slukker kun Gulvkomfort, ikke rummets
     normale temperaturstyring. Brug kun én aktiv komfortregel pr. rum.
@@ -18,8 +18,10 @@ blueprint:
       description: >-
         Målt temperatur bruger udefølerens værdi eller vejrtjenestens aktuelle
         temperatur. Prognose bruger den laveste forventede temperatur i de næste
-        valgte timer. Den valgte værdi bruges både til tænd- og slukgrænsen.
-        Prognose kan derfor tænde, før kulden er kommet.
+        valgte timer til tænding. Slukgrænsen bruger altid den aktuelle
+        udetemperatur fra samme kilde, aldrig prognosens minimum. Prognose kan
+        derfor tænde, før kulden er kommet, hvis det ikke allerede er varmt nok
+        til at slukke nu.
       default: current
       selector:
         select:
@@ -33,8 +35,11 @@ blueprint:
       description: >-
         Vælg din eksisterende udendørs temperaturføler eller vejrtjeneste.
         Prognose kræver en weather-entitet med timeprognoser. En utilgængelig
-        kilde tænder aldrig komforten og udløser ikke temperaturbaseret slukning;
-        maksimal køretid gælder stadig. Celsius og Fahrenheit omregnes automatisk.
+        kilde tænder aldrig komforten. Slukning bruger vejrtjenestens aktuelle
+        temperatur eller følerens værdi nu. Mangler denne værdi, afventer
+        temperaturslukning; maksimal køretid gælder stadig. En fejlet prognose
+        forhindrer ikke slukning ved en gyldig aktuel temperatur.
+        Celsius og Fahrenheit omregnes automatisk.
       selector:
         entity:
           filter:
@@ -90,7 +95,9 @@ blueprint:
       description: >-
         Komforten må tænde, når temperaturgrundlaget er lavere end denne grænse,
         rummet står på Fra, og pausen er udløbet. Fx 5 °C: præcis 5 °C tænder
-        ikke; 4,9 °C kan tænde. Grænsen angives altid i Celsius.
+        ikke; 4,9 °C kan tænde. Er den aktuelle udetemperatur allerede ved
+        slukgrænsen, får slukning prioritet, så reglen ikke tænder og straks
+        slukker igen. Grænsen angives altid i Celsius.
       default: 5
       selector:
         number:
@@ -112,8 +119,9 @@ blueprint:
       name: Sluk ved eller over
       description: >-
         Fx tænd under 5 °C og sluk ved 7 °C. Afstanden forebygger gentagne skift
-        ved små udsving. Skal være højere end tændgrænsen. Ved prognose gælder
-        grænsen prognosens laveste temperatur, ikke kun temperaturen lige nu.
+        ved små udsving. Skal være højere end tændgrænsen. Denne grænse bruger
+        altid udetemperaturen lige nu (vejrtjenestens aktuelle temperatur eller
+        udeføleren), også når tænding bruger de næste X timers prognose.
         Feltet ignoreres, hvis temperaturslukning er slået fra.
       default: 7
       selector:
@@ -195,5 +203,8 @@ action:
     variables:
       forklaring: "{{ salus_resultat.explanation }}"
       temperaturgrundlag_c: "{{ salus_resultat.temperature_c }}"
+      taendgrundlag_c: "{{ salus_resultat.temperature_c }}"
+      slukgrundlag_c: "{{ salus_resultat.stop_temperature_c }}"
       vejrdata: "{{ salus_resultat.temperature_data }}"
+      slukdata: "{{ salus_resultat.current_temperature_data }}"
       rum_og_timer: "{{ salus_resultat.rooms }}"

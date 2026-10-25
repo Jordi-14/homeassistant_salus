@@ -484,3 +484,81 @@ async def test_actual_blueprint_returns_visible_trace_variables_and_old_calls_wo
         assert len(env["calls"]) == 1
     finally:
         controller.close()
+
+
+def hourly_forecast(env, temperature=2):
+    env["rows"] = [{"datetime": (NOW + timedelta(hours=i)).isoformat(), "temperature": temperature} for i in range(1, 25)]
+
+
+async def test_forecast_starts_but_current_weather_stops_even_while_forecast_is_cold(env):
+    hourly_forecast(env)
+    await stable(env, source="weather.test", source_mode="forecast")
+    env["hass"].states.async_set("weather.test", "cloudy", {"temperature": 7, "temperature_unit": "°C"})
+    result = await run(env, source="weather.test", source_mode="forecast")
+    assert result["temperature_c"] == 2
+    assert result["stop_temperature_c"] == 7
+    assert result["rooms"]["select.room"]["decision"] == "stopped"
+    assert "aktuelle udetemperatur" in result["rooms"]["select.room"]["explanation"]
+    assert env["calls"] == [("select.room", "level_1"), ("select.room", "off")]
+
+
+async def test_warm_future_does_not_stop_when_current_weather_is_still_cold(env):
+    hourly_forecast(env)
+    await stable(env, source="weather.test", source_mode="forecast", use_max_runtime=False)
+    env["clock"].tick(16 * 60)
+    hourly_forecast(env, 10)
+    result = await run(env, source="weather.test", source_mode="forecast", use_max_runtime=False)
+    assert result["temperature_c"] == 10
+    assert result["stop_temperature_c"] == 4
+    assert result["rooms"]["select.room"]["decision"] == "continue"
+    assert len(env["calls"]) == 1
+
+
+async def test_warm_current_stops_before_a_failed_forecast_request(env):
+    hourly_forecast(env)
+    await stable(env, source="weather.test", source_mode="forecast")
+    env["clock"].tick(16 * 60)
+    env["hass"].states.async_set("weather.test", "cloudy", {"temperature": 8, "temperature_unit": "°C"})
+
+    async def unavailable_forecast(call):
+        assert env["hass"].states.get("select.room").state == "off"
+        raise HomeAssistantError("provider unavailable")
+
+    env["hass"].services.async_register("weather", "get_forecasts", unavailable_forecast, supports_response=SupportsResponse.ONLY)
+    result = await run(env, source="weather.test", source_mode="forecast")
+    assert result["temperature_c"] is None
+    assert result["stop_temperature_c"] == 8
+    assert result["rooms"]["select.room"]["decision"] == "stopped"
+
+
+async def test_missing_current_temperature_does_not_use_warm_forecast_as_stop(env):
+    hourly_forecast(env)
+    await stable(env, source="weather.test", source_mode="forecast")
+    env["clock"].tick(16 * 60)
+    hourly_forecast(env, 10)
+    env["hass"].states.async_set("weather.test", "cloudy", {"temperature_unit": "°C"})
+    result = await run(env, source="weather.test", source_mode="forecast")
+    assert result["temperature_c"] == 10
+    assert result["stop_temperature_c"] is None
+    assert result["current_temperature_data"]["status"] == "invalid"
+    assert len(env["calls"]) == 1
+
+
+@pytest.mark.parametrize("temperature_stop", [True, False])
+async def test_warm_current_has_priority_only_when_temperature_stop_is_enabled(env, temperature_stop):
+    hourly_forecast(env)
+    env["hass"].states.async_set("weather.test", "cloudy", {"temperature": 8, "temperature_unit": "°C"})
+    result = await run(env, source="weather.test", source_mode="forecast", use_stop_temperature=temperature_stop)
+    assert result["rooms"]["select.room"]["decision"] == ("warm_now" if temperature_stop else "started")
+    assert len(env["calls"]) == (0 if temperature_stop else 1)
+
+
+async def test_current_weather_fahrenheit_is_used_for_stop_independently(env):
+    hourly_forecast(env, 35.6)  # 2°C, with this weather entity displaying Fahrenheit.
+    env["hass"].states.async_set("weather.test", "cloudy", {"temperature": 39.2, "temperature_unit": "°F"})
+    await stable(env, source="weather.test", source_mode="forecast")
+    env["hass"].states.async_set("weather.test", "cloudy", {"temperature": 46.4, "temperature_unit": "°F"})
+    result = await run(env, source="weather.test", source_mode="forecast")
+    assert result["temperature_c"] == pytest.approx(2)
+    assert result["stop_temperature_c"] == pytest.approx(8)
+    assert env["calls"][-1][1] == "off"
