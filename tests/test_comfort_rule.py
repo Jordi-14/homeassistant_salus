@@ -45,6 +45,9 @@ def rule_hass(request):
 async def env(rule_hass, tmp_path):
     with freeze_time(NOW, real_asyncio=True) as clock:
         hass = rule_hass or HomeAssistant(str(tmp_path))
+        # The controller deliberately uses real atomic files rather than HA's
+        # mocked Store. Each test must therefore have its own config directory.
+        hass.config.config_dir = str(tmp_path)
         if not hasattr(er.async_get(hass), "entities"):
             await er.async_get(hass).async_load()
         entry = er.async_get(hass).async_get_or_create("select", "salus", "test_comfort_warm_floor", suggested_object_id="room")
