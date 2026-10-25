@@ -1,4 +1,7 @@
-SALUS rumkort – indbygget i beta 0.9.11b7
+SALUS rumkort – indbygget i beta 0.9.11b8
+
+Gulvkomfort er nu valgfri: vælg Ingen gulvkomfort i kortets editor.
+Temperaturbetjening og historik virker stadig; kun gulvbetjeningen deaktiveres.
 
 Ny graf: 48 timer som standard, blå/gul trappekurve og varmebehov inde i grafen.
 Historikperioden kan vælges i kortets editor: 6, 12, 24 eller 48 timer.
@@ -12,7 +15,7 @@ Valg af layout sætter forslag til halv/fuld bredde med automatisk højde.
 Vælg layout én gang på et gammelt kort for at anvende det nye breddeforslag.
 Grafen er skjult, indtil du klikker på kortet eller pilen.
 
-Opdatér SALUS-integrationen via HACS til v0.9.11b7 og genstart Home Assistant.
+Opdatér SALUS-integrationen via HACS til v0.9.11b8 og genstart Home Assistant.
 Genindlæs derefter browseren/Home Assistant-appen.
 
 Åbn dit eget dashboard → Rediger → Tilføj kort → søg efter SALUS rumkort.

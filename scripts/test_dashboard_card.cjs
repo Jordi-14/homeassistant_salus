@@ -121,6 +121,11 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
   if(await page.evaluate(()=>editorConfig.grid_options.columns)!==12)throw Error('Row editor width');
   await editor.locator('#layout').selectOption('compact');
   if(await page.evaluate(()=>editorConfig.grid_options.columns)!==6)throw Error('Compact editor width');
+  await page.evaluate(()=>{data.states['climate.plain']={...data.states['climate.test']};data.entities['climate.plain']={device_id:'no-floor'};editor.hass=data;});
+  await editor.locator('#climate').selectOption('climate.plain');
+  if(await page.evaluate(()=>editorConfig.comfort)!=='')throw Error('Old room floor entity retained');
+  if(await editor.locator('#comfort').inputValue()!=='')throw Error('Optional floor editor value');
+  if(!await editor.locator('#comfort option').first().textContent().then(t=>t.includes('Ingen')))throw Error('Optional floor placeholder');
   await page.evaluate(()=>editor.remove());
  });
  await check('History fetch is click-only, attribute-complete and read-only',async()=>{
@@ -234,6 +239,27 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
    }
   }
   await page.evaluate(()=>{card.style.width='';});
+ });
+ await check('Rooms without floor comfort keep readings, temperature controls and history',async()=>{
+  for(const layout of ['compact','rows'])for(const comfort of [undefined,'',null]){
+   await page.evaluate(({layout,comfort})=>{card.setConfig({climate:'climate.test',comfort,layout});data=sample();delete data.states['select.test'];calls=[];window.optionalHistoryCalls=[];data.callApi=async(...args)=>{optionalHistoryCalls.push(args);return historyRows;};card.hass=data;},{layout,comfort});
+   if(await card.locator('#actual').textContent()!=='21,8')throw Error('Optional floor hid temperature');
+   if(await card.locator('#plus').isDisabled())throw Error('Optional floor disabled climate');
+   if(!await card.locator('#status').isHidden())throw Error('No-floor warning');
+   if(!await card.locator('#floor-select').isDisabled())throw Error('No-floor menu enabled');
+   for(const b of await card.locator('[data-level]').all())if(!await b.isDisabled())throw Error('No-floor level enabled');
+   await page.evaluate(()=>card._changeComfort(3));
+   if(await page.evaluate(()=>calls.length)!==0)throw Error('Implicit floor write');
+   await card.locator('#history-toggle').click();
+   await card.locator('.actual-line').waitFor({state:'attached'});
+   if(await page.evaluate(()=>optionalHistoryCalls.length)!==1)throw Error('No-floor history failed');
+   await card.locator('#history-toggle').click();
+   await card.locator('#plus').click();
+   if(await page.evaluate(()=>calls[0]?.[0])!=='climate')throw Error('No-floor climate command failed');
+   await page.evaluate(()=>{data.states['climate.test'].attributes.temperature=22.5;card.hass=data;});
+  }
+  await page.evaluate(()=>{card.setConfig({climate:'climate.test',comfort:'select.missing'});data=sample();card.hass=data;});
+  if(await card.locator('#status').isHidden())throw Error('Explicit missing ID silently ignored');
  });
  await check('Seven room cards and responsive layouts',async()=>{
   await page.evaluate(()=>{

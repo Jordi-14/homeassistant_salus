@@ -1,4 +1,17 @@
-# SALUS beta 0.9.11b7
+# SALUS beta 0.9.11b8
+
+## New in b8: rooms without floor comfort
+
+The floor-comfort entity is optional. In the graphical editor choose **Ingen
+gulvkomfort** for thermostats that do not have this function. Temperature,
+humidity when supported, target-temperature controls and click-only history
+continue to work normally. The floor controls retain their place but are
+disabled, with no configuration error or missing-floor warning.
+
+Selecting another thermostat without a matching floor select clears the old
+room's floor selection. A configured but missing/unavailable floor entity is
+still reported, so a real entity failure is not silently treated as no feature.
+The backend and the previous graph/layout behavior are unchanged.
 
 ## New in b7: stable positions and a multi-day plot
 
@@ -58,7 +71,7 @@ logic and the client dependency are unchanged from b4.
 
 1. Keep a full Home Assistant backup and the previous working release.
 2. In HACS, open MichaelBusackBertelsen/homeassistant_salus and download
-   **v0.9.11b7** from the prerelease/version picker. Keep your configured
+   **v0.9.11b8** from the prerelease/version picker. Keep your configured
    Salus integration and existing devices. Restart Home Assistant.
 3. Reload the browser or Home Assistant app so the bundled frontend module loads.
 4. Open your own dashboard, choose Edit -> Add card, and search for

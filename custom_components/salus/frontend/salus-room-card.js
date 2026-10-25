@@ -1,4 +1,4 @@
-/* SALUS Room Card 1.3.0 — MIT License. Bundled with the SALUS integration. */
+/* SALUS Room Card 1.3.1 — MIT License. Bundled with the SALUS integration. */
 async function registerSalusRoomCard() {
 // Extra modules can run before HA installs its scoped custom element registry.
 // Wait before defining classes as well: the polyfill replaces HTMLElement too.
@@ -83,6 +83,7 @@ class SalusRoomCard extends HTMLElement {
           background:var(--secondary-background-color,#252b2e);font-size:12px;}
         .floor-select option {background:var(--card-background-color,#1c2023);color:var(--primary-text-color,#f1f2f2);}
         .floor[data-active="true"] .floor-select {color:var(--salus-comfort-text,var(--warning-color,#d18a45));}
+        .floor[data-configured="false"] .floor-label {opacity:.5;}
         :host([layout="rows"]) .levels {display:none;}
         :host([layout="rows"]) .floor-select {display:block;flex:1;}
         :host([layout="rows"]) .compact-caption {display:none;}
@@ -196,7 +197,7 @@ class SalusRoomCard extends HTMLElement {
 
   setConfig(config) {
     if (!config || !/^climate\.[a-z0-9_]+$/.test(config.climate || "")) throw new Error("Angiv climate: med termostatens entitets-id.");
-    if (!/^select\.[a-z0-9_]+$/.test(config.comfort || "")) throw new Error("Angiv comfort: med Gulvkomfort-entitetens id.");
+    if (config.comfort != null && config.comfort !== "" && (typeof config.comfort !== "string" || !/^select\.[a-z0-9_]+$/.test(config.comfort))) throw new Error("comfort skal være Gulvkomfort-entitetens select-id eller stå tomt.");
     for (const key of ["temperature_sensor","humidity_sensor"]) {
       if (config[key] && !/^sensor\.[a-z0-9_]+$/.test(config[key])) throw new Error(`${key} skal være et sensor-id.`);
     }
@@ -423,9 +424,13 @@ class SalusRoomCard extends HTMLElement {
     this._nodes.plus.disabled = busy || !canSet || target >= max;
     const options = Array.isArray(comfort?.attributes?.options) ? comfort.attributes.options : [];
     const states = ["off","level_1","level_2","level_3"];
+    const comfortConfigured=!!this._config.comfort;
     const level = this._available(comfort) ? states.indexOf(comfort.state) : -1;
+    this._nodes.floor.dataset.configured=String(comfortConfigured);
     this._nodes.floor.dataset.active = String(level > 0);
-    this._nodes["floor-state"].textContent = level < 0 ? "Utilgængelig" : level === 0 ? "Fra" : `Niveau ${level}`;
+    this._nodes["floor-state"].textContent = !comfortConfigured ? "Ikke valgt" : level < 0 ? "Utilgængelig" : level === 0 ? "Fra" : `Niveau ${level}`;
+    this._nodes["floor-select"].options[0].textContent=comfortConfigured ? "Utilgængelig" : "Ikke valgt";
+    this._nodes["floor-select"].setAttribute("aria-label",comfortConfigured ? "Gulvkomfort" : "Gulvkomfort ikke valgt");
     this._nodes["floor-select"].value=level < 0 ? "" : String(level);
     this._nodes["floor-select"].disabled=busy || level < 0;
     [...this._nodes["floor-select"].options].forEach(option=>{option.disabled=option.value==="" || !options.includes(states[Number(option.value)]);});
@@ -436,8 +441,8 @@ class SalusRoomCard extends HTMLElement {
     });
     let message = "";
     if (!message && !online) message = climate ? "Termostaten er utilgængelig." : "Termostatens entitets-id blev ikke fundet.";
-    if (!message && !comfort) message = "Gulvkomfort-entiteten blev ikke fundet. Kontrollér id og aktivering.";
-    else if (!message && level < 0) message = "Gulvkomfort er midlertidigt utilgængelig.";
+    if (!message && comfortConfigured && !comfort) message = "Gulvkomfort-entiteten blev ikke fundet. Kontrollér id og aktivering.";
+    else if (!message && comfortConfigured && level < 0) message = "Gulvkomfort er midlertidigt utilgængelig.";
     this._nodes.status.textContent = message;
     this._nodes.status.hidden = !message;
     this._nodes.error.textContent = this._error;
@@ -507,7 +512,7 @@ class SalusRoomCardEditor extends HTMLElement {
       <label>Historikperiode<select id="history_hours" aria-label="Historikperiode"><option value="6">6 timer</option><option value="12">12 timer</option><option value="24">24 timer</option><option value="48">48 timer</option></select></label>
       <label>Rumtitel (valgfri)<input id="name" type="text" placeholder="Brug termostatens navn"></label>
       <label>Termostat<select id="climate" aria-label="Termostat"></select></label>
-      <label>Gulvkomfort<select id="comfort" aria-label="Gulvkomfort"></select></label>
+      <label>Gulvkomfort (valgfri)<select id="comfort" aria-label="Gulvkomfort"></select></label>
       <label>Ikon (valgfrit)<input id="icon" type="text" placeholder="mdi:home-thermometer-outline"></label>`;
     this._inputs = Object.fromEntries([...this.shadowRoot.querySelectorAll("[id]")].map(node=>[node.id,node]));
     Object.entries(this._inputs).forEach(([name,input])=>input.addEventListener("change",()=>this._changed(name,input.value)));
@@ -542,7 +547,7 @@ class SalusRoomCardEditor extends HTMLElement {
       const signature=JSON.stringify(ids.map(id=>[id,states[id]?.attributes?.friendly_name]));
       const picker=this._inputs[name];
       if (picker.dataset.options !== signature) {
-        const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Vælg…";
+        const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent=name === "comfort" ? "Ingen gulvkomfort" : "Vælg…";
         picker.replaceChildren(placeholder,...ids.map(id=>{
           const option=document.createElement("option");option.value=id;
           option.textContent=`${states[id]?.attributes?.friendly_name || id} · ${id}`;

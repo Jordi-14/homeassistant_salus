@@ -1,4 +1,4 @@
-> **Fork beta 0.9.11b7:** includes the auto-loaded **SALUS rumkort** card,
+> **Fork beta 0.9.11b8:** includes the auto-loaded **SALUS rumkort** card,
 > graphical editor, click-only temperature/heat-demand history, enabled floor
 > entities and reviewed command/backup handling. [Install and use](BETA-INSTALL.md).
 > Floor-comfort counter rollover remains unsupported.
