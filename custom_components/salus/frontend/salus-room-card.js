@@ -1,4 +1,4 @@
-/* SALUS Room Card 1.1.1 — MIT License. Bundled with the SALUS integration. */
+/* SALUS Room Card 1.2.0 — MIT License. Bundled with the SALUS integration. */
 async function registerSalusRoomCard() {
 // Extra modules can run before HA installs its scoped custom element registry.
 // Wait before defining classes as well: the polyfill replaces HTMLElement too.
@@ -29,87 +29,121 @@ class SalusRoomCard extends HTMLElement {
     this._historyGeneration = 0;
     this.shadowRoot.innerHTML = `
       <style>
-        :host { display:block; height:100%; }
-        * { box-sizing:border-box; }
-        ha-card { display:block; height:100%; padding:20px; border-radius:22px;
-          background:var(--ha-card-background,var(--card-background-color,#1c2023));
-          color:var(--primary-text-color,#f1f2f2); border:1px solid var(--divider-color,#303639);
-          box-shadow:none; font-family:var(--paper-font-body1_-_font-family,Roboto,sans-serif); }
-        header { display:flex; align-items:center; gap:10px; margin-bottom:22px; }
-        header ha-icon { --mdc-icon-size:20px; color:var(--secondary-text-color); }
-        h2 { font-size:16px; font-weight:500; margin:0; line-height:1.3; }
-        header h2 {flex:1}
-        .history-toggle {border:0;background:transparent;min-width:40px;min-height:40px;border-radius:10px;color:var(--secondary-text-color)}
-        .history-toggle ha-icon {--mdc-icon-size:22px;transition:transform .15s}
-        .history-toggle[aria-expanded="true"] ha-icon {transform:rotate(180deg)}
-        .history {margin-top:18px;padding-top:15px;border-top:1px solid var(--divider-color)}
-        .history-head {display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:13px}
-        .history-refresh {border:0;background:transparent;min-height:40px;padding:6px;color:var(--primary-color)}
-        .history-message,.history-detail {font-size:11px;line-height:1.5;color:var(--secondary-text-color);margin:5px 0;overflow-wrap:anywhere}
-        .history-chart {display:block;width:100%;height:174px;overflow:visible}
-        .history-chart text {fill:var(--secondary-text-color);font:11px sans-serif}
-        .history-chart .grid {stroke:var(--divider-color);stroke-width:1;fill:none}
-        .history-chart .actual-line {stroke:var(--info-color,#72cbea);stroke-width:2;fill:none}
-        .history-chart .target-line {stroke:var(--salus-comfort-color,#edaa70);stroke-width:1.6;stroke-dasharray:5 3;fill:none}
-        .history-chart .heat-band {fill:var(--salus-comfort-color,#edaa70);opacity:.75}
-        .history-chart .unknown-band {fill:var(--secondary-text-color);opacity:.25}
-        .history-legend {display:flex;flex-wrap:wrap;gap:8px 12px;font-size:11px;color:var(--secondary-text-color)}
-        .history-legend span {display:flex;align-items:center;gap:5px}
-        .swatch {width:16px;height:0;border-top:2px solid var(--info-color,#72cbea)}
-        .swatch.target-swatch {border-color:var(--salus-comfort-color,#edaa70);border-top-style:dashed}
-        .swatch.heat-swatch {height:7px;border:0;background:var(--salus-comfort-color,#edaa70);opacity:.75}
-        .metrics { display:grid; grid-template-columns:1.2fr 1fr; gap:12px; align-items:end; margin-bottom:22px; }
-        .label { font-size:12px; color:var(--secondary-text-color,#a8b0b5); margin-bottom:5px; }
-        .actual { font-size:42px; line-height:1.1; letter-spacing:-1.8px; font-variant-numeric:tabular-nums; }
-        .unit { font-size:17px; color:var(--secondary-text-color); margin-left:3px; letter-spacing:0; }
-        .humidity { border-left:1px solid var(--divider-color,#303639); padding-left:16px; }
-        .moisture { display:flex; align-items:center; gap:4px; font-size:25px; line-height:1.4; font-variant-numeric:tabular-nums; }
-        .moisture ha-icon { --mdc-icon-size:16px; color:var(--info-color,#72cbea); }
-        .percent { font-size:15px; color:var(--secondary-text-color); }
-        button { font:inherit; color:inherit; touch-action:manipulation; }
-        button:focus-visible { outline:3px solid var(--primary-color,#72cbea); outline-offset:2px; }
-        button:disabled { opacity:.4; }
-        .stepper { display:flex; align-items:center; justify-content:space-between; padding:2px; min-height:48px;
-          border-radius:12px; background:var(--secondary-background-color,#252b2e); }
-        .step { background:transparent; border:0; min-width:44px; height:44px; font-size:23px; border-radius:10px; }
-        .step:hover:enabled { background:var(--ha-card-background,var(--card-background-color)); }
-        .target { font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; }
-        .target .unit { font-size:13px; font-weight:400; }
-        .floor { margin-top:18px; border-top:1px solid var(--divider-color,#303639); padding-top:15px; }
-        .floor-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
-        .floor-label { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--secondary-text-color); }
-        .floor-label ha-icon { --mdc-icon-size:17px; }
-        .floor-state { font-size:12px; font-weight:500; }
-        .floor[data-active="true"] .floor-state { color:var(--salus-comfort-text,var(--warning-color,#d18a45)); }
-        .levels { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; padding:4px;
-          border-radius:12px; background:var(--secondary-background-color,#252b2e); }
-        .level { border:0; background:transparent; border-radius:9px; min-height:42px; min-width:0; font-size:13px; }
-        .level[aria-pressed="true"] { background:var(--salus-comfort-color,#edaa70); color:var(--salus-comfort-contrast,#241a12); font-weight:500; }
-        .level[data-level="0"][aria-pressed="true"] { background:var(--ha-card-background,var(--card-background-color)); color:var(--primary-text-color); }
-        .status { font-size:12px; color:var(--secondary-text-color); margin-top:12px; overflow-wrap:anywhere; }
-        .error { font-size:12px; color:var(--error-color,#db6060); margin-top:12px; overflow-wrap:anywhere; }
-        [hidden] { display:none !important; }
+        :host {display:block;min-width:0;container-type:inline-size;}
+        * {box-sizing:border-box;}
+        ha-card {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 10px;
+          grid-template-areas:"head humid" "actual target" "floor floor" "status status" "error error" "history history";
+          padding:10px 12px;border-radius:14px;background:var(--ha-card-background,var(--card-background-color,#1c2023));
+          color:var(--primary-text-color,#f1f2f2);border:1px solid var(--divider-color,#303639);box-shadow:none;
+          font-family:var(--paper-font-body1_-_font-family,Roboto,sans-serif);}
+        header {grid-area:head;display:flex;align-items:center;gap:6px;min-width:0;}
+        header>ha-icon {--mdc-icon-size:16px;color:var(--secondary-text-color);flex-shrink:0;}
+        h2 {font-size:14px;font-weight:500;margin:0;min-width:0;overflow-wrap:anywhere;}
+        .history-toggle {border:0;background:transparent;min-width:28px;min-height:28px;padding:0;
+          display:grid;place-items:center;border-radius:8px;color:var(--secondary-text-color);margin-left:auto;}
+        .history-toggle ha-icon {--mdc-icon-size:16px;transition:transform .15s;}
+        .history-toggle[aria-expanded="true"] ha-icon {transform:rotate(180deg);}
+        .temperature-reading {grid-area:actual;align-self:center;margin:4px 0;}
+        .label {font-size:11px;color:var(--secondary-text-color,#a8b0b5);margin-bottom:3px;}
+        .temperature-reading>.label,.humidity>.label {display:none;}
+        .actual {font-size:26px;font-weight:500;line-height:1.2;letter-spacing:-.7px;font-variant-numeric:tabular-nums;}
+        .unit {font-size:12px;font-weight:400;color:var(--secondary-text-color);margin-left:3px;letter-spacing:0;}
+        .humidity {grid-area:humid;align-self:center;}
+        .moisture {display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);font-variant-numeric:tabular-nums;}
+        .moisture ha-icon {--mdc-icon-size:13px;color:var(--info-color,#72cbea);}
+        .percent {font-size:11px;}
+        button,select {font:inherit;color:inherit;touch-action:manipulation;}
+        button:focus-visible,select:focus-visible {outline:2px solid var(--primary-color,#72cbea);outline-offset:2px;}
+        button:disabled,select:disabled {opacity:.4;}
+        .target-control {grid-area:target;align-self:center;min-width:0;margin:4px 0;}
+        .target-control>.label {text-align:center;}
+        .stepper {display:flex;align-items:center;justify-content:space-between;border-radius:8px;
+          background:var(--secondary-background-color,#252b2e);min-height:30px;}
+        .step {background:transparent;border:0;min-width:30px;min-height:30px;padding:0 5px;font-size:19px;border-radius:8px;}
+        .step:hover:enabled {background:var(--ha-card-background,var(--card-background-color));}
+        .target {font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;}
+        .target .unit {font-size:11px;margin-left:1px;}
+        .floor {grid-area:floor;display:flex;align-items:center;gap:8px;border-top:1px solid var(--divider-color,#303639);padding-top:7px;margin-top:4px;min-width:0;}
+        .floor-head {display:flex;align-items:center;}
+        .floor-label {display:flex;align-items:center;gap:4px;font-size:11px;color:var(--secondary-text-color);white-space:nowrap;}
+        .floor-label ha-icon {--mdc-icon-size:14px;}
+        .row-caption {display:none;}
+        .floor-state {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+        .levels {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;flex:1;min-width:0;}
+        .level {border:0;background:var(--secondary-background-color,#252b2e);color:var(--secondary-text-color);
+          border-radius:7px;min-height:28px;min-width:0;padding:2px 4px;font-size:12px;}
+        .level[aria-pressed="true"] {background:var(--salus-comfort-color,#edaa70);color:var(--salus-comfort-contrast,#241a12);font-weight:500;}
+        .level[data-level="0"][aria-pressed="true"] {background:var(--secondary-background-color,#252b2e);color:var(--primary-text-color);box-shadow:inset 0 0 0 1px var(--secondary-text-color);}
+        .floor-select {display:none;min-width:0;min-height:32px;border:0;border-radius:8px;padding:4px 6px;
+          background:var(--secondary-background-color,#252b2e);font-size:12px;}
+        .floor-select option {background:var(--card-background-color,#1c2023);color:var(--primary-text-color,#f1f2f2);}
+        .floor[data-active="true"] .floor-select {color:var(--salus-comfort-text,var(--warning-color,#d18a45));}
+        :host([layout="rows"]) .levels {display:none;}
+        :host([layout="rows"]) .floor-select {display:block;flex:1;}
+        :host([layout="rows"]) .compact-caption {display:none;}
+        :host([layout="rows"]) .row-caption {display:inline;}
+        .status {grid-area:status;font-size:12px;color:var(--secondary-text-color);overflow-wrap:anywhere;margin-top:6px;}
+        .error {grid-area:error;font-size:12px;color:var(--error-color,#db6060);overflow-wrap:anywhere;margin-top:6px;}
+        .history {grid-area:history;min-width:0;margin-top:3px;padding-top:8px;border-top:1px solid var(--divider-color);}
+        .history-head {display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;color:var(--secondary-text-color);}
+        .history-refresh {border:0;background:transparent;min-height:30px;padding:4px;color:var(--primary-color);}
+        .history-message,.history-detail {font-size:11px;line-height:1.4;color:var(--secondary-text-color);margin:3px 0;overflow-wrap:anywhere;}
+        .history-chart {display:block;width:100%;height:150px;overflow:visible;}
+        .history-chart text {fill:var(--secondary-text-color);font:11px sans-serif;}
+        .history-chart .grid {stroke:var(--divider-color);stroke-width:1;fill:none;}
+        .history-chart .actual-line {stroke:var(--info-color,#72cbea);stroke-width:2;fill:none;}
+        .history-chart .target-line {stroke:var(--salus-comfort-color,#edaa70);stroke-width:1.6;stroke-dasharray:5 3;fill:none;}
+        .history-chart .heat-band {fill:var(--salus-comfort-color,#edaa70);opacity:.75;}
+        .history-chart .unknown-band {fill:var(--secondary-text-color);opacity:.25;}
+        .history-legend {display:flex;flex-wrap:wrap;gap:6px 10px;font-size:11px;color:var(--secondary-text-color);}
+        .history-legend span {display:flex;align-items:center;gap:4px;}
+        .swatch {width:14px;height:0;border-top:2px solid var(--info-color,#72cbea);}
+        .swatch.target-swatch {border-color:var(--salus-comfort-color,#edaa70);border-top-style:dashed;}
+        .swatch.heat-swatch {height:6px;border:0;background:var(--salus-comfort-color,#edaa70);opacity:.75;}
+        @container (min-width:580px) {
+          :host([layout="rows"]) ha-card {grid-template-columns:16px minmax(80px,1fr) 60px 110px 100px 28px;gap:0 6px;padding:10px;
+            grid-template-areas:"icon name actual target floor toggle" "icon humid actual target floor toggle" "status status status status status status" "error error error error error error" "history history history history history history";}
+          :host([layout="rows"]) header {display:contents;}
+          :host([layout="rows"]) #icon {grid-area:icon;align-self:center;}
+          :host([layout="rows"]) h2 {grid-area:name;align-self:end;font-size:13px;}
+          :host([layout="rows"]) .humidity {justify-self:start;align-self:start;}
+          :host([layout="rows"]) .history-toggle {grid-area:toggle;margin:0;align-self:center;}
+          :host([layout="rows"]) .actual {font-size:22px;}
+          :host([layout="rows"]) .temperature-reading>.label {display:block;}
+          :host([layout="rows"]) .floor {border:0;padding:0;margin:0;display:flex;flex-direction:column;align-items:stretch;gap:3px;}
+          :host([layout="rows"]) .floor-label ha-icon {display:none;}
+        }
+        @media(pointer:coarse) {
+          .step {min-width:44px;min-height:44px;}
+          .history-toggle,.history-refresh {min-width:44px;min-height:44px;}
+          .level,.floor-select {min-height:44px;}
+          .floor-select {font-size:16px;}
+          @container (min-width:580px) {
+            :host([layout="rows"]) ha-card {grid-template-columns:16px minmax(80px,1fr) 60px 128px 100px 44px;}
+          }
+        }
+        [hidden] {display:none !important;}
       </style>
       <ha-card>
         <header><ha-icon id="icon"></ha-icon><h2 id="name"></h2><button id="history-toggle" class="history-toggle" type="button" aria-label="Vis historik" aria-expanded="false" aria-controls="history"><ha-icon icon="mdi:chevron-down"></ha-icon></button></header>
-        <div class="metrics">
-          <div><div class="label">Temperatur</div><div class="actual"><span id="actual">—</span><span class="unit" id="actual-unit">°C</span></div></div>
-          <div class="humidity"><div class="label">Luftfugtighed</div><div class="moisture"><ha-icon icon="mdi:water-percent"></ha-icon><span id="humidity">—</span><span class="percent">%</span></div></div>
-        </div>
-        <div class="label">Ønsket temperatur</div>
-        <div class="stepper" role="group" aria-label="Ønsket temperatur">
-          <button class="step" id="minus" type="button" aria-label="Sænk ønsket temperatur">−</button>
-          <div class="target"><span id="target">—</span><span class="unit" id="target-unit">°C</span></div>
-          <button class="step" id="plus" type="button" aria-label="Hæv ønsket temperatur">+</button>
+        <div class="temperature-reading" aria-label="Aktuel temperatur"><div class="label">Temperatur</div><div class="actual"><span id="actual">—</span><span class="unit" id="actual-unit">°C</span></div></div>
+        <div class="humidity" aria-label="Luftfugtighed"><div class="label">Luftfugtighed</div><div class="moisture"><ha-icon icon="mdi:water-percent"></ha-icon><span id="humidity">—</span><span class="percent">%</span></div></div>
+        <div class="target-control"><div class="label">Ønsket</div>
+          <div class="stepper" role="group" aria-label="Ønsket temperatur">
+            <button class="step" id="minus" type="button" aria-label="Sænk ønsket temperatur">−</button>
+            <div class="target"><span id="target">—</span><span class="unit" id="target-unit">°C</span></div>
+            <button class="step" id="plus" type="button" aria-label="Hæv ønsket temperatur">+</button>
+          </div>
         </div>
         <div class="floor" id="floor">
-          <div class="floor-head"><span class="floor-label"><ha-icon icon="mdi:heating-coil"></ha-icon>Gulvkomfort</span><span id="floor-state" class="floor-state">—</span></div>
+          <div class="floor-head"><span class="floor-label"><ha-icon icon="mdi:heating-coil"></ha-icon><span class="compact-caption">Gulv</span><span class="row-caption">Gulvkomfort</span></span><span id="floor-state" class="floor-state">—</span></div>
           <div class="levels" role="group" aria-label="Gulvkomfort">
             <button class="level" type="button" data-level="0" aria-label="Gulvkomfort fra" aria-pressed="false">Fra</button>
             <button class="level" type="button" data-level="1" aria-label="Gulvkomfort niveau 1" aria-pressed="false">1</button>
             <button class="level" type="button" data-level="2" aria-label="Gulvkomfort niveau 2" aria-pressed="false">2</button>
             <button class="level" type="button" data-level="3" aria-label="Gulvkomfort niveau 3" aria-pressed="false">3</button>
           </div>
+          <select id="floor-select" class="floor-select" aria-label="Gulvkomfort"><option value="" disabled>Utilgængelig</option><option value="0">Fra</option><option value="1">Niveau 1</option><option value="2">Niveau 2</option><option value="3">Niveau 3</option></select>
         </div>
         <div id="status" class="status" role="status" aria-live="polite" hidden></div>
         <div id="error" class="error" role="alert" hidden></div>
@@ -123,6 +157,11 @@ class SalusRoomCard extends HTMLElement {
       </ha-card>`;
     this._nodes = Object.fromEntries([...this.shadowRoot.querySelectorAll("[id]")].map(node => [node.id,node]));
     this._buttons = [...this.shadowRoot.querySelectorAll("[data-level]")];
+    this._nodes["floor-select"].addEventListener("change",()=>{
+      const value=this._nodes["floor-select"].value;
+      if(value!=="")this._changeComfort(Number(value));
+      this._render();
+    });
     this._nodes.minus.addEventListener("click", () => this._changeTemperature(-1));
     this._nodes.plus.addEventListener("click", () => this._changeTemperature(1));
     this._buttons.forEach(button => button.addEventListener("click", () => this._changeComfort(Number(button.dataset.level))));
@@ -142,10 +181,12 @@ class SalusRoomCard extends HTMLElement {
     for (const key of ["temperature_sensor","humidity_sensor"]) {
       if (config[key] && !/^sensor\.[a-z0-9_]+$/.test(config[key])) throw new Error(`${key} skal være et sensor-id.`);
     }
+    if (config.layout !== undefined && !["compact","rows"].includes(config.layout)) throw new Error("Vælg layout compact eller rows.");
     if (this._inFlight) throw new Error("Vent til den igangværende ændring er afsluttet, før kortet ændres.");
     this._clearPending();
     this._error = "";
     this._config = {...config};
+    this.setAttribute("layout",config.layout || "compact");
     if (config.history_hours !== undefined && (!Number.isFinite(config.history_hours) || config.history_hours < 1 || config.history_hours > 48)) throw new Error("Historik skal være mellem 1 og 48 timer.");
     this._historyGeneration++;
     this._historyOpen=false;
@@ -158,8 +199,8 @@ class SalusRoomCard extends HTMLElement {
   }
 
   set hass(value) { this._hass = value; this._render(); }
-  getCardSize() { return 7; }
-  getGridOptions() { return {columns:12,rows:"auto",min_columns:12}; }
+  getCardSize() { return (this._config?.layout === "rows" && this.clientWidth >= 580 ? 2 : 3) + (this._historyOpen ? 5 : 0); }
+  getGridOptions() { return {columns:this._config?.layout === "rows" ? 12 : 6,rows:"auto",min_columns:6}; }
 
   connectedCallback() { this._resizeObserver.observe(this);this._render(); }
   disconnectedCallback() { this._resizeObserver.disconnect();this._clearPending(); }
@@ -216,19 +257,19 @@ class SalusRoomCard extends HTMLElement {
     if(!points.length || !values.length){svg.setAttribute("hidden","");this._nodes["history-legend"].hidden=true;this._nodes["history-message"].textContent="Ingen temperaturhistorik i perioden.";return;}
     svg.removeAttribute("hidden");this._nodes["history-legend"].hidden=false;
     this._nodes["history-message"].textContent=`Hentet ${this._historyTime(cache.loaded)} · grå varmeperioder har ukendt status`;
-    const width=Math.max(180,this._nodes.history.clientWidth),left=34,right=8,top=12,bottom=112;
+    const width=Math.max(180,this._nodes.history.clientWidth),left=34,right=8,top=12,bottom=92;
     const min=Math.floor((Math.min(...values)-.5)*2)/2,max=Math.ceil((Math.max(...values)+.5)*2)/2;
     const x=time=>left+Math.max(0,Math.min(1,(time-start)/(end-start)))*(width-left-right);
     const y=value=>bottom-(value-min)/(max-min)*(bottom-top);
     const node=(tag,attrs,text)=>{const element=document.createElementNS("http://www.w3.org/2000/svg",tag);Object.entries(attrs).forEach(([key,value])=>element.setAttribute(key,String(value)));if(text!==undefined)element.textContent=text;svg.append(element);return element;};
-    svg.replaceChildren();svg.setAttribute("viewBox",`0 0 ${width} 174`);
+    svg.replaceChildren();svg.setAttribute("viewBox",`0 0 ${width} 150`);
     node("title",{},"Temperatur og ønsket temperatur med varmebehov under kurverne");
     for(let i=0;i<3;i++){
       const value=min+(max-min)*i/2;
       node("path",{d:`M${left} ${y(value)}H${width-right}`,class:"grid"});
       node("text",{x:left-6,y:y(value)+4,"text-anchor":"end"},this._format(value));
       const time=start+(end-start)*i/2;
-      node("text",{x:x(time),y:170,"text-anchor":i===0?"start":i===2?"end":"middle"},this._historyTime(time));
+      node("text",{x:x(time),y:146,"text-anchor":i===0?"start":i===2?"end":"middle"},this._historyTime(time));
     }
     node("text",{x:left,y:10},this._hass.config?.unit_system?.temperature || "°C");
     const pathFor=(key,step)=>{
@@ -239,14 +280,14 @@ class SalusRoomCard extends HTMLElement {
     };
     node("path",{d:pathFor("temperature",false),class:"actual-line"});
     node("path",{d:pathFor("target",true),class:"target-line"});
-    node("text",{x:left,y:129},"Varmebehov");
+    node("text",{x:left,y:109},"Varmebehov");
     let cursor=start,heat=null;
     const intervals=[];
     for(const point of points){const time=Math.max(start,point.time);if(time>cursor)intervals.push({from:cursor,to:time,heat});cursor=time;heat=point.heat;}
     if(cursor<end)intervals.push({from:cursor,to:end,heat});
     const merged=[];
     for(const interval of intervals){const last=merged.at(-1);if(last && last.heat===interval.heat && last.to===interval.from)last.to=interval.to;else merged.push({...interval});}
-    for(const interval of merged){if(interval.heat===0)continue;const rect=node("rect",{x:x(interval.from),y:135,width:Math.max(0,x(interval.to)-x(interval.from)),height:10,class:interval.heat===1?"heat-band":"unknown-band"});const title=document.createElementNS("http://www.w3.org/2000/svg","title");title.textContent=`${this._historyTime(interval.from)}–${this._historyTime(interval.to)}: ${interval.heat===1?"Kalder på varme":"Ukendt"}`;rect.append(title);}
+    for(const interval of merged){if(interval.heat===0)continue;const rect=node("rect",{x:x(interval.from),y:115,width:Math.max(0,x(interval.to)-x(interval.from)),height:10,class:interval.heat===1?"heat-band":"unknown-band"});const title=document.createElementNS("http://www.w3.org/2000/svg","title");title.textContent=`${this._historyTime(interval.from)}–${this._historyTime(interval.to)}: ${interval.heat===1?"Kalder på varme":"Ukendt"}`;rect.append(title);}
     this._nodes["history-detail"].textContent="Varmebehov følger termostatens meldte varmestatus.";
   }
   _historyPointer(event) {
@@ -323,6 +364,9 @@ class SalusRoomCard extends HTMLElement {
     const level = this._available(comfort) ? states.indexOf(comfort.state) : -1;
     this._nodes.floor.dataset.active = String(level > 0);
     this._nodes["floor-state"].textContent = level < 0 ? "Utilgængelig" : level === 0 ? "Fra" : `Niveau ${level}`;
+    this._nodes["floor-select"].value=level < 0 ? "" : String(level);
+    this._nodes["floor-select"].disabled=busy || level < 0;
+    [...this._nodes["floor-select"].options].forEach(option=>{option.disabled=option.value==="" || !options.includes(states[Number(option.value)]);});
     this._buttons.forEach(button => {
       const index = Number(button.dataset.level);
       button.setAttribute("aria-pressed",String(index === level));
@@ -396,6 +440,8 @@ class SalusRoomCardEditor extends HTMLElement {
         .help {font-size:13px;color:var(--secondary-text-color);line-height:1.5;margin:4px 0 18px}
       </style>
       <div class="help">Vælg en termostat. Gulvkomfort fra samme enhed vælges automatisk, når den findes.</div>
+      <label>Layout<select id="layout" aria-label="Layout"><option value="compact">Kompakt – små kort med niveauknapper</option><option value="rows">Rækker – vandret kort med gulvmenu</option></select></label>
+      <div class="help">Kompakt foreslår halv bredde. Rækker bruger fuld bredde og tilpasser sig mindre skærme. Et eksisterende kort kan tilpasses under Layout. Klik på kortet eller pilen for historik.</div>
       <label>Rumtitel (valgfri)<input id="name" type="text" placeholder="Brug termostatens navn"></label>
       <label>Termostat<select id="climate" aria-label="Termostat"></select></label>
       <label>Gulvkomfort<select id="comfort" aria-label="Gulvkomfort"></select></label>
@@ -408,6 +454,7 @@ class SalusRoomCardEditor extends HTMLElement {
   _changed(name,value) {
     if (!this._config) return;
     const config={...this._config,[name]:value};
+    if (name === "layout") config.grid_options={...config.grid_options,columns:value === "rows" ? 12 : 6,rows:"auto"};
     if (name === "climate" && value !== this._config.climate) config.comfort=salusComfortForClimate(this._hass,value);
     if ((name === "name" || name === "icon") && !value.trim()) delete config[name];
     this._config=config;
@@ -417,6 +464,7 @@ class SalusRoomCardEditor extends HTMLElement {
   _render() {
     if (!this._config || !this._hass) return;
     const states=this._hass.states || {};
+    this._inputs.layout.value=this._config.layout || "compact";
     for (const name of ["name","icon"]) {
       if (this.shadowRoot.activeElement !== this._inputs[name]) this._inputs[name].value=this._config[name] || "";
     }

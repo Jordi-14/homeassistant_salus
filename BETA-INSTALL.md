@@ -1,4 +1,25 @@
-# SALUS beta 0.9.11b5
+# SALUS beta 0.9.11b6
+
+## New in b6: compact cards and rows
+
+The graphical card editor now offers **Kompakt** and **Rækker** under **Layout**.
+Kompakt is the default and puts measurements, a small temperature stepper and
+four floor-level buttons in one small card. Rækker aligns the information
+horizontally in a wide card and uses a floor-comfort menu. Narrow row cards
+reflow so every control remains visible.
+
+Choosing a layout in the editor sets the suggested width to half a section
+for Kompakt or a full section for Rækker, with automatic height. Existing
+saved widths are retained until you choose a layout or resize the card in HA.
+If an older card is already showing Kompakt in the editor, select Rækker and
+then Kompakt once to apply the new suggested half width. HA's normal layout
+controls can still resize either style.
+
+Click the card or arrow to expand the small history graph. Adjusting a
+temperature or floor control does not expand it. No history is fetched on
+load or while collapsed. Floor menus display reported values, with controls
+disabled while a change awaits confirmation. Backend and gateway logic are
+unchanged from b5. This release performs no hardware test writes.
 
 ## Fixed in b5: endless card-picker spinner
 
@@ -17,7 +38,7 @@ logic and the client dependency are unchanged from b4.
 
 1. Keep a full Home Assistant backup and the previous working release.
 2. In HACS, open MichaelBusackBertelsen/homeassistant_salus and download
-   **v0.9.11b5** from the prerelease/version picker. Keep your configured
+   **v0.9.11b6** from the prerelease/version picker. Keep your configured
    Salus integration and existing devices. Restart Home Assistant.
 3. Reload the browser or Home Assistant app so the bundled frontend module loads.
 4. Open your own dashboard, choose Edit -> Add card, and search for

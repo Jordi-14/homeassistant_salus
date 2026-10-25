@@ -23,6 +23,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node --check custom_components/salus/frontend/salus-room-card.js
       - run: node scripts/test_dashboard_card.cjs
+      - run: node scripts/test_dashboard_card.cjs
+        env:
+          SALUS_CARD_TEST_TOUCH: "1"
       - run: node scripts/test_dashboard_registration.cjs
 
   ruff:

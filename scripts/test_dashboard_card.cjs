@@ -5,7 +5,8 @@ const root=path.resolve(__dirname,'..');
 const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recursive:true});
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.SALUS_CARD_BROWSER_CHANNEL ? {channel:process.env.SALUS_CARD_BROWSER_CHANNEL} : {})});
- const page=await browser.newPage({viewport:{width:1024,height:1000},colorScheme:'dark'});
+ const touch=process.env.SALUS_CARD_TEST_TOUCH==='1';
+ const page=await browser.newPage({viewport:{width:1024,height:1000},colorScheme:'dark',hasTouch:touch});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setContent(`<style>body{margin:20px;background:#111416;color:#f1f2f2;font-family:Segoe UI,sans-serif;--primary-text-color:#f1f2f2;--secondary-text-color:#a8b0b5;--ha-card-background:#1c2023;--divider-color:#303639;--secondary-background-color:#252b2e}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:16px}</style><main></main>`);
  await page.evaluate(()=>customElements.define('home-assistant',class extends HTMLElement {}));
@@ -113,6 +114,11 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
   await editor.locator('#name').fill('Mit kontor');await editor.locator('#name').dispatchEvent('change');
   if(await page.evaluate(()=>editorConfig.name)!=='Mit kontor')throw Error('Editor name');
   if(!await page.evaluate(()=>customCards.some(card=>card.type==='salus-room-card'&&card.name==='SALUS rumkort')))throw Error('Picker metadata');
+  await editor.locator('#layout').selectOption('rows');
+  if(await page.evaluate(()=>editorConfig.layout)!=='rows')throw Error('Editor layout');
+  if(await page.evaluate(()=>editorConfig.grid_options.columns)!==12)throw Error('Row editor width');
+  await editor.locator('#layout').selectOption('compact');
+  if(await page.evaluate(()=>editorConfig.grid_options.columns)!==6)throw Error('Compact editor width');
   await page.evaluate(()=>editor.remove());
  });
  await check('History fetch is click-only, attribute-complete and read-only',async()=>{
@@ -148,6 +154,33 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
   if(await page.evaluate(()=>historyCalls.length)!==count)throw Error('History auto retry');
   if(await card.locator('#plus').isDisabled())throw Error('History error disabled controls');
   await card.locator('#history-toggle').click();
+ });
+ await check('Row menu uses reported state and never expands history',async()=>{
+  await page.evaluate(()=>{card.setConfig({climate:'climate.test',comfort:'select.test',layout:'rows'});data=sample();calls=[];card.hass=data;});
+  if(!await card.locator('.levels').isHidden())throw Error('Row buttons visible');
+  await card.locator('#floor-select').selectOption('3');
+  if(await page.evaluate(()=>calls.length)!==1)throw Error('Menu command count');
+  if(await card.locator('#floor-select').inputValue()!=='1')throw Error('Optimistic menu value');
+  if(!await card.locator('#history').isHidden())throw Error('Menu opened history');
+  if(!await card.locator('#floor-select').isDisabled())throw Error('Pending menu enabled');
+  await page.evaluate(()=>{data.states['select.test'].state='level_3';card.hass=data;});
+  if(await card.locator('#floor-select').inputValue()!=='3')throw Error('Menu confirmation');
+  await page.evaluate(()=>{data.states['select.test'].state='unavailable';card.hass=data;});
+  if(!await card.locator('#floor-select').isDisabled())throw Error('Offline menu enabled');
+ });
+ await check('Compact and rows fit their actual container, including narrow cards',async()=>{
+  for(const layout of ['compact','rows']){
+   for(const width of [736,600,580,540,340,280]){
+    await page.setViewportSize({width:1024,height:1000});
+    await page.evaluate(({layout,width})=>{card.style.width=width+'px';card.setConfig({climate:'climate.test',comfort:'select.test',layout,name:'Stort badeværelse'});data=sample();card.hass=data;},{layout,width});
+    const bounds=await card.evaluate(el=>({width:el.clientWidth,scroll:el.shadowRoot.querySelector('ha-card').scrollWidth,height:el.shadowRoot.querySelector('ha-card').getBoundingClientRect().height,options:el.getGridOptions()}));
+    if(bounds.scroll>bounds.width+1)throw Error(`${layout}/${width}: overflow ${JSON.stringify(bounds)}`);
+    if(bounds.height>(touch?210:155))throw Error(`${layout}/${width}: oversized ${bounds.height}`);
+    if(layout==='rows'&&width>=580&&bounds.height>100)throw Error('Row not horizontal');
+    if(bounds.options.columns!==(layout==='rows'?12:6))throw Error('Grid width');
+   }
+  }
+  await page.evaluate(()=>{card.style.width='';});
  });
  await check('Seven room cards and responsive layouts',async()=>{
   await page.evaluate(()=>{
