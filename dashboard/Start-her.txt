@@ -4,8 +4,7 @@ Kortets editor har nu Layout: Kompakt eller Rækker.
 Kompakt samler målinger, temperaturknapper og Fra/1/2/3 på et lille kort.
 Rækker viser oplysningerne vandret og bruger en menu til gulvkomfort.
 Valg af layout sætter forslag til halv/fuld bredde med automatisk højde.
-Hvis et gammelt kort allerede viser Kompakt i editoren, vælg Rækker og
-derefter Kompakt for at anvende den nye halve bredde.
+Vælg layout én gang på et gammelt kort for at anvende det nye breddeforslag.
 Grafen er skjult, indtil du klikker på kortet eller pilen.
 
 Opdatér SALUS-integrationen via HACS til v0.9.11b6 og genstart Home Assistant.

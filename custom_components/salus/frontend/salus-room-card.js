@@ -17,7 +17,7 @@ class SalusRoomCard extends HTMLElement {
     const candidates = [...new Set([...entities,...entitiesFallback,...Object.keys(hass?.states || {})])]
       .filter(id => id.startsWith("climate."));
     const climate = candidates.find(id => salusComfortForClimate(hass,id)) || candidates[0] || "";
-    return {climate,comfort:salusComfortForClimate(hass,climate)};
+    return {climate,comfort:salusComfortForClimate(hass,climate),layout:"compact"};
   }
   constructor() {
     super();
@@ -440,7 +440,7 @@ class SalusRoomCardEditor extends HTMLElement {
         .help {font-size:13px;color:var(--secondary-text-color);line-height:1.5;margin:4px 0 18px}
       </style>
       <div class="help">Vælg en termostat. Gulvkomfort fra samme enhed vælges automatisk, når den findes.</div>
-      <label>Layout<select id="layout" aria-label="Layout"><option value="compact">Kompakt – små kort med niveauknapper</option><option value="rows">Rækker – vandret kort med gulvmenu</option></select></label>
+      <label>Layout<select id="layout" aria-label="Layout"><option value="" disabled>Vælg layout (standard: Kompakt)</option><option value="compact">Kompakt – små kort med niveauknapper</option><option value="rows">Rækker – vandret kort med gulvmenu</option></select></label>
       <div class="help">Kompakt foreslår halv bredde. Rækker bruger fuld bredde og tilpasser sig mindre skærme. Et eksisterende kort kan tilpasses under Layout. Klik på kortet eller pilen for historik.</div>
       <label>Rumtitel (valgfri)<input id="name" type="text" placeholder="Brug termostatens navn"></label>
       <label>Termostat<select id="climate" aria-label="Termostat"></select></label>
@@ -464,7 +464,7 @@ class SalusRoomCardEditor extends HTMLElement {
   _render() {
     if (!this._config || !this._hass) return;
     const states=this._hass.states || {};
-    this._inputs.layout.value=this._config.layout || "compact";
+    this._inputs.layout.value=this._config.layout || "";
     for (const name of ["name","icon"]) {
       if (this.shadowRoot.activeElement !== this._inputs[name]) this._inputs[name].value=this._config[name] || "";
     }

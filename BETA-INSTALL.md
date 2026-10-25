@@ -11,9 +11,9 @@ reflow so every control remains visible.
 Choosing a layout in the editor sets the suggested width to half a section
 for Kompakt or a full section for Rækker, with automatic height. Existing
 saved widths are retained until you choose a layout or resize the card in HA.
-If an older card is already showing Kompakt in the editor, select Rækker and
-then Kompakt once to apply the new suggested half width. HA's normal layout
-controls can still resize either style.
+An older card without an explicit layout shows a layout prompt; choose Kompakt
+or Rækker once to apply the new suggested width. HA's normal layout controls
+can still resize either style.
 
 Click the card or arrow to expand the small history graph. Adjusting a
 temperature or floor control does not expand it. No history is fetched on
