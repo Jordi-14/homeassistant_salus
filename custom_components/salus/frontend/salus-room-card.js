@@ -1,4 +1,4 @@
-/* SALUS Room Card 1.2.0 — MIT License. Bundled with the SALUS integration. */
+/* SALUS Room Card 1.3.0 — MIT License. Bundled with the SALUS integration. */
 async function registerSalusRoomCard() {
 // Extra modules can run before HA installs its scoped custom element registry.
 // Wait before defining classes as well: the polyfill replaces HTMLElement too.
@@ -27,29 +27,34 @@ class SalusRoomCard extends HTMLElement {
     this._error = "";
     this._historyOpen = false;
     this._historyGeneration = 0;
+    this._hiddenSeries = new Set();
     this.shadowRoot.innerHTML = `
       <style>
         :host {display:block;min-width:0;container-type:inline-size;}
         * {box-sizing:border-box;}
-        ha-card {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 10px;
-          grid-template-areas:"head humid" "actual target" "floor floor" "status status" "error error" "history history";
+        ha-card {display:grid;grid-template-columns:minmax(0,1fr) 128px;gap:0 10px;
+          grid-template-areas:"head head" "actual target" "floor floor" "status status" "error error" "history history";
           padding:10px 12px;border-radius:14px;background:var(--ha-card-background,var(--card-background-color,#1c2023));
           color:var(--primary-text-color,#f1f2f2);border:1px solid var(--divider-color,#303639);box-shadow:none;
           font-family:var(--paper-font-body1_-_font-family,Roboto,sans-serif);}
-        header {grid-area:head;display:flex;align-items:center;gap:6px;min-width:0;}
+        header {grid-area:head;display:flex;align-items:center;gap:6px;min-width:0;min-height:28px;}
+        #icon {grid-area:icon;align-self:center;flex:0 0 16px;}
+        h2 {grid-area:name;align-self:center;flex:1;}
         header>ha-icon {--mdc-icon-size:16px;color:var(--secondary-text-color);flex-shrink:0;}
         h2 {font-size:14px;font-weight:500;margin:0;min-width:0;overflow-wrap:anywhere;}
         .history-toggle {border:0;background:transparent;min-width:28px;min-height:28px;padding:0;
-          display:grid;place-items:center;border-radius:8px;color:var(--secondary-text-color);margin-left:auto;}
+          display:grid;place-items:center;border-radius:8px;color:var(--secondary-text-color);grid-area:toggle;align-self:center;flex:0 0 28px;}
         .history-toggle ha-icon {--mdc-icon-size:16px;transition:transform .15s;}
         .history-toggle[aria-expanded="true"] ha-icon {transform:rotate(180deg);}
         .temperature-reading {grid-area:actual;align-self:center;margin:4px 0;}
         .label {font-size:11px;color:var(--secondary-text-color,#a8b0b5);margin-bottom:3px;}
         .temperature-reading>.label,.humidity>.label {display:none;}
         .actual {font-size:26px;font-weight:500;line-height:1.2;letter-spacing:-.7px;font-variant-numeric:tabular-nums;}
+        #actual {display:inline-block;width:4.6ch;text-align:right;}
+        #humidity {display:inline-block;width:3ch;text-align:right;}
         .unit {font-size:12px;font-weight:400;color:var(--secondary-text-color);margin-left:3px;letter-spacing:0;}
-        .humidity {grid-area:humid;align-self:center;}
-        .moisture {display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);font-variant-numeric:tabular-nums;}
+        .humidity {grid-area:humid;align-self:center;justify-self:end;flex:0 0 56px;width:56px;}
+        .moisture {justify-content:flex-end;display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);font-variant-numeric:tabular-nums;}
         .moisture ha-icon {--mdc-icon-size:13px;color:var(--info-color,#72cbea);}
         .percent {font-size:11px;}
         button,select {font:inherit;color:inherit;touch-action:manipulation;}
@@ -61,7 +66,7 @@ class SalusRoomCard extends HTMLElement {
           background:var(--secondary-background-color,#252b2e);min-height:30px;}
         .step {background:transparent;border:0;min-width:30px;min-height:30px;padding:0 5px;font-size:19px;border-radius:8px;}
         .step:hover:enabled {background:var(--ha-card-background,var(--card-background-color));}
-        .target {font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;}
+        .target {flex:0 0 50px;text-align:center;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;}
         .target .unit {font-size:11px;margin-left:1px;}
         .floor {grid-area:floor;display:flex;align-items:center;gap:8px;border-top:1px solid var(--divider-color,#303639);padding-top:7px;margin-top:4px;min-width:0;}
         .floor-head {display:flex;align-items:center;}
@@ -84,51 +89,58 @@ class SalusRoomCard extends HTMLElement {
         :host([layout="rows"]) .row-caption {display:inline;}
         .status {grid-area:status;font-size:12px;color:var(--secondary-text-color);overflow-wrap:anywhere;margin-top:6px;}
         .error {grid-area:error;font-size:12px;color:var(--error-color,#db6060);overflow-wrap:anywhere;margin-top:6px;}
-        .history {grid-area:history;min-width:0;margin-top:3px;padding-top:8px;border-top:1px solid var(--divider-color);}
+        .history {position:relative;grid-area:history;min-width:0;margin-top:3px;padding-top:8px;border-top:1px solid var(--divider-color);}
         .history-head {display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;color:var(--secondary-text-color);}
         .history-refresh {border:0;background:transparent;min-height:30px;padding:4px;color:var(--primary-color);}
         .history-message,.history-detail {font-size:11px;line-height:1.4;color:var(--secondary-text-color);margin:3px 0;overflow-wrap:anywhere;}
-        .history-chart {display:block;width:100%;height:150px;overflow:visible;}
+        .history-chart {display:block;width:100%;height:220px;overflow:visible;}
         .history-chart text {fill:var(--secondary-text-color);font:11px sans-serif;}
         .history-chart .grid {stroke:var(--divider-color);stroke-width:1;fill:none;}
-        .history-chart .actual-line {stroke:var(--info-color,#72cbea);stroke-width:2;fill:none;}
-        .history-chart .target-line {stroke:var(--salus-comfort-color,#edaa70);stroke-width:1.6;stroke-dasharray:5 3;fill:none;}
-        .history-chart .heat-band {fill:var(--salus-comfort-color,#edaa70);opacity:.75;}
-        .history-chart .unknown-band {fill:var(--secondary-text-color);opacity:.25;}
+        .history-chart .actual-line {stroke:var(--salus-history-temperature,#4d78f4);stroke-width:2;fill:none;}
+        .history-chart .target-line {stroke:var(--salus-history-target,#efb83b);stroke-width:1.6;fill:none;}
+        .history-chart .heat-band {fill:var(--salus-comfort-color,#edaa70);opacity:.10;}
+        .history-chart .heat-start {stroke:var(--salus-comfort-color,#edaa70);stroke-width:1;opacity:.5;}
+        .history-chart .unknown-band {fill:var(--secondary-text-color);opacity:.08;}
         .history-legend {display:flex;flex-wrap:wrap;gap:6px 10px;font-size:11px;color:var(--secondary-text-color);}
-        .history-legend span {display:flex;align-items:center;gap:4px;}
-        .swatch {width:14px;height:0;border-top:2px solid var(--info-color,#72cbea);}
-        .swatch.target-swatch {border-color:var(--salus-comfort-color,#edaa70);border-top-style:dashed;}
+        .history-legend button {display:flex;align-items:center;gap:5px;background:transparent;border:0;padding:4px 0;color:var(--secondary-text-color);font-size:11px;}
+        .history-legend button[aria-pressed="false"] {opacity:.4;}
+        .history-detail {position:absolute;top:36px;max-width:min(300px,100%);padding:7px 9px;border:1px solid var(--divider-color);border-radius:7px;color:var(--primary-text-color);background:var(--ha-card-background,var(--card-background-color,#1c2023));pointer-events:none;z-index:2;}
+        .swatch {width:14px;height:0;border-top:2px solid var(--salus-history-temperature,#4d78f4);}
+        .swatch.target-swatch {border-color:var(--salus-history-target,#efb83b);}
         .swatch.heat-swatch {height:6px;border:0;background:var(--salus-comfort-color,#edaa70);opacity:.75;}
         @container (min-width:580px) {
-          :host([layout="rows"]) ha-card {grid-template-columns:16px minmax(80px,1fr) 60px 110px 100px 28px;gap:0 6px;padding:10px;
+          :host([layout="rows"]) ha-card {grid-template-columns:16px minmax(100px,1.2fr) minmax(72px,1fr) minmax(110px,1fr) minmax(100px,1fr) 28px;gap:0 6px;padding:10px;
             grid-template-areas:"icon name actual target floor toggle" "icon humid actual target floor toggle" "status status status status status status" "error error error error error error" "history history history history history history";}
           :host([layout="rows"]) header {display:contents;}
-          :host([layout="rows"]) #icon {grid-area:icon;align-self:center;}
+          :host([layout="rows"]) #icon {grid-area:icon;align-self:center;flex:0 0 16px;}
           :host([layout="rows"]) h2 {grid-area:name;align-self:end;font-size:13px;}
           :host([layout="rows"]) .humidity {justify-self:start;align-self:start;}
           :host([layout="rows"]) .history-toggle {grid-area:toggle;margin:0;align-self:center;}
           :host([layout="rows"]) .actual {font-size:22px;}
+          :host([layout="rows"]) #actual {width:3.8ch;}
           :host([layout="rows"]) .temperature-reading>.label {display:block;}
           :host([layout="rows"]) .floor {border:0;padding:0;margin:0;display:flex;flex-direction:column;align-items:stretch;gap:3px;}
           :host([layout="rows"]) .floor-label ha-icon {display:none;}
+          :host([layout="rows"]) .target-control,:host([layout="rows"]) .floor {width:100%;max-width:180px;justify-self:center;}
+          :host([layout="rows"]) .temperature-reading {justify-self:center;}
         }
         @media(pointer:coarse) {
+          .target {flex-basis:40px;}
+          .history-toggle {flex-basis:44px;}
           .step {min-width:44px;min-height:44px;}
           .history-toggle,.history-refresh {min-width:44px;min-height:44px;}
           .level,.floor-select {min-height:44px;}
           .floor-select {font-size:16px;}
           @container (min-width:580px) {
-            :host([layout="rows"]) ha-card {grid-template-columns:16px minmax(80px,1fr) 60px 128px 100px 44px;}
+            :host([layout="rows"]) ha-card {grid-template-columns:16px minmax(80px,1.2fr) minmax(60px,1fr) minmax(128px,1fr) minmax(100px,1fr) 44px;}
           }
         }
         [hidden] {display:none !important;}
       </style>
       <ha-card>
-        <header><ha-icon id="icon"></ha-icon><h2 id="name"></h2><button id="history-toggle" class="history-toggle" type="button" aria-label="Vis historik" aria-expanded="false" aria-controls="history"><ha-icon icon="mdi:chevron-down"></ha-icon></button></header>
+        <header><ha-icon id="icon"></ha-icon><h2 id="name"></h2><div class="humidity" aria-label="Luftfugtighed"><div class="label">Luftfugtighed</div><div class="moisture"><ha-icon icon="mdi:water-percent"></ha-icon><span id="humidity">—</span><span class="percent">%</span></div></div><button id="history-toggle" class="history-toggle" type="button" aria-label="Vis historik" aria-expanded="false" aria-controls="history"><ha-icon icon="mdi:chevron-down"></ha-icon></button></header>
         <div class="temperature-reading" aria-label="Aktuel temperatur"><div class="label">Temperatur</div><div class="actual"><span id="actual">—</span><span class="unit" id="actual-unit">°C</span></div></div>
-        <div class="humidity" aria-label="Luftfugtighed"><div class="label">Luftfugtighed</div><div class="moisture"><ha-icon icon="mdi:water-percent"></ha-icon><span id="humidity">—</span><span class="percent">%</span></div></div>
-        <div class="target-control"><div class="label">Ønsket</div>
+        <div class="target-control"><div class="label" id="target-label" role="status" aria-live="polite">Ønsket</div>
           <div class="stepper" role="group" aria-label="Ønsket temperatur">
             <button class="step" id="minus" type="button" aria-label="Sænk ønsket temperatur">−</button>
             <div class="target"><span id="target">—</span><span class="unit" id="target-unit">°C</span></div>
@@ -148,11 +160,11 @@ class SalusRoomCard extends HTMLElement {
         <div id="status" class="status" role="status" aria-live="polite" hidden></div>
         <div id="error" class="error" role="alert" hidden></div>
         <section id="history" class="history" aria-label="Temperatur og varmebehov" hidden>
-          <div class="history-head"><span id="history-title">Seneste 6 timer</span><button id="history-refresh" class="history-refresh" type="button">Opdater</button></div>
-          <div id="history-message" class="history-message" role="status"></div>
+          <div class="history-head"><span id="history-title">Seneste 48 timer</span><button id="history-refresh" class="history-refresh" type="button">Opdater</button></div>
+          <div id="history-message" class="history-message" role="status" hidden></div>
           <svg id="history-chart" class="history-chart" role="img" aria-label="Temperatur, ønsket temperatur og termostatens varmebehov" hidden></svg>
-          <div id="history-legend" class="history-legend" hidden><span><i class="swatch"></i>Temperatur</span><span><i class="swatch target-swatch"></i>Ønsket</span><span><i class="swatch heat-swatch"></i>Varmebehov</span></div>
-          <div id="history-detail" class="history-detail"></div>
+          <div id="history-legend" class="history-legend" hidden><button type="button" data-series="temperature" aria-pressed="true"><i class="swatch"></i><span id="legend-temperature">Temperatur</span></button><button type="button" data-series="target" aria-pressed="true"><i class="swatch target-swatch"></i><span id="legend-target">Ønsket</span></button><button type="button" data-series="heat" aria-pressed="true"><i class="swatch heat-swatch"></i>Varmebehov</button></div>
+          <div id="history-detail" class="history-detail" role="tooltip" hidden></div>
         </section>
       </ha-card>`;
     this._nodes = Object.fromEntries([...this.shadowRoot.querySelectorAll("[id]")].map(node => [node.id,node]));
@@ -172,6 +184,13 @@ class SalusRoomCard extends HTMLElement {
       this._toggleHistory();
     });
     this._nodes["history-chart"].addEventListener("pointermove",event=>this._historyPointer(event));
+    this._nodes["history-chart"].addEventListener("pointerdown",event=>this._historyPointer(event));
+    this._nodes["history-chart"].addEventListener("pointerleave",()=>{this._nodes["history-detail"].hidden=true;});
+    this.shadowRoot.querySelectorAll('[data-series]').forEach(button=>button.addEventListener("click",()=>{
+      const series=button.dataset.series;
+      if(this._hiddenSeries.has(series))this._hiddenSeries.delete(series);else this._hiddenSeries.add(series);
+      this._drawHistory();
+    }));
     this._resizeObserver = new ResizeObserver(()=>{if(this._historyOpen && this._historyCache)this._drawHistory();});
   }
 
@@ -189,6 +208,8 @@ class SalusRoomCard extends HTMLElement {
     this.setAttribute("layout",config.layout || "compact");
     if (config.history_hours !== undefined && (!Number.isFinite(config.history_hours) || config.history_hours < 1 || config.history_hours > 48)) throw new Error("Historik skal være mellem 1 og 48 timer.");
     this._historyGeneration++;
+    this._hiddenSeries.clear();
+    this._nodes["history-detail"].hidden=true;
     this._historyOpen=false;
     this._historyLoading=false;
     this._historyCache=null;
@@ -207,6 +228,7 @@ class SalusRoomCard extends HTMLElement {
 
   _toggleHistory() {
     this._historyOpen=!this._historyOpen;
+    this._nodes["history-detail"].hidden=true;
     this._nodes.history.hidden=!this._historyOpen;
     this._nodes["history-toggle"].setAttribute("aria-expanded",String(this._historyOpen));
     this._nodes["history-toggle"].setAttribute("aria-label",this._historyOpen ? "Skjul historik" : "Vis historik");
@@ -216,9 +238,10 @@ class SalusRoomCard extends HTMLElement {
     if(!this._historyOpen || this._historyLoading || !this._config || !this._hass)return;
     if(!force && this._historyCache && Date.now()-this._historyCache.loaded < 300000){this._drawHistory();return;}
     const generation=this._historyGeneration;
-    const end=Date.now(),start=end-(this._config.history_hours || 6)*3600000;
+    const end=Date.now(),start=end-(this._config.history_hours || 48)*3600000;
     this._historyLoading=true;
     this._nodes["history-refresh"].disabled=true;
+    this._nodes["history-message"].hidden=false;
     this._nodes["history-message"].textContent="Henter historik…";
     try {
       if(typeof this._hass.callApi!=="function")throw new Error("Historik er ikke tilgængelig.");
@@ -237,6 +260,7 @@ class SalusRoomCard extends HTMLElement {
       this._drawHistory();
     } catch(error) {
       if(generation!==this._historyGeneration)return;
+      this._nodes["history-message"].hidden=false;
       this._nodes["history-message"].textContent="Historikken kunne ikke hentes. Kontrollér Historik/Recorder og prøv Opdater.";
     } finally {
       if(generation===this._historyGeneration){this._historyLoading=false;this._nodes["history-refresh"].disabled=false;}
@@ -247,57 +271,94 @@ class SalusRoomCard extends HTMLElement {
     if(this._hass?.config?.time_zone)options.timeZone=this._hass.config.time_zone;
     try{return new Date(time).toLocaleTimeString("da-DK",options);}catch{return new Date(time).toLocaleTimeString("da-DK",{hour:"2-digit",minute:"2-digit"});}
   }
+  _historyDate(time) {
+    const options={day:"numeric",month:"short"};
+    if(this._hass?.config?.time_zone)options.timeZone=this._hass.config.time_zone;
+    try{return new Date(time).toLocaleDateString("da-DK",options);}catch{return new Date(time).toLocaleDateString("da-DK");}
+  }
   _drawHistory() {
     const cache=this._historyCache;
     if(!cache || !this._historyOpen)return;
     const {points,start,end}=cache;
     const svg=this._nodes["history-chart"];
-    this._nodes["history-title"].textContent=`Seneste ${this._config.history_hours || 6} timer`;
-    const values=points.flatMap(point=>[point.temperature,point.target]).filter(value=>value!==null);
-    if(!points.length || !values.length){svg.setAttribute("hidden","");this._nodes["history-legend"].hidden=true;this._nodes["history-message"].textContent="Ingen temperaturhistorik i perioden.";return;}
+    this._nodes["history-title"].textContent=`Seneste ${this._config.history_hours || 48} timer`;
+    const inWindow=points.filter(point=>point.time>=start);
+    const seed=points.filter(point=>point.time<start).at(-1);
+    const visible=seed ? [{...seed,time:start},...inWindow] : inWindow;
+    const values=visible.flatMap(point=>[point.temperature,point.target]).filter(value=>value!==null);
+    if(!visible.length || !values.length){svg.setAttribute("hidden","");this._nodes["history-legend"].hidden=true;this._nodes["history-message"].hidden=false;this._nodes["history-message"].textContent="Ingen temperaturhistorik i perioden.";return;}
     svg.removeAttribute("hidden");this._nodes["history-legend"].hidden=false;
-    this._nodes["history-message"].textContent=`Hentet ${this._historyTime(cache.loaded)} · grå varmeperioder har ukendt status`;
-    const width=Math.max(180,this._nodes.history.clientWidth),left=34,right=8,top=12,bottom=92;
-    const min=Math.floor((Math.min(...values)-.5)*2)/2,max=Math.ceil((Math.max(...values)+.5)*2)/2;
+    this._nodes["history-message"].hidden=true;
+    const width=Math.max(180,this._nodes.history.clientWidth),left=35,right=9,top=15;
+    const height=Math.round(Math.max(160,Math.min(280,width*.39))),bottom=height-40;
+    svg.style.height=`${height}px`;
+    const rawMin=Math.min(...values),rawMax=Math.max(...values);
+    const step=[.5,1,2,5,10,20].find(value=>value>=(rawMax-rawMin)/5) || 50;
+    const min=Math.floor((rawMin-.15)/step)*step,max=Math.ceil((rawMax+.15)/step)*step;
     const x=time=>left+Math.max(0,Math.min(1,(time-start)/(end-start)))*(width-left-right);
     const y=value=>bottom-(value-min)/(max-min)*(bottom-top);
+    this._historyGeometry={left,right,start,end};
     const node=(tag,attrs,text)=>{const element=document.createElementNS("http://www.w3.org/2000/svg",tag);Object.entries(attrs).forEach(([key,value])=>element.setAttribute(key,String(value)));if(text!==undefined)element.textContent=text;svg.append(element);return element;};
-    svg.replaceChildren();svg.setAttribute("viewBox",`0 0 ${width} 150`);
-    node("title",{},"Temperatur og ønsket temperatur med varmebehov under kurverne");
-    for(let i=0;i<3;i++){
-      const value=min+(max-min)*i/2;
-      node("path",{d:`M${left} ${y(value)}H${width-right}`,class:"grid"});
-      node("text",{x:left-6,y:y(value)+4,"text-anchor":"end"},this._format(value));
-      const time=start+(end-start)*i/2;
-      node("text",{x:x(time),y:146,"text-anchor":i===0?"start":i===2?"end":"middle"},this._historyTime(time));
-    }
-    node("text",{x:left,y:10},this._hass.config?.unit_system?.temperature || "°C");
-    const pathFor=(key,step)=>{
-      let path="",previous=null;
-      for(const point of points){if(point[key]===null){previous=null;continue;}const px=x(point.time),py=y(point[key]);path+=previous===null?`M${px} ${py}`:step?`H${px}V${py}`:`L${px} ${py}`;previous=point;}
-      if(previous)path+=`H${x(end)}`;
-      return path;
-    };
-    node("path",{d:pathFor("temperature",false),class:"actual-line"});
-    node("path",{d:pathFor("target",true),class:"target-line"});
-    node("text",{x:left,y:109},"Varmebehov");
+    svg.replaceChildren();svg.setAttribute("viewBox",`0 0 ${width} ${height}`);
+    node("title",{},"Temperatur og ønsket temperatur som trappekurver; varmebehov markeret i grafen");
     let cursor=start,heat=null;
     const intervals=[];
-    for(const point of points){const time=Math.max(start,point.time);if(time>cursor)intervals.push({from:cursor,to:time,heat});cursor=time;heat=point.heat;}
+    for(const point of visible){if(point.time>cursor)intervals.push({from:cursor,to:point.time,heat});cursor=point.time;heat=point.heat;}
     if(cursor<end)intervals.push({from:cursor,to:end,heat});
     const merged=[];
     for(const interval of intervals){const last=merged.at(-1);if(last && last.heat===interval.heat && last.to===interval.from)last.to=interval.to;else merged.push({...interval});}
-    for(const interval of merged){if(interval.heat===0)continue;const rect=node("rect",{x:x(interval.from),y:115,width:Math.max(0,x(interval.to)-x(interval.from)),height:10,class:interval.heat===1?"heat-band":"unknown-band"});const title=document.createElementNS("http://www.w3.org/2000/svg","title");title.textContent=`${this._historyTime(interval.from)}–${this._historyTime(interval.to)}: ${interval.heat===1?"Kalder på varme":"Ukendt"}`;rect.append(title);}
-    this._nodes["history-detail"].textContent="Varmebehov følger termostatens meldte varmestatus.";
+    if(!this._hiddenSeries.has("heat"))for(const interval of merged){
+      if(interval.heat===0)continue;
+      const rect=node("rect",{x:x(interval.from),y:top,width:Math.max(0,x(interval.to)-x(interval.from)),height:bottom-top,class:interval.heat===1?"heat-band":"unknown-band"});
+      const title=document.createElementNS("http://www.w3.org/2000/svg","title");title.textContent=`${this._historyTime(interval.from)}–${this._historyTime(interval.to)}: ${interval.heat===1?"Kalder på varme":"Ukendt varmebehov"}`;rect.append(title);
+      if(interval.heat===1)node("path",{d:`M${x(interval.from)} ${top}V${bottom}`,class:"heat-start"});
+    }
+    for(let value=min;value<=max+.001;value+=step){
+      node("path",{d:`M${left} ${y(value)}H${width-right}`,class:"grid"});
+      node("text",{x:left-6,y:y(value)+4,"text-anchor":"end"},this._format(value,Number.isInteger(step)&&Number.isInteger(value)?0:1));
+    }
+    const tickCount=Math.max(3,Math.min(9,Math.floor((width-left-right)/75)+1));
+    let previousDate="";
+    for(let i=0;i<tickCount;i++){
+      const time=start+(end-start)*i/(tickCount-1),date=this._historyDate(time);
+      const anchor=i===0?"start":i===tickCount-1?"end":"middle";
+      node("path",{d:`M${x(time)} ${top}V${bottom}`,class:"grid"});
+      node("text",{x:x(time),y:height-20,"text-anchor":anchor},this._historyTime(time));
+      if(date!==previousDate || tickCount<=3)node("text",{x:x(time),y:height-5,"text-anchor":anchor},date);
+      previousDate=date;
+    }
+    node("text",{x:left,y:10},this._hass.config?.unit_system?.temperature || "°C");
+    const pathFor=key=>{
+      let path="",previous=null;
+      for(const point of visible){
+        const px=x(point.time);
+        if(point[key]===null){if(previous)path+=`H${px}`;previous=null;continue;}
+        const py=y(point[key]);path+=previous===null?`M${px} ${py}`:`H${px}V${py}`;previous=point;
+      }
+      if(previous)path+=`H${x(end)}`;
+      return path;
+    };
+    node("path",{d:pathFor("temperature"),class:"actual-line",hidden:this._hiddenSeries.has("temperature")?"":"false"});
+    node("path",{d:pathFor("target"),class:"target-line",hidden:this._hiddenSeries.has("target")?"":"false"});
+    // SVG boolean attributes must be absent when false.
+    svg.querySelectorAll('[hidden="false"]').forEach(element=>element.removeAttribute("hidden"));
+    const last=visible.at(-1),unit=this._hass.config?.unit_system?.temperature || "°C";
+    this._nodes["legend-temperature"].textContent=`Temperatur ${this._format(last.temperature)} ${unit}`;
+    this._nodes["legend-target"].textContent=`Ønsket ${this._format(last.target)} ${unit}`;
+    this.shadowRoot.querySelectorAll('[data-series]').forEach(button=>button.setAttribute("aria-pressed",String(!this._hiddenSeries.has(button.dataset.series))));
   }
   _historyPointer(event) {
-    const cache=this._historyCache;if(!cache?.points.length)return;
+    const cache=this._historyCache,geometry=this._historyGeometry;
+    if(!cache?.points.length || !geometry)return;
     const rect=this._nodes["history-chart"].getBoundingClientRect();
-    const time=cache.start+Math.max(0,Math.min(1,(event.clientX-rect.left-34)/(rect.width-42)))*(cache.end-cache.start);
+    const time=cache.start+Math.max(0,Math.min(1,(event.clientX-rect.left-geometry.left)/(rect.width-geometry.left-geometry.right)))*(cache.end-cache.start);
     let low=0,high=cache.points.length-1;
     while(low<high){const mid=Math.ceil((low+high)/2);if(cache.points[mid].time<=time)low=mid;else high=mid-1;}
-    const point=cache.points[low];
-    this._nodes["history-detail"].textContent=`${this._historyTime(point.time)} · ${this._format(point.temperature)}° · ønsket ${this._format(point.target)}° · ${point.heat===null?"Ukendt varmebehov":point.heat===1?"Kalder på varme":"Intet varmebehov"}`;
+    const point=cache.points[low].time<=time ? cache.points[low] : {time,temperature:null,target:null,heat:null};
+    const detail=this._nodes["history-detail"];
+    detail.textContent=`${this._historyDate(point.time)} ${this._historyTime(point.time)} · ${this._format(point.temperature)}° · ønsket ${this._format(point.target)}° · ${point.heat===null?"Ukendt varmebehov":point.heat===1?"Kalder på varme":"Intet varmebehov"}`;
+    detail.hidden=false;
+    detail.style.left=`${Math.max(0,Math.min(this._nodes.history.clientWidth-detail.offsetWidth,event.clientX-rect.left-80))}px`;
   }
 
   _number(value) {
@@ -335,6 +396,7 @@ class SalusRoomCard extends HTMLElement {
     const attributes = climate?.attributes || {};
     if (this._pending && this._reportedMatches(this._pending)) this._clearPending();
     const busy = this._inFlight || !!this._pending;
+    this._nodes["target-label"].textContent=busy ? "Afventer…" : "Ønsket";
     let temperature = online ? this._number(attributes.current_temperature) : null;
     let humidity = online ? this._number(attributes.current_humidity) : null;
     if (this._config.temperature_sensor) {
@@ -372,7 +434,7 @@ class SalusRoomCard extends HTMLElement {
       button.setAttribute("aria-pressed",String(index === level));
       button.disabled = busy || level < 0 || !options.includes(states[index]);
     });
-    let message = busy ? "Afventer aflæsning…" : "";
+    let message = "";
     if (!message && !online) message = climate ? "Termostaten er utilgængelig." : "Termostatens entitets-id blev ikke fundet.";
     if (!message && !comfort) message = "Gulvkomfort-entiteten blev ikke fundet. Kontrollér id og aktivering.";
     else if (!message && level < 0) message = "Gulvkomfort er midlertidigt utilgængelig.";
@@ -442,6 +504,7 @@ class SalusRoomCardEditor extends HTMLElement {
       <div class="help">Vælg en termostat. Gulvkomfort fra samme enhed vælges automatisk, når den findes.</div>
       <label>Layout<select id="layout" aria-label="Layout"><option value="" disabled>Vælg layout (standard: Kompakt)</option><option value="compact">Kompakt – små kort med niveauknapper</option><option value="rows">Rækker – vandret kort med gulvmenu</option></select></label>
       <div class="help">Kompakt foreslår halv bredde. Rækker bruger fuld bredde og tilpasser sig mindre skærme. Et eksisterende kort kan tilpasses under Layout. Klik på kortet eller pilen for historik.</div>
+      <label>Historikperiode<select id="history_hours" aria-label="Historikperiode"><option value="6">6 timer</option><option value="12">12 timer</option><option value="24">24 timer</option><option value="48">48 timer</option></select></label>
       <label>Rumtitel (valgfri)<input id="name" type="text" placeholder="Brug termostatens navn"></label>
       <label>Termostat<select id="climate" aria-label="Termostat"></select></label>
       <label>Gulvkomfort<select id="comfort" aria-label="Gulvkomfort"></select></label>
@@ -453,7 +516,7 @@ class SalusRoomCardEditor extends HTMLElement {
   set hass(hass) {this._hass=hass;this._render();}
   _changed(name,value) {
     if (!this._config) return;
-    const config={...this._config,[name]:value};
+    const config={...this._config,[name]:name === "history_hours" ? Number(value) : value};
     if (name === "layout") config.grid_options={...config.grid_options,columns:value === "rows" ? 12 : 6,rows:"auto"};
     if (name === "climate" && value !== this._config.climate) config.comfort=salusComfortForClimate(this._hass,value);
     if ((name === "name" || name === "icon") && !value.trim()) delete config[name];
@@ -465,6 +528,7 @@ class SalusRoomCardEditor extends HTMLElement {
     if (!this._config || !this._hass) return;
     const states=this._hass.states || {};
     this._inputs.layout.value=this._config.layout || "";
+    this._inputs.history_hours.value=String(this._config.history_hours || 48);
     for (const name of ["name","icon"]) {
       if (this.shadowRoot.activeElement !== this._inputs[name]) this._inputs[name].value=this._config[name] || "";
     }

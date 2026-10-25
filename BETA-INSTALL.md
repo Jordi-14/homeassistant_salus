@@ -1,4 +1,24 @@
-# SALUS beta 0.9.11b6
+# SALUS beta 0.9.11b7
+
+## New in b7: stable positions and a multi-day plot
+
+Room, temperature, desired temperature and floor controls keep fixed slots as
+readings change or temporarily become unknown. Pending confirmation now appears
+inside the existing desired-temperature caption, without inserting a footer
+that changes the card height. History hover values use a floating tooltip.
+
+The expanded plot defaults to 48 hours. Choose 6, 12, 24 or 48 hours in the
+graphical editor. Both temperature curves are stepped, with blue actual and
+gold desired temperatures. Actual heat-demand intervals are marked inside
+the plot; unknown action data stays distinct. No demand is inferred from the
+target/current temperature difference. The legend includes the last history
+values and can locally hide/show series without another history request.
+
+The graph adapts its height and tick density to its actual width, including
+300 px cards and very wide rows. Multi-day dates are shown on the time axis.
+Successful loads have no permanent fetched-time/unknown-status explanation
+or narrative footer. Loading and actual errors remain visible. Wide row
+headers distribute the controls rather than leaving one huge name column.
 
 ## New in b6: compact cards and rows
 
@@ -38,7 +58,7 @@ logic and the client dependency are unchanged from b4.
 
 1. Keep a full Home Assistant backup and the previous working release.
 2. In HACS, open MichaelBusackBertelsen/homeassistant_salus and download
-   **v0.9.11b6** from the prerelease/version picker. Keep your configured
+   **v0.9.11b7** from the prerelease/version picker. Keep your configured
    Salus integration and existing devices. Restart Home Assistant.
 3. Reload the browser or Home Assistant app so the bundled frontend module loads.
 4. Open your own dashboard, choose Edit -> Add card, and search for
@@ -56,7 +76,7 @@ installing the integration, activating an entity, or rendering a card.
 
 ## Click-only history
 
-Click the card background or its arrow to expand six hours of temperature,
+Click the card background or its arrow to expand 48 hours of temperature by default,
 desired temperature and thermostat-reported heat demand. History is fetched
 only after opening it, for that one climate entity, with attribute changes
 included. Requests use the authenticated Home Assistant connection.

@@ -111,6 +111,8 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
   await editor.locator('#climate').selectOption('climate.other');
   const config=await page.evaluate(()=>editorConfig);
   if(config.comfort!=='select.other'||config.type!=='custom:salus-room-card')throw Error('Editor pairing');
+  await editor.locator('#history_hours').selectOption('24');
+  if(await page.evaluate(()=>editorConfig.history_hours)!==24)throw Error('History editor value is not numeric');
   await editor.locator('#name').fill('Mit kontor');await editor.locator('#name').dispatchEvent('change');
   if(await page.evaluate(()=>editorConfig.name)!=='Mit kontor')throw Error('Editor name');
   if(!await page.evaluate(()=>customCards.some(card=>card.type==='salus-room-card'&&card.name==='SALUS rumkort')))throw Error('Picker metadata');
@@ -133,6 +135,9 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
   await card.locator('#history-toggle').click();
   await card.locator('#history-chart').waitFor({state:'visible'});
   const request=await page.evaluate(()=>historyCalls[0]);
+  const startTime=Date.parse(decodeURIComponent(request[1].split('history/period/')[1].split('?')[0]));
+  const endTime=Date.parse(new URLSearchParams(request[1].split('?')[1]).get('end_time'));
+  if(Math.abs(endTime-startTime-48*3600000)>1000)throw Error('Default history is not 48 hours');
   if(request[0]!=='GET'||!request[1].includes('filter_entity_id=climate.test')||!request[1].includes('significant_changes_only=0'))throw Error('History request');
   if(await card.locator('.actual-line').count()!==1||await card.locator('.heat-band').count()!==1)throw Error('History series');
   if(await card.locator('.unknown-band').count()<1)throw Error('Offline heat assumed active');
@@ -144,6 +149,20 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
   if(await page.evaluate(()=>historyCalls.length)!==1)throw Error('No history cache');
   await card.locator('#history-refresh').click();
   if(await page.evaluate(()=>historyCalls.length)!==2)throw Error('Explicit refresh missing');
+ });
+ await check('Stepped multi-day plot, quiet success and local legend controls',async()=>{
+  if(!await card.locator('#history-message').isHidden())throw Error('Success explanation still occupies space');
+  if(!await card.locator('#history-detail').isHidden())throw Error('Permanent history footer');
+  const geometry=await card.locator('#history-chart').evaluate(svg=>({height:svg.getBoundingClientRect().height,path:svg.querySelector('.actual-line').getAttribute('d'),heatHeight:Number(svg.querySelector('.heat-band').getAttribute('height'))}));
+  if(!geometry.path.includes('H')||!geometry.path.includes('V')||geometry.path.includes('L'))throw Error('Actual temperature is not stepped');
+  if(geometry.heatHeight<geometry.height/3)throw Error('Heat still in detached strip');
+  if(!await card.locator('#legend-target').textContent().then(t=>t.includes('22,0')))throw Error('Legend value missing');
+  const before=await page.evaluate(()=>historyCalls.length);
+  await card.locator('[data-series="temperature"]').click();
+  if(await card.locator('.actual-line').isVisible())throw Error('Legend did not hide line');
+  await card.locator('[data-series="temperature"]').click();
+  if(!await card.locator('.actual-line').isVisible())throw Error('Legend did not restore line');
+  if(await page.evaluate(()=>historyCalls.length)!==before)throw Error('Legend refetched history');
  });
  await check('History errors do not break controls or retry in the background',async()=>{
   await page.evaluate(()=>{data.callApi=async(...args)=>{historyCalls.push(args);throw Error('Recorder unavailable');};card.hass=data;});
@@ -168,15 +187,43 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
   await page.evaluate(()=>{data.states['select.test'].state='unavailable';card.hass=data;});
   if(!await card.locator('#floor-select').isDisabled())throw Error('Offline menu enabled');
  });
+ await check('Readings and controls stay fixed across updates, unknown values and pending writes',async()=>{
+  for(const [layout,width] of [['compact',308],['rows',736],['rows',2000]]){
+   await page.setViewportSize({width:Math.max(1024,width+40),height:1000});
+   await page.evaluate(({layout,width})=>{card.style.width=width+'px';card.setConfig({climate:'climate.test',comfort:'select.test',layout,name:'Stort badeværelse'});data=sample();card.hass=data;},{layout,width});
+   const boxes=()=>card.evaluate(el=>Object.fromEntries(['#name','.temperature-reading','.target-control','#floor'].map(selector=>{const r=el.shadowRoot.querySelector(selector).getBoundingClientRect(),host=el.getBoundingClientRect();return[selector,{x:r.x-host.x,y:r.y-host.y,width:r.width,height:r.height}];})));
+   const initial=await boxes();
+   async function stable(label){const current=await boxes();for(const key of Object.keys(initial))for(const axis of ['x','y','width','height'])if(Math.abs(initial[key][axis]-current[key][axis])>.75)throw Error(`${layout}/${width} ${label} moved ${key}.${axis}: ${initial[key][axis]} -> ${current[key][axis]}`);}
+   await page.evaluate(()=>{data.states['climate.test'].attributes={...data.states['climate.test'].attributes,current_temperature:9,current_humidity:100,temperature:5};card.hass=data;});
+   await stable('short numeric values');
+   await page.evaluate(()=>{data.states['climate.test'].attributes={...data.states['climate.test'].attributes,current_temperature:null,current_humidity:null,temperature:null};card.hass=data;});
+   await stable('unknown values');
+   await page.evaluate(()=>{data.states['climate.test'].state='unavailable';data.states['select.test'].state='off';card.hass=data;});
+   await stable('unavailable values');
+   await page.evaluate(()=>{data=sample();data.callService=()=>new Promise(resolve=>window.resolveControl=resolve);card.hass=data;});
+   const height=await card.evaluate(el=>el.getBoundingClientRect().height);
+   await card.locator('#plus').click();
+   await stable('pending confirmation');
+   if(Math.abs(height-await card.evaluate(el=>el.getBoundingClientRect().height))>.75)throw Error('Pending status changed card height');
+   await page.evaluate(()=>{data.states['climate.test'].attributes.temperature=22.5;card.hass=data;resolveControl();});
+   await page.waitForFunction(()=>!card._inFlight);
+   await stable('confirmed value');
+  }
+  await page.evaluate(()=>{card.style.width='';});
+ });
  await check('Compact and rows fit their actual container, including narrow cards',async()=>{
   for(const layout of ['compact','rows']){
-   for(const width of [736,600,580,540,340,280]){
+   for(const width of [2000,1024,736,600,580,540,340,280]){
     await page.setViewportSize({width:1024,height:1000});
     await page.evaluate(({layout,width})=>{card.style.width=width+'px';card.setConfig({climate:'climate.test',comfort:'select.test',layout,name:'Stort badeværelse'});data=sample();card.hass=data;},{layout,width});
     const bounds=await card.evaluate(el=>({width:el.clientWidth,scroll:el.shadowRoot.querySelector('ha-card').scrollWidth,height:el.shadowRoot.querySelector('ha-card').getBoundingClientRect().height,options:el.getGridOptions()}));
     if(bounds.scroll>bounds.width+1)throw Error(`${layout}/${width}: overflow ${JSON.stringify(bounds)}`);
     if(bounds.height>(touch?210:155))throw Error(`${layout}/${width}: oversized ${bounds.height}`);
     if(layout==='rows'&&width>=580&&bounds.height>100)throw Error('Row not horizontal');
+    if(layout==='rows'&&width===2000){
+     const fraction=await card.evaluate(el=>(el.shadowRoot.querySelector('.temperature-reading').getBoundingClientRect().left-el.getBoundingClientRect().left)/el.clientWidth);
+     if(fraction>.65||fraction<.2)throw Error('Wide row still has empty left area');
+    }
     if(bounds.options.columns!==(layout==='rows'?12:6))throw Error('Grid width');
    }
   }
