@@ -1,89 +1,87 @@
-# Vejrstyret SALUS gulvkomfort
+# Enkel SALUS-komfortregel
 
-[Importér regelskabelonen i Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FMichaelBusackBertelsen%2Fhomeassistant_salus%2Fblob%2Ffeature%2Ffloor-dashboard%2Fblueprints%2Fautomation%2Fsalus_floor_weather.yaml)
+**Kræver SALUS v0.9.11b9 eller nyere.** Opdatér integrationen i HACS og genstart
+Home Assistant først.
 
-Bruges med SALUS-betaens Gulvkomfort-entiteter og Home Assistants almindelige
-automationer. SALUS b5 behøver ingen ny installation eller genstart for at
-bruge denne skabelon. Ingen konti, API-nøgler eller eksterne abonnementer tilføjes.
-Vejrdata kommer fra en allerede konfigureret `weather`-entitet og/eller egen
-temperaturføler. En prognoseregel kræver timeprognoser mindst 24 timer frem;
-en ren temperatur-/tidsregel kan bruges alene med en udeføler.
+[Importér den nye komfortregel](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FMichaelBusackBertelsen%2Fhomeassistant_salus%2Fblob%2Ffeature%2Ffloor-dashboard%2Fblueprints%2Fautomation%2Fsalus_comfort_rule.yaml)
 
-## Opret din regel
+## Sådan kommer du i gang
 
-1. Åbn importlinket, vælg din Home Assistant, forhåndsvis og importér skabelonen.
-2. Vælg **Opret automation** og giv den et navn, fx *Gulvkomfort – badeværelser*.
-3. Vælg de Gulvkomfort-entiteter, som skal følge samme regel.
-4. Vælg din vejrudsigt. Vælg eventuelt din egen udeføler til tidsreglen.
-5. Indstil temperaturgrænser, tidsrum og komfortniveauer og gem automationen.
+1. Opdatér til b9 i HACS og genstart Home Assistant.
+2. Åbn importlinket. Hvis My Home Assistant spørger om adressen, angiv din egen
+   Home Assistant-adresse (fx `http://10.210.0.225:8123`) og tryk Gem.
+3. Importér **SALUS – enkel gulvkomfort med slukgrænse og pause**.
+4. Vælg **Opret automation**, giv den et navn, og udfyld formularen.
+5. Deaktivér en eventuel gammel komfortregel for de samme rum. Sæt manuelt
+   aktiverede rum til Fra, og gem den nye automation.
 
-Du kan lave flere automationer med forskellige rumgrupper. Et rum skal kun
-styres af én aktiv vejrregel, så reglerne ikke modarbejder hinanden. Tidsregel
-og døgnregel kan slås til/fra uafhængigt. Begge slået fra sender ingen kommandoer.
-Brug automationens normale tænd/sluk-knap til at sætte al automatisk styring på
-pause; det ændrer ikke det sidst valgte komfortniveau. Mens reglen er aktiv,
-kan en manuel ændring blive erstattet ved næste vurdering.
+Én aktiv regel pr. rum. Du kan lave flere regler til forskellige rumgrupper.
+Indstillingerne ligger under **Indstillinger → Automatiseringer og scener**,
+ikke i rumkortet. Åbn den oprettede automation for at ændre dem.
 
-## Eksempel – værdierne kan ændres i formularen
+## Felterne
 
-| Regel | Temperaturgrundlag | Betingelse | Resultat |
-|---|---|---|---|
-| Døgnregel, førsteprioritet | Højeste timeprognose de næste 24 timer | Alle timer under 5 °C | Niveau 1 hele døgnet |
-| Tidsregel | Valgt udeføler, ellers vejrtjenestens aktuelle temperatur | Under 12 °C og kl. 06–22 | Niveau 1 |
-| Ingen aktiv betingelse | Gyldige nødvendige data | Ingen af reglerne kræver komfort | Fra |
+| Felt | Hvad du vælger |
+|---|---|
+| Temperaturgrundlag | Målt temperatur nu eller den laveste timeprognose i de næste timer. Samme temperaturgrundlag bruges til både tænding og temperaturslukning. |
+| Udeføler eller vejrudsigt | Din eksisterende sensor eller weather-entitet. Prognose kræver timeprognoser. |
+| Se dette antal timer frem | Kun prognose. Fx 12 timer betyder kl. 18–06, hvis klokken nu er 18. Det kan tænde med det samme. |
+| Rum med Gulvkomfort | De komfort-selects, der skal følge reglen. Hvert rum har sin egen timer og pause. |
+| Komfortniveau | Niveau 1, 2 eller 3 ved automatisk start. |
+| Tænd under | Fx 5 °C. Præcis 5 tænder ikke; 4,9 kan tænde. |
+| Brug temperaturgrænse til slukning | Slå fra, hvis du kun vil slukke efter maksimal køretid. |
+| Sluk ved eller over | Fx 7 °C. Skal være højere end tændgrænsen og gælder det valgte temperaturgrundlag. |
+| Brug maksimal køretid | Sluk efter et fast antal timer, også hvis det stadig er koldt. |
+| Maksimal køretid | Fx 4 timer. Tiden regnes fra faktisk kommandostart og forlænges ikke af gentagne vurderinger. |
+| Mindste pause før ny start | Fx 6 timer efter bekræftet Fra. Først derefter må kulden starte en ny kørsel. |
 
-Grænserne er strengt *under*: præcis 5 °C tænder ikke en slukket døgnregel.
-Standardbufferen er 1 °C: allerede aktive rum får en højere slukkegrænse,
-så små temperaturudsving ikke giver gentagne skift. Bufferen beregnes ud fra
-rummets aktuelle aktive komfortniveau, også når tidsreglen hidtil har holdt
-det aktivt. Den er ikke en separat hukommelse for hver delregel.
-Tidsreglen stopper ved sluttidspunktet, medmindre døgnreglen kræver komfort.
-Fx kl. 22–06 virker over midnat; samme start og slut betyder hele døgnet.
-Tider følger Home Assistants lokale tidszone. Temperaturer i °F omregnes til °C.
+Mindst én slukbetingelse skal være slået til. Når begge er til, gælder den første.
+Alle felterne har også forklaringer og eksempler direkte i formularen.
 
-## Data, opdatering og fejl
+## Eksempel
 
-Reglen vurderes hvert kvarter, ved start- og sluttidspunktet og ved Home
-Assistant-start. Den henter timeprognoser med den almindelige
-[`weather.get_forecasts`](https://www.home-assistant.io/actions/weather.get_forecasts/)
-handling, kun når døgnreglen er aktiveret. Den læser ALLE relevante
-temperaturer, ikke minimumstemperaturen. Den kræver mindst 24 forskellige
-tidspunkter i horisonten, første punkt senest om en time, sidste punkt mindst
-23 timer frem og højst en time mellem punkterne. Det er prognosens timeværdier,
-ikke en garanti for den faktiske temperatur mellem opdateringer.
+Tænd under **5 °C**, sluk ved **7 °C**, højst **4 timer**, pause **6 timer**:
 
-En aktiv døgnregel med manglende, ugyldige, for korte eller fejlede prognoser
-sender ingen ændringer. En manglende valgt udeføler erstattes ikke lydløst af
-vejrtjenesten: tidsreglen bevarer niveauet, når den behøver en temperatur.
-Uden for tidsrummet kan tidsreglen slukke uden temperaturmåling, og en gyldig
-døgnprognose kan tænde uafhængigt af føleren. Vejrtjenestens tilgængelighed og
-prognosens tidspunkter kontrolleres; udbyderens interne udstedelsestid eller
-følerens fysiske målekvalitet kan skabelonen ikke verificere.
+- Kl. 18: temperaturgrundlaget er 4 °C → Niveau 1.
+- Stiger grundlaget til 7 °C kl. 20, slukkes dér. Ellers senest omkring kl. 22.
+- Ved bekræftet Fra kl. 22 kan kulden tidligst tænde igen kl. 04.
 
-En manglende entitet eller en `unavailable`/`unknown` Gulvkomfort-entitet
-springes over. Uændrede niveauer sender ingen kommando. Skift går gennem
-SALUS-integrationens eksisterende backup og fulde kontrol af tilbagemeldingen.
-En skrivefejl stopper den pågældende kørsel uden automatisk genafsendelse eller
-tilbagerulning; næste planlagte vurdering bruger de normale sikkerhedstjek.
-Reglen overtager ikke fejlbehandling eller backup fra SALUS-klienten.
+Der er hverken separat tidsregel eller døgnregel. Ved prognose kan en kold time
+i den valgte horisont tænde komforten før kulden. Prognoser hentes højst hvert
+kvarter, og den fremadrettede minimumsværdi vurderes hvert minut.
 
-Se automationens **Sporinger** for data og stopårsag ved fejl.
-Skabelonopdateringer hentes separat gennem Home Assistants blueprintfunktion;
-en HACS-opdatering ændrer ikke en allerede importeret skabelon.
+## Genstart, manuelle ændringer og fejl
 
-## Betabegrænsning
+Køretid og pause gemmes automatisk. En genstart starter ikke timerne forfra,
+og der kræves ingen ekstra hjælpere. Mens HA er slukket, kan det ikke styre
+termostaten; en overskredet frist behandles, når HA og enheden er tilgængelige.
 
-Den nuværende SALUS-beta understøtter fortsat kun den afprøvede termostatprofil
-og stopper sikkert, når konfigurationstælleren når 255. Tælleroverløb er endnu
-ikke dokumenteret eller afprøvet. Automatiske regler kan derfor endnu ikke
-betragtes som en løsning til ubegrænset drift. Skabelonen ophæver ikke denne
-grænse; flere gentagne kørselstjek er ikke flere skrivninger, når niveauet
-allerede er korrekt. Håndtering af tællergrænsen kræver særskilt protokolarbejde.
+Fra slukker kun Gulvkomfort. Rummets normale ønskede temperatur ændres ikke.
+Et manuelt ændret niveau respekteres og starter pausen; et rum med manuelt
+tændt komfort overtages ikke automatisk. En ny automatisk start kræver Fra.
+En manuel ændring til samme niveau kan ikke skelnes fra det eksisterende niveau.
 
-## Verifikation
+Slukker du automationen, forhindrer det nye starter. En allerede startet
+**maksimal køretid gælder stadig**. Uden maksimal køretid stopper en deaktiveret
+automation med at vurdere varmegrænsen; sæt selv Gulvkomfort til Fra ved behov.
 
-Skabelonen parses med Home Assistants blueprintparser, og handlingerne køres
-i den rigtige scriptmotor med simulerede vejrdata og servicekald. Prøverne
-ændrer ingen Home Assistant-installation, gateway eller termostat. Komplet
-gennemgang af importformularen med brugerens konkrete vejrudbyder skal stadig
-foretages ved opsætning.
+Manglende/ugyldig temperatur tænder ikke og udløser ikke temperaturslukning.
+Maksimal køretid kræver ingen vejrdata. Prognose kræver tilstrækkeligt mange
+gyldige timepunkter i hele horisonten. Dataudbyderens faktiske målekvalitet eller
+interne udstedelsestid kan reglen ikke kontrollere.
+
+En utilgængelig enhed kan ikke garanteres slukket til tiden. Hvis en kommando
+ikke kan bekræftes, gentages den ikke automatisk. Se **Indstillinger → System →
+Reparationer**, kontrollér niveauet i SALUS, sæt komfort til Fra, og brug
+handlingen **SALUS: Nulstil blokeret Gulvkomfort-regel** med automationen valgt.
+Det starter en ny pause uden nye termostatkommandoer.
+
+## Betabegrænsning og gammel skabelon
+
+SALUS-klientens konfigurationstæller stopper stadig sikkert ved 255. Overløb
+er ikke dokumenteret eller afprøvet. Denne beta er derfor endnu ikke valideret
+til ubegrænset automatisk drift. Uændrede niveauer giver ingen nye skrivninger.
+
+Den [tidligere vejrskabelon med tidsregel og døgnregel](LEGACY-WEATHER.md) er
+bevaret til eksisterende installationer. Den ændres ikke af denne udgivelse.
+Den nye formular importeres separat; HACS ændrer ikke dine eksisterende regler.

@@ -1,4 +1,33 @@
-# SALUS beta 0.9.11b8
+# SALUS beta 0.9.11b9
+
+## New in b9: one simple comfort rule
+
+Install **v0.9.11b9 in HACS and restart Home Assistant**, then follow
+[the Danish setup guide and new blueprint import link](blueprints/README.md).
+The blueprint is named **SALUS – enkel gulvkomfort med slukgrænse og pause**.
+It replaces the separate schedule/day-rule setup for new automations.
+Existing imported blueprints are left intact; disable an old rule before
+enabling the new rule for the same rooms.
+
+Choose an outdoor sensor/current weather temperature or a rolling forecast
+minimum, rooms, level, start threshold, optional warmer stop threshold, optional
+maximum runtime, and minimum restart pause. Every field explains its purpose.
+At least one stopping condition is required. When both are selected, the first
+one wins. No manually created helpers are needed. The original runtime deadline
+and per-room pause are saved before commands; restarts do not extend them.
+
+Only floor comfort changes; normal climate control continues. Manually changed
+levels are respected and already-active manual comfort is not adopted. A missing
+temperature cannot start a room. Maximum runtime still applies if the automation
+is disabled or weather fails. Offline thermostats cannot be guaranteed to switch
+off at a deadline; overdue rooms are checked when available. An uncertain command
+is not automatically replayed and creates a repair issue. Set the room to Off
+and use **Nulstil blokeret Gulvkomfort-regel** after checking the actual setting.
+
+The new controller uses the existing select backup/read-back path. This release
+was tested with simulated services and clocks; no real thermostat test writes
+were performed. The counter-255 beta restriction remains. Card version 1.3.1
+and the existing dashboard layout are unchanged.
 
 ## New in b8: rooms without floor comfort
 

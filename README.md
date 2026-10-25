@@ -1,12 +1,13 @@
-> **Fork beta 0.9.11b8:** includes the auto-loaded **SALUS rumkort** card,
+> **Fork beta 0.9.11b9:** includes the auto-loaded **SALUS rumkort** card,
 > graphical editor, click-only temperature/heat-demand history, enabled floor
 > entities and reviewed command/backup handling. [Install and use](BETA-INSTALL.md).
 > Floor-comfort counter rollover remains unsupported.
 
-> **Weather comfort rules:** [Import and configure the standard automation blueprint](blueprints/README.md)
-> for outdoor-temperature schedules and continuous comfort when every hourly
-> forecast in the next 24 hours stays below your threshold. Works with the
-> existing beta; importing a rule does not require an integration restart.
+> **Simple comfort rule (b9):** [Import and configure one rule](blueprints/README.md)
+> using measured outdoor temperature or the forecast minimum, an optional warm
+> stop threshold, maximum runtime and a minimum restart pause. Timers persist
+> across Home Assistant restarts. Install b9 and restart before importing.
+
 
 
 # Salus iT600 for Home Assistant

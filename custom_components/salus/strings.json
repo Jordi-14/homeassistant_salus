@@ -65,6 +65,10 @@
     "gateway_unavailable": {
       "title": "Salus Gateway is unavailable",
       "description": "Home Assistant could not reach the Salus Gateway at {host}. Check that the gateway is powered on, the IP address is still correct, and Local WiFi Mode is enabled in the Salus app. If the EUID printed on the gateway does not work, try 0000000000000000."
+    },
+    "comfort_command_uncertain": {
+      "title": "Floor-comfort command needs confirmation",
+      "description": "The comfort command for {entity} could not be confirmed. Automatic replay is blocked. Check the actual level, set floor comfort to Off, then use the reset comfort rule action. Normal room-temperature control is unchanged."
     }
   },
   "entity": {
@@ -144,6 +148,72 @@
       },
       "temperature_calibration": {
         "name": "Temperature calibration"
+      }
+    }
+  },
+  "services": {
+    "evaluate_comfort_rule": {
+      "name": "Vurdér Gulvkomfort-regel",
+      "description": "Vurderer én samlet komfortregel med gemt køretid og pause. Brug normalt blueprintfunktionen til opsætning.",
+      "fields": {
+        "rule_id": {
+          "name": "Automation",
+          "description": "Automationens entitets-id. Blueprintfunktionen udfylder dette automatisk."
+        },
+        "source_mode": {
+          "name": "Temperaturgrundlag",
+          "description": "Målt temperatur bruger udefølerens værdi eller vejrtjenestens aktuelle temperatur. Prognose bruger den laveste forventede temperatur i de næste valgte timer. Den valgte værdi bruges både til tænd- og slukgrænsen. Prognose kan derfor tænde, før kulden er kommet."
+        },
+        "source": {
+          "name": "Udeføler eller vejrudsigt",
+          "description": "Vælg din eksisterende udendørs temperaturføler eller vejrtjeneste. Prognose kræver en weather-entitet med timeprognoser. En utilgængelig kilde tænder aldrig komforten og udløser ikke temperaturbaseret slukning; maksimal køretid gælder stadig. Celsius og Fahrenheit omregnes automatisk."
+        },
+        "forecast_hours": {
+          "name": "Se dette antal timer frem (kun prognose)",
+          "description": "Fx 12 timer: kl. 18 undersøges kl. 18–06, og komforten må tænde med det samme, hvis en time forventes under tændgrænsen. Dette er et rullende kig fremad, ikke et fast natligt tidsrum. Feltet ignoreres ved målt temperatur. Værdierne vurderes igen løbende; prognoser hentes højst hvert kvarter."
+        },
+        "floor_entities": {
+          "name": "Rum med Gulvkomfort",
+          "description": "Vælg de Gulvkomfort-entiteter, der skal følge reglen. Hvert rum har sin egen køretid og pause, så et utilgængeligt rum ikke får et andet rums starttid. Sæt manuelt aktiveret komfort til Fra før første brug. Rum uden Gulvkomfort kan ikke vælges."
+        },
+        "level": {
+          "name": "Komfortniveau ved start",
+          "description": "Niveau 1–3 bruges, når reglen tænder et rum. Rummets ønskede temperatur ændres ikke. Hvis du manuelt ændrer niveau eller slukker under en kørsel, overlader reglen styringen til dig og starter minimumspausen."
+        },
+        "start_below": {
+          "name": "Tænd under",
+          "description": "Komforten må tænde, når temperaturgrundlaget er lavere end denne grænse, rummet står på Fra, og pausen er udløbet. Fx 5 °C: præcis 5 °C tænder ikke; 4,9 °C kan tænde. Grænsen angives altid i Celsius."
+        },
+        "use_stop_temperature": {
+          "name": "Brug temperaturgrænse til slukning",
+          "description": "Slå til for at slukke ved grænsen nedenfor. Slå fra, hvis komforten kun skal slukkes af maksimal køretid. Mindst én slukbetingelse skal være til. Når begge er til, gælder den, der indtræffer først."
+        },
+        "stop_at": {
+          "name": "Sluk ved eller over",
+          "description": "Fx tænd under 5 °C og sluk ved 7 °C. Afstanden forebygger gentagne skift ved små udsving. Skal være højere end tændgrænsen. Ved prognose gælder grænsen prognosens laveste temperatur, ikke kun temperaturen lige nu. Feltet ignoreres, hvis temperaturslukning er slået fra."
+        },
+        "use_max_runtime": {
+          "name": "Brug maksimal køretid",
+          "description": "Slå til for at sætte Gulvkomfort til Fra efter det valgte antal timer, selv om det stadig er koldt, eller vejrtjenesten er utilgængelig. Slå fra for kun at bruge temperaturbaseret slukning."
+        },
+        "max_runtime_hours": {
+          "name": "Maksimal køretid",
+          "description": "Fx 4 timer: et rum, der tændes kl. 18, får slukkommando senest omkring kl. 22, medmindre varmegrænsen nås tidligere. Tiden gemmes ved start og forlænges ikke af gentagne regelkørsler eller genstart. 0,5 time er 30 minutter. Feltet ignoreres, hvis maksimal køretid er slået fra."
+        },
+        "cooldown_hours": {
+          "name": "Mindste pause før ny start",
+          "description": "Fx 6 timer: når Fra er bekræftet kl. 22, kan reglen tidligst tænde igen kl. 04, og kun hvis det stadig er koldt nok. Gælder uanset slukårsag. Pausen tælles fra bekræftet slukning, gemmes over genstart, og nul betyder ingen ekstra pause. En manuel niveauændring giver også en pause; reglen starter først automatisk igen, når rummet står på Fra."
+        }
+      }
+    },
+    "reset_comfort_rule": {
+      "name": "Nulstil blokeret Gulvkomfort-regel",
+      "description": "Kræver bekræftet Fra på alle regelstyrede rum. Fjerner usikker kommandostatus og begynder en ny minimumspause uden at skrive til termostaterne.",
+      "fields": {
+        "rule_id": {
+          "name": "Automation",
+          "description": "Automationens entitets-id. Blueprintfunktionen udfylder dette automatisk."
+        }
       }
     }
   }
