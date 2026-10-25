@@ -3,6 +3,11 @@
 > entities and reviewed command/backup handling. [Install and use](BETA-INSTALL.md).
 > Floor-comfort counter rollover remains unsupported.
 
+> **Weather comfort rules:** [Import and configure the standard automation blueprint](blueprints/README.md)
+> for outdoor-temperature schedules and continuous comfort when every hourly
+> forecast in the next 24 hours stays below your threshold. Works with the
+> existing beta; importing a rule does not require an integration restart.
+
 
 # Salus iT600 for Home Assistant
 
