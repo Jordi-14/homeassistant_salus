@@ -33,10 +33,20 @@ CONFIG = {"rule_id": "automation.rule", "floor_entities": ["select.room"], "sour
 
 
 @pytest.fixture
-async def env(tmp_path):
+def rule_hass(request):
+    """Use the complete HA registry setup in CI and an isolated local fallback."""
+    try:
+        return request.getfixturevalue("hass")
+    except pytest.FixtureLookupError:
+        return None
+
+
+@pytest.fixture
+async def env(rule_hass, tmp_path):
     with freeze_time(NOW, real_asyncio=True) as clock:
-        hass = HomeAssistant(str(tmp_path))
-        await er.async_get(hass).async_load()
+        hass = rule_hass or HomeAssistant(str(tmp_path))
+        if not hasattr(er.async_get(hass), "entities"):
+            await er.async_get(hass).async_load()
         entry = er.async_get(hass).async_get_or_create("select", "salus", "test_comfort_warm_floor", suggested_object_id="room")
         assert entry.entity_id == "select.room"
         hass.states.async_set("select.room", "off", {"options": OPTIONS})
