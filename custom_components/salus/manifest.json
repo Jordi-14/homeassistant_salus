@@ -6,7 +6,8 @@
   ],
   "config_flow": true,
   "dependencies": [
-    "frontend"
+    "frontend",
+    "http"
   ],
   "documentation": "https://github.com/MichaelBusackBertelsen/homeassistant_salus/blob/feature/floor-dashboard/BETA-INSTALL.md",
   "integration_type": "hub",

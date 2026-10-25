@@ -48,4 +48,4 @@ def test_hacs_archive_includes_the_bundled_card_and_visual_editor(tmp_path):
         assert "getConfigElement" in content
         assert "salus-room-card-editor" in content
         assert "SALUS rumkort" in content
-        assert json.loads(archive.read("manifest.json"))["dependencies"] == ["frontend"]
+        assert json.loads(archive.read("manifest.json"))["dependencies"] == ["frontend", "http"]
