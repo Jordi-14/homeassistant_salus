@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from hashlib import sha256
+import logging
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import EntityCategory
@@ -13,10 +14,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import SalusConfigEntry, SalusDataUpdateCoordinator
 from .entity import SalusEntity, async_setup_salus_platform_entities
-from .floor_backup import persist_floor_backup
+from .floor_backup import mark_floor_backup_confirmed, persist_floor_backup
 
 PARALLEL_UPDATES = 1
 _OPTIONS = ("off", "level_1", "level_2", "level_3")
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -74,17 +76,22 @@ class SalusComfortWarmFloorSelect(SalusEntity, SelectEntity):
         if not self.available:
             raise ServiceValidationError("Comfort Warm Floor control is unavailable")
 
+        backup_path: str | None = None
+
         async def save_backup(snapshot: dict) -> None:
+            nonlocal backup_path
             key = sha256(self._device_id.encode()).hexdigest()[:24]
+            backup_path = self.hass.config.path(".storage", f"salus_floor_backup_{key}.json")
             try:
                 await self.hass.async_add_executor_job(persist_floor_backup,
-                    self.hass.config.path(".storage", f"salus_floor_backup_{key}.json"), {
+                    backup_path, {
                     "saved_at": datetime.now(UTC).isoformat(),
+                    "pending": True,
                     "requested_level": _OPTIONS.index(option),
                     "before": snapshot,
                 })
             except Exception as error:
-                raise HomeAssistantError("Floor-comfort backup failed; no command was sent") from error
+                raise HomeAssistantError(f"Floor-comfort backup failed; no command was sent: {error}") from error
 
         try:
             await self._async_run_gateway_command(
@@ -101,4 +108,11 @@ class SalusComfortWarmFloorSelect(SalusEntity, SelectEntity):
             # A lost reply may follow an applied command. Refresh, never replay.
             await self.coordinator.async_request_debounced_refresh()
             raise
+        if backup_path is not None:
+            try:
+                await self.hass.async_add_executor_job(mark_floor_backup_confirmed, backup_path)
+            except Exception:
+                # The command is confirmed. Retain the pending journal rather
+                # than suggesting a retry of an already applied command.
+                _LOGGER.exception("Floor comfort was confirmed but its backup journal could not be finalized")
         await self.coordinator.async_request_debounced_refresh()

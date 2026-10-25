@@ -5,8 +5,10 @@
     "@MichaelBusackBertelsen"
   ],
   "config_flow": true,
-  "dependencies": [],
-  "documentation": "https://github.com/MichaelBusackBertelsen/homeassistant_salus/blob/feature/comfort-warm-floor-beta/BETA-INSTALL.md",
+  "dependencies": [
+    "frontend"
+  ],
+  "documentation": "https://github.com/MichaelBusackBertelsen/homeassistant_salus/blob/feature/floor-dashboard/BETA-INSTALL.md",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/MichaelBusackBertelsen/homeassistant_salus/issues",
@@ -14,7 +16,7 @@
     "salus_it600"
   ],
   "requirements": [
-    "salus-it600-client@https://github.com/MichaelBusackBertelsen/salus-it600-client/releases/download/floor-beta-2/salus_it600_client-0.7.0b2.dev20261024%2Bfloor2-py3-none-any.whl#sha256=62d8a2c3ed2f581e122a5de2ffcacf0c38f5b48339dd8ada7fee9bdb21eca754"
+    "salus-it600-client@https://github.com/MichaelBusackBertelsen/salus-it600-client/releases/download/floor-beta-3/salus_it600_client-0.7.0b2.dev20261025%2Bfloor3-py3-none-any.whl#sha256=f973b54dc773a9176157d3e8748233d32c0715c10289faeabac0961c49bb2d0a"
   ],
-  "version": "0.9.11b3"
+  "version": "0.9.11b4"
 }

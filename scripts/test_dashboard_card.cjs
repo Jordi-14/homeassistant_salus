@@ -8,7 +8,7 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
  const page=await browser.newPage({viewport:{width:1024,height:1000},colorScheme:'dark'});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setContent(`<style>body{margin:20px;background:#111416;color:#f1f2f2;font-family:Segoe UI,sans-serif;--primary-text-color:#f1f2f2;--secondary-text-color:#a8b0b5;--ha-card-background:#1c2023;--divider-color:#303639;--secondary-background-color:#252b2e}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:16px}</style><main></main>`);
- await page.addScriptTag({path:path.join(root,'dashboard/www/salus-dashboard/salus-room-card.js')});
+ await page.addScriptTag({path:path.join(root,'custom_components/salus/frontend/salus-room-card.js')});
  await page.evaluate(()=>{
   window.calls=[];
   window.sample=()=>({language:'da',config:{unit_system:{temperature:'°C'}},states:{
@@ -90,6 +90,63 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
   await page.evaluate(()=>{data=sample();data.states['select.test'].attributes.options=['off','level_1'];card.hass=data;});
   if(!await card.locator('[data-level="3"]').isDisabled())throw Error('Unsupported option');
  });
+ await check('Bundled card picker, graphical editor and same-device pairing',async()=>{
+  await page.evaluate(()=>{
+   data=sample();
+   data.entities={'climate.test':{device_id:'one'},'select.test':{device_id:'one'},'climate.other':{device_id:'two'},'select.other':{device_id:'two'}};
+   data.states['climate.other']={...data.states['climate.test'],attributes:{...data.states['climate.test'].attributes,friendly_name:'Kontor'}};
+   data.states['select.other']={...data.states['select.test'],attributes:{...data.states['select.test'].attributes,friendly_name:'Kontor gulvkomfort'}};
+   const kind=customElements.get('salus-room-card');
+   window.stub=kind.getStubConfig(data,['climate.test'],[]);
+   window.editor=kind.getConfigElement();
+   editor.setConfig({type:'custom:salus-room-card',...stub});editor.hass=data;
+   window.editorConfig=null;editor.addEventListener('config-changed',event=>window.editorConfig=event.detail.config);
+   document.body.append(editor);
+  });
+  if(await page.evaluate(()=>stub.comfort)!=='select.test')throw Error('Default pairing');
+  const editor=page.locator('salus-room-card-editor');
+  await editor.locator('#climate').selectOption('climate.other');
+  const config=await page.evaluate(()=>editorConfig);
+  if(config.comfort!=='select.other'||config.type!=='custom:salus-room-card')throw Error('Editor pairing');
+  await editor.locator('#name').fill('Mit kontor');await editor.locator('#name').dispatchEvent('change');
+  if(await page.evaluate(()=>editorConfig.name)!=='Mit kontor')throw Error('Editor name');
+  if(!await page.evaluate(()=>customCards.some(card=>card.type==='salus-room-card'&&card.name==='SALUS rumkort')))throw Error('Picker metadata');
+  await page.evaluate(()=>editor.remove());
+ });
+ await check('History fetch is click-only, attribute-complete and read-only',async()=>{
+  await page.evaluate(()=>{
+   card.setConfig({climate:'climate.test',comfort:'select.test',name:'Stuen'});data=sample();window.historyCalls=[];
+   const now=Date.now();
+   const item=(hours,temp,action,state='heat')=>({entity_id:'climate.test',state,last_changed:new Date(now-5*3600000).toISOString(),last_updated:new Date(now-hours*3600000).toISOString(),attributes:{current_temperature:temp,temperature:22,hvac_action:action}});
+   window.historyRows=[[item(5,20.5,'heating'),item(3,21.5,'idle'),item(2,21.5,'heating','unavailable'),item(1,22,'idle')]];
+   data.callApi=async(...args)=>{historyCalls.push(args);return historyRows;};card.hass=data;
+  });
+  if(await page.evaluate(()=>historyCalls.length)!==0)throw Error('Eager history');
+  await card.locator('#history-toggle').click();
+  await card.locator('#history-chart').waitFor({state:'visible'});
+  const request=await page.evaluate(()=>historyCalls[0]);
+  if(request[0]!=='GET'||!request[1].includes('filter_entity_id=climate.test')||!request[1].includes('significant_changes_only=0'))throw Error('History request');
+  if(await card.locator('.actual-line').count()!==1||await card.locator('.heat-band').count()!==1)throw Error('History series');
+  if(await card.locator('.unknown-band').count()<1)throw Error('Offline heat assumed active');
+  await card.locator('#history-toggle').click();
+  if(await card.locator('#history').isVisible())throw Error('History did not collapse');
+  await page.evaluate(()=>{for(let i=0;i<5;i++)card.hass=data;});
+  if(await page.evaluate(()=>historyCalls.length)!==1)throw Error('Background history request');
+  await card.locator('#history-toggle').click();
+  if(await page.evaluate(()=>historyCalls.length)!==1)throw Error('No history cache');
+  await card.locator('#history-refresh').click();
+  if(await page.evaluate(()=>historyCalls.length)!==2)throw Error('Explicit refresh missing');
+ });
+ await check('History errors do not break controls or retry in the background',async()=>{
+  await page.evaluate(()=>{data.callApi=async(...args)=>{historyCalls.push(args);throw Error('Recorder unavailable');};card.hass=data;});
+  await card.locator('#history-refresh').click();
+  if(!await card.locator('#history-message').textContent().then(t=>t.includes('kunne ikke hentes')))throw Error('History error hidden');
+  const count=await page.evaluate(()=>historyCalls.length);
+  await page.evaluate(()=>{card.hass=data;card.hass=data;});
+  if(await page.evaluate(()=>historyCalls.length)!==count)throw Error('History auto retry');
+  if(await card.locator('#plus').isDisabled())throw Error('History error disabled controls');
+  await card.locator('#history-toggle').click();
+ });
  await check('Seven room cards and responsive layouts',async()=>{
   await page.evaluate(()=>{
    card.setConfig({climate:'climate.test',comfort:'select.test',name:'Stuen',icon:'mdi:sofa-outline'});data=sample();card.hass=data;
@@ -109,7 +166,7 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
  await page.setViewportSize({width:1024,height:1100});
  await page.screenshot({path:path.join(output,'dashboard-preview.png'),fullPage:true});
  if(errors.length)throw Error(errors.join('\n'));
- const report={passed:checks.length,checks,limitations:['Browser test uses simulated Home Assistant entities and services.','No running Home Assistant or gateway settings changed.','Entity IDs still need to be mapped to the user installation.']};
+ const report={passed:checks.length,checks,limitations:['Browser test uses simulated Home Assistant entities and services.','No running Home Assistant or gateway settings changed.','Card picker and graphical editor tested with simulated registry device links.']};
  fs.writeFileSync(path.join(output,'testresultater.json'),JSON.stringify(report,null,2));
  console.log(JSON.stringify(report));
  await browser.close();

@@ -1,7 +1,8 @@
-> **Fork beta 0.9.11b3:** installation, rollback and limitations are in
-> [BETA-INSTALL.md](BETA-INSTALL.md). Uses a checksum-pinned fork client wheel.
-> Hardware evidence ends at counter 35; the beta permits non-wrapping counters
-> up to 255 using the upstream formula and stops at 255. No rollover support.
+> **Fork beta 0.9.11b4:** includes the auto-loaded **SALUS rumkort** card,
+> graphical editor, click-only temperature/heat-demand history, enabled floor
+> entities and reviewed command/backup handling. [Install and use](BETA-INSTALL.md).
+> Floor-comfort counter rollover remains unsupported.
+
 
 # Salus iT600 for Home Assistant
 
@@ -80,7 +81,7 @@ One lock entity per thermostat that supports child lock. Allows **locking/unlock
 
 An experimental **Comfort warm floor** select offers Off and levels 1/2/3 for
 devices explicitly enabled by the matching client feature branch. The entity
-is disabled by default; enable it in the device's entity settings for testing.
+is enabled by default for supported devices.
 Its value follows the gateway's reported configuration, which may take tens
 of seconds to update after a command. It does not report optimistic success.
 

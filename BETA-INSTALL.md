@@ -1,102 +1,97 @@
-# Floor Comfort beta 0.9.11b3
+# SALUS beta 0.9.11b4
 
-This fork beta adds the Off / Level 1 / Level 2 / Level 3 configuration select.
-It replaces the code in `custom_components/salus`; do not run two integrations
-with the `salus` domain or let two HACS repositories manage that directory.
-Do not delete the configured Salus integration, its devices or its entity registry.
+## Update and add your own room cards
 
-## Before installation
+1. Keep a full Home Assistant backup and the previous working release.
+2. In HACS, open MichaelBusackBertelsen/homeassistant_salus and download
+   **v0.9.11b4** from the prerelease/version picker. Keep your configured
+   Salus integration and existing devices. Restart Home Assistant.
+3. Reload the browser or Home Assistant app so the bundled frontend module loads.
+4. Open your own dashboard, choose Edit -> Add card, and search for
+   **SALUS rumkort**. Choose a thermostat in the graphical editor. The matching
+   floor-comfort select is chosen by registry device ID when available; it can
+   also be chosen explicitly. Room title and icon are optional.
+5. Repeat for the rooms you want. The card follows the dashboard theme and
+   responsive sections layout. No separate frontend package, www file copying,
+   manual resource registration or entity-ID list is needed for normal setup.
 
-1. Record your Home Assistant version, current SALUS repository and installed
-   version. This beta's Linux test matrix covers HA 2024.11.0, 2026.5.4 and
-   2026.9.4 and 2026.10.3. Compatibility with an unknown installed fork is not established.
-2. Create and download a full Home Assistant backup that includes configuration.
-   Separately copy the entire existing `custom_components/salus` directory to a
-   folder outside `custom_components` and record the existing manifest version.
-3. Save gateway connection details privately. Do not upload `.storage`, raw
-   gateway captures or Home Assistant backups to GitHub.
+The card shows current temperature, humidity, desired temperature and floor
+comfort Off/1/2/3. It uses Home Assistant's normal climate and select actions.
+Existing dashboards are not replaced and no thermostat command is sent by
+installing the integration, activating an entity, or rendering a card.
 
-## HACS installation
+## Click-only history
 
-1. Add `https://github.com/MichaelBusackBertelsen/homeassistant_salus` as a custom
-   repository, category **Integration**.
-2. If another HACS repository already manages Salus, resolve that ownership
-   before downloading this fork. Keep your configured integration and registry;
-   do not uninstall blindly. Manual installation below avoids that ambiguity.
-3. On the repository download/version screen enable prerelease/beta versions,
-   select **v0.9.11b3**, and download. The release asset is `salus.zip`.
-   Do not select the default branch, which does not contain this beta.
-4. Restart Home Assistant once. The manifest installs the checksum-pinned fork
-   client wheel automatically; no Python/Git installation or manual library edits
-   are needed. Internet access to the public GitHub release is required.
-5. Check the existing thermostat entities and Home Assistant logs first. Enable
-   only Hall's disabled **Comfort Warm Floor / Gulvkomfort** entity under the
-   device's entities. Test one change and compare the app, then enable other rooms.
-   Do not edit the same thermostat in the app during a Home Assistant command.
+Click the card background or its arrow to expand six hours of temperature,
+desired temperature and thermostat-reported heat demand. History is fetched
+only after opening it, for that one climate entity, with attribute changes
+included. Requests use the authenticated Home Assistant connection.
 
-HACS instructions follow https://www.hacs.xyz/docs/publish/integration/ and
-https://www.hacs.xyz/docs/faq/custom_repositories/ . UI labels may vary by HACS version.
+The heat band uses `hvac_action == heating`; it is not inferred from a
+setpoint/current-temperature difference and is not a separate boiler measurement.
+Offline or absent action data is marked unknown. Hover/touch the graph for
+values. Closing it starts no background polling. Reopening uses a short cache;
+Opdater explicitly fetches fresh history. HA History/Recorder must retain the
+climate entity. Temperature override sensors in advanced YAML do not replace
+the climate source used by this history graph.
 
-## Manual installation
+## Automatically enabled floor-comfort entities
 
-Download the release's `salus.zip`. Extract its contents into
-`/config/custom_components/salus/` (manifest.json must be directly in that
-folder). Replace the previous integration directory completely after making the
-backup; merging files can leave obsolete modules behind. Restart Home Assistant
-and follow step 5 above. Never extract the ZIP directly into `custom_components`
-or create a nested `salus/salus` directory.
+Supported floor selects are enabled by default. Existing floor selects disabled
+by the integration's original default are enabled before platform setup.
+Explicit user disables, unrelated diagnostic entities, unsupported profiles
+and other gateway entries are preserved. This enables the HA entity and does
+not change the thermostat's comfort level.
 
-## Backups, confirmation and error handling
+## Write safeguards and reviewed fixes
 
-Every actual write first saves the complete fresh device snapshot to a private
-atomic private file named `.storage/salus_floor_backup_<hash>.json`. This is
-**the latest pre-write snapshot per thermostat**, not an unlimited history or a
-full Home Assistant backup. Storage failure prevents the command.
+A fresh backup is atomically written, fsynced and checked from disk before an
+actual floor-comfort write. The latest pre-write journal for each thermostat
+is kept privately in `.storage/salus_floor_backup_<hash>.json`. A backup error
+prevents dispatch. The journal marks a new write pending before dispatch and
+is finalized only after exact read-back. Pending journals survive restart;
+they cannot be overwritten by another command until exact fresh state resolves
+the original outcome. Journals from earlier beta versions are still readable.
 
-The client sends a command at most once, then checks exact reported settings and
-successful echo for up to 120 seconds. The entity displays reported state only.
-A lost reply is resolved by reading, not replaying. If other settings changed,
-the command times out or a result is unrecognized, it reports an error and
-retains the backup. It does not blindly write an old snapshot back. A previous
-comfort level may be restored only using fresh validated state and a new counter.
-There is no automatic restore service in this first beta.
+The client sends at most once and verifies the complete expected settings.
+A lost response triggers reading, not replay. An observed shared `B34L`
+response no longer incorrectly blocks all future changes: it requires two
+unchanged fresh settings reads before dispatch. Unknown or newer settings
+responses remain blocked. The undocumented meaning of B34L is not assumed.
+Unrelated edits or unexpected results preserve the backup for review.
+There is no blind automatic rollback or replay-backup action.
 
-## Scope and remaining limitation
+The code review also tightened finite numeric inputs/readings, validated
+rounded setpoints against actual limits, made hex-alias comparison independent
+of letter case and added a read-only fallback for an incomplete preferred
+advanced-settings alias. Writer alias checks remain strict.
 
-Only SQ610RFNH firmware `00000054`, heating mode, a paired underfloor wiring
-centre, no TRVs, matching known settings aliases/tail and the observed no-PIN
-encoding are enabled. This does not make arbitrary SQ610 settings writable.
+## Verified scope and unfinished protocol work
 
-77 real writes have been confirmed, including the 75-write trial and the two
-subsequent requested changes. Hardware evidence reaches counter **35**. The
-beta uses PR54's sequence equations for current counter 0..254 / next 1..255.
-Counters **36..255 are source-derived and untested on hardware**. Exhaustive
-encoding tests do not prove device acceptance in that range.
+Floor-comfort writes remain restricted to SQ610RFNH firmware 00000054, heating
+mode, a paired underfloor wiring centre, no TRVs and the validated no-PIN format.
+75-write trial vectors and subsequent manual changes/read captures support the
+implementation. The full counter range is not hardware-proven. The beta uses
+the upstream non-wrapping equations through 255 and stops there; counter reset,
+rollover, arbitrary PIN encodings and other firmware are unsupported.
 
-At counter 255 the select becomes unavailable to prevent an untested rollover.
-The beta never resets/wraps the counter. PIN variants, rollover and other firmware
-are unfinished. Use the vendor app for unsupported states; do not change counters
-or remove validation as a workaround. This beta is not a complete daily-use release.
+The test matrix covers HA 2024.11.0, 2026.5.4, 2026.9.4 and the user's 2026.10.3.
+Browser tests use simulated HA states/services; the release is not automatically
+installed on the user's running instance. No physical setting changes are made
+during this review. Installations on untested releases still require checking.
 
-## Return to your previous integration
+## Return to the previous beta
 
-1. Keep the recorded previous version and folder backup. Stop any automation
-   using the new select and restore its previous comfort level through fresh
-   validated state if desired; restoring integration code does not change the
-   thermostat's current comfort level.
-2. Reinstall the exact recorded release from the previous HACS repository, or
-   replace `/config/custom_components/salus/` with the backed-up directory.
-3. Restart Home Assistant. The old manifest restores its own dependency pin.
-   Verify the existing entities and logs. Do not delete the config entry.
-4. If configuration or registry changed unexpectedly, restore the full Home
-   Assistant backup. Keep the new select disabled while investigating.
+Reinstall the recorded working release in HACS and restart Home Assistant.
+Keep the config entry and entity registry. Reload the browser. If any manually
+configured room cards are not supported by that older version, remove them
+from your dashboard. Code rollback does not change thermostat settings.
+Restore your full HA backup if configuration/registry recovery is needed.
 
-No running Home Assistant was changed while preparing this release.
+## References
 
-## Beta 0.9.11b3 fix
-
-The select retains its last reported value while a command from the vendor app
-is pending. An in-flight command is a temporary write restriction, not an
-offline device. New writes still validate fresh state and refuse a pending or
-unrecognized command echo. The existing entity IDs and opt-in choices are
-unchanged; update the installed fork to v0.9.11b3 and restart Home Assistant.
+- https://contributors.home-assistant.io/frontend/custom-ui/card/
+- https://contributors.home-assistant.io/frontend/custom-ui/card-editor/
+- https://contributors.home-assistant.io/blog/2024/06/18/async_register_static_paths/
+- https://www.home-assistant.io/integrations/climate/
+- https://www.home-assistant.io/integrations/select/

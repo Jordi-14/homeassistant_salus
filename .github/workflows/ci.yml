@@ -21,7 +21,7 @@ jobs:
           node-version: "24"
       - run: npm install --no-save --package-lock=false playwright@1.62.1
       - run: npx playwright install --with-deps chromium
-      - run: node --check dashboard/www/salus-dashboard/salus-room-card.js
+      - run: node --check custom_components/salus/frontend/salus-room-card.js
       - run: node scripts/test_dashboard_card.cjs
 
   ruff:

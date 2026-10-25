@@ -14,6 +14,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.config_validation import config_entry_only_config_schema
+from homeassistant.helpers.typing import ConfigType
 
 from salus_it600.exceptions import (
     IT600AuthenticationError,
@@ -30,12 +31,19 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import SalusConfigEntry, SalusData, SalusDataUpdateCoordinator, SalusRuntimeData
+from .frontend import async_register_room_card
 from .sensor import sensor_device_registry_unique_id
 from .switch import switch_device_registry_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Load the card independently of the gateway's online status."""
+    await async_register_room_card(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SalusConfigEntry) -> bool:
