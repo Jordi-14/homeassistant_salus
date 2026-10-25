@@ -8,7 +8,10 @@ from pathlib import Path
 
 import pytest
 from freezegun import freeze_time
-from homeassistant.components.automation.config import AUTOMATION_BLUEPRINT_SCHEMA
+from homeassistant.components.automation.config import (
+    AUTOMATION_BLUEPRINT_SCHEMA,
+    PLATFORM_SCHEMA,
+)
 from homeassistant.components.blueprint.models import Blueprint, BlueprintInputs
 from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
@@ -42,6 +45,11 @@ def forecast(temperature=2, *, count=24, unit="°C"):
             for i in range(count)]
 
 
+@pytest.mark.parametrize("inputs", [{}, {"always_enabled": False, "weather_source": "", "outdoor_sensor": "sensor.outside"}])
+async def test_complete_automation_schema_including_triggers(inputs):
+    assert PLATFORM_SCHEMA(configuration(**inputs))
+
+
 @pytest.fixture
 async def rule_env(tmp_path):
     """No integration setup, gateway connections or actual device writes."""
@@ -53,6 +61,8 @@ async def rule_env(tmp_path):
         hass.states.async_set("select.room", "off", {"options": OPTIONS})
 
         async def get_forecast(call):
+            assert call.data["type"] == "hourly"
+            assert call.data["entity_id"] in ("weather.test", ["weather.test"])
             env["forecast_calls"] += 1
             if env.get("forecast_error"):
                 raise HomeAssistantError("test provider offline")
