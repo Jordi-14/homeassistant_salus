@@ -1,4 +1,25 @@
-# SALUS beta 0.9.11b9
+# SALUS beta 0.9.11b10
+
+## New in b10: see the actual comfort-rule decision
+
+The evaluation action now optionally returns the actual temperature used, source
+data status, forecast window/minimum timestamp/cache age, and each room's
+decision, command, reported level, original runtime deadline and restart pause.
+Explanations distinguish warm-enough, running, cooldown, manual control, other
+rules, unavailable rooms and missing/incomplete forecasts. Unknown temperatures
+remain null. No extra thermostat commands or weather fetches are used for reporting.
+
+Update to **v0.9.11b10**, restart HA, then **re-import the simple comfort
+blueprint** and reload automations. Updating HACS alone does not replace your
+imported blueprint. Existing input settings and stored cycles remain compatible;
+old b9 actions without a response variable continue to work.
+
+Open the automation's next trace, select **Resultat – forklaring, temperatur og
+timer**, then **Ændrede variabler**. The `forklaring` field explains the decision;
+`temperaturgrundlag_c`, `vejrdata` and `rum_og_timer` provide the details. The
+timestamp fields include a time-zone offset. Missing maximum runtime has a null
+deadline, not a new four-hour limit. Failed commands still surface as errors.
+Only new traces contain these details; old traces cannot be reconstructed.
 
 ## New in b9: one simple comfort rule
 

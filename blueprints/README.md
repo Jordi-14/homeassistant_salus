@@ -1,13 +1,13 @@
 # Enkel SALUS-komfortregel
 
-**Kræver SALUS v0.9.11b9 eller nyere.** Opdatér integrationen i HACS og genstart
+**Kræver SALUS v0.9.11b10 eller nyere.** Opdatér integrationen i HACS og genstart
 Home Assistant først.
 
 [Importér den nye komfortregel](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FMichaelBusackBertelsen%2Fhomeassistant_salus%2Fblob%2Ffeature%2Ffloor-dashboard%2Fblueprints%2Fautomation%2Fsalus_comfort_rule.yaml)
 
 ## Sådan kommer du i gang
 
-1. Opdatér til b9 i HACS og genstart Home Assistant.
+1. Opdatér til b10 i HACS og genstart Home Assistant.
 2. Åbn importlinket. Hvis My Home Assistant spørger om adressen, angiv din egen
    Home Assistant-adresse (fx `http://10.210.0.225:8123`) og tryk Gem.
 3. Importér **SALUS – enkel gulvkomfort med slukgrænse og pause**.
@@ -18,6 +18,40 @@ Home Assistant først.
 Én aktiv regel pr. rum. Du kan lave flere regler til forskellige rumgrupper.
 Indstillingerne ligger under **Indstillinger → Automatiseringer og scener**,
 ikke i rumkortet. Åbn den oprettede automation for at ændre dem.
+
+## Opdatér en eksisterende b9-regel og se beslutningen
+
+1. Opdatér SALUS til **v0.9.11b10** i HACS og genstart Home Assistant.
+2. Åbn **Indstillinger → Automatiseringer og scener → Blueprints**.
+3. Ved **SALUS – enkel gulvkomfort med slukgrænse og pause**: vælg **⋮ →
+   Importér igen**, og bekræft. Importlinket ovenfor kan også bruges til at
+   erstatte den eksisterende skabelon. Opret ikke en ekstra automation.
+4. Genindlæs automationer under **Udviklerværktøjer → YAML → Automatiseringer**.
+   Dine eksisterende feltværdier og gemte timer bevares.
+5. Vent til næste minuttjek. Åbn din automation → **Sporinger**, og vælg den
+   nyeste kørsel. Klik på det sidste trin **Resultat – forklaring, temperatur
+   og timer**, og derefter **Ændrede variabler**.
+
+| Felt i sporingen | Hvad det viser |
+|---|---|
+| `forklaring` | Temperaturgrundlag og en dansk forklaring på hvert rums beslutning. |
+| `temperaturgrundlag_c` | Den temperatur, der faktisk blev brugt i vurderingen. `null` betyder, at intet gyldigt grundlag var tilgængeligt. |
+| `vejrdata` | Datastatus, prognoseperiode, tidspunkt for minimum, hentetid og om data kom fra cache. |
+| `rum_og_timer` | Beslutning, eventuel sendt kommando, aktuelt rapporteret niveau, cyklusfase, slukfrist og pause for hvert rum. |
+
+I `rum_og_timer` betyder `maximum_stop_at: null`, at der ikke er en aktiv
+maksimal slukfrist. `next_start_not_before` er det tidligste tidspunkt for en
+ny start; temperaturen skal stadig være lav nok. Tider har tidszoneangivelse.
+`command: null` betyder, at denne vurdering ikke sendte en kommando. En rapporteret
+værdi kan kortvarigt afvente enhedsopdateringen; det vises separat fra kommandoen.
+
+Eksempel: **Temperaturgrundlag 8 °C – komforten fortsætter** med uændret
+slukfrist. Næste minuttjek sender ikke en ny tændkommando. En for kort eller
+fejlet prognose får sin egen forklaring og bliver aldrig vist som 0 °C.
+
+Gamle spor indeholder kun de gamle input; vælg en kørsel efter opdateringen.
+HACS-opdatering uden reimport viser ikke det nye Resultat-trin. Almindelige fejl
+vises fortsat i handlingstrinnet, hvis vurderingen ikke kan gennemføres.
 
 ## Felterne
 

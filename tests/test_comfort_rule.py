@@ -14,9 +14,12 @@ from homeassistant.components.automation.config import (
     PLATFORM_SCHEMA,
 )
 from homeassistant.components.blueprint.models import Blueprint, BlueprintInputs
-from homeassistant.core import HomeAssistant, SupportsResponse
+from homeassistant.core import Context, HomeAssistant, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.script import Script
+from homeassistant.helpers.trace import trace_get
 from homeassistant.util import yaml as yaml_util
 
 from custom_components.salus import comfort_rule as module
@@ -86,7 +89,7 @@ async def env(rule_hass, tmp_path):
 
 
 async def run(env, **changes):
-    await env["controller"].async_evaluate({**CONFIG, **changes})
+    return await env["controller"].async_evaluate({**CONFIG, **changes})
 
 
 async def stable(env, **changes):
@@ -362,3 +365,122 @@ def test_load_rejects_nonfinite_deadline(tmp_path):
     path.write_text(json.dumps({"version": 1, "rules": {"automation.rule": config}, "devices": {"select.room": {"owner": "automation.rule", "phase": "running", "level": "level_1", "started_at": 1, "cooldown_hours": 6, "settle_until": 1, "deadline": float("nan")}}}), encoding="utf-8")
     with pytest.raises(vol.Invalid):
         _load(str(path))
+
+
+async def test_result_explains_start_and_next_tick_without_new_command(env):
+    first = await run(env)
+    deadline = first["rooms"]["select.room"]["maximum_stop_at"]
+    assert first["temperature_c"] == 4
+    assert first["rooms"]["select.room"]["decision"] == "started"
+    assert first["rooms"]["select.room"]["command"] == "level_1"
+    env["clock"].tick(60)
+    second = await run(env)
+    assert second["rooms"]["select.room"]["decision"] == "continue"
+    assert second["rooms"]["select.room"]["command"] is None
+    assert second["rooms"]["select.room"]["maximum_stop_at"] == deadline
+    assert len(env["calls"]) == 1
+    assert env["controller"]._evaluation is None
+
+
+async def test_result_distinguishes_cold_threshold_missing_data_and_manual_level(env):
+    temperature(env, 6)
+    result = await run(env)
+    assert result["rooms"]["select.room"]["decision"] == "not_cold_enough"
+    temperature(env, "unavailable")
+    result = await run(env)
+    assert result["temperature_c"] is None
+    assert result["temperature_data"]["status"] == "unavailable"
+    assert result["rooms"]["select.room"]["decision"] == "missing_temperature"
+    env["hass"].states.async_set("select.room", "level_2", {"options": OPTIONS})
+    result = await run(env)
+    assert result["rooms"]["select.room"]["decision"] == "manual_level"
+    assert not env["calls"]
+
+
+async def test_result_explains_warm_stop_then_pause_and_restart(env):
+    await stable(env)
+    temperature(env, 7)
+    stopped = await run(env)
+    room = stopped["rooms"]["select.room"]
+    assert room["decision"] == "stopped"
+    assert "slukgrænsen" in room["explanation"]
+    assert room["command"] == "off"
+    temperature(env, 4)
+    paused = await run(env)
+    assert paused["rooms"]["select.room"]["decision"] == "cooldown"
+    assert paused["rooms"]["select.room"]["next_start_not_before"]
+    await restart(env)
+    again = await run(env)
+    assert again["rooms"]["select.room"]["next_start_not_before"] == paused["rooms"]["select.room"]["next_start_not_before"]
+
+
+async def test_result_retains_maximum_stop_when_first_pass_already_sent_off(env):
+    await stable(env)
+    env["clock"].tick(4 * 3600)
+    temperature(env, "unavailable")
+    result = await run(env)
+    assert result["rooms"]["select.room"]["decision"] == "stopped"
+    assert "Maksimal køretid" in result["rooms"]["select.room"]["explanation"]
+    assert result["rooms"]["select.room"]["command"] == "off"
+    json.dumps(result, allow_nan=False)
+
+
+async def test_result_forecast_minimum_timestamp_and_cache_are_the_actual_values(env):
+    env["rows"] = [{"datetime": (NOW + timedelta(hours=i)).isoformat(), "temperature": 2 if i == 6 else 10} for i in range(1, 25)]
+    result = await run(env, source="weather.test", source_mode="forecast", forecast_hours=8, use_max_runtime=False)
+    assert result["temperature_c"] == 2
+    assert result["temperature_data"]["valid_points"] == 8
+    assert datetime.fromisoformat(result["temperature_data"]["minimum_at"]) == NOW + timedelta(hours=6)
+    assert not result["temperature_data"]["from_cache"]
+    assert result["rooms"]["select.room"]["maximum_stop_at"] is None
+    cached = await run(env, source="weather.test", source_mode="forecast", forecast_hours=8, use_max_runtime=False)
+    assert cached["temperature_data"]["from_cache"]
+    assert env["forecast_calls"] == 1
+
+
+@pytest.mark.parametrize("provider_error", [False, True])
+async def test_result_explains_incomplete_forecast_and_provider_error(env, provider_error):
+    env["forecast_error"] = provider_error
+    result = await run(env, source="weather.test", source_mode="forecast")
+    assert result["temperature_data"]["status"] == ("forecast_error" if provider_error else "invalid_forecast")
+    assert result["temperature_c"] is None
+    assert env["calls"] == []
+
+
+async def test_result_distinguishes_unavailable_room_and_disabled_automation(env):
+    env["hass"].states.async_set("select.room", "unavailable")
+    result = await run(env)
+    assert result["rooms"]["select.room"]["decision"] == "unavailable"
+    env["hass"].states.async_set("select.room", "off", {"options": OPTIONS})
+    env["hass"].states.async_set("automation.rule", "off")
+    result = await run(env)
+    assert result["rooms"]["select.room"]["decision"] == "disabled"
+    assert result["temperature_data"]["status"] == "not_evaluated"
+    assert not env["calls"]
+
+
+async def test_actual_blueprint_returns_visible_trace_variables_and_old_calls_work(env):
+    hass = env["hass"]
+    await async_setup_comfort_rules(hass)
+    controller = hass.data["salus_comfort_rules"]
+    try:
+        # Existing b9 blueprints do not request a response and must keep working.
+        await hass.services.async_call("salus", "evaluate_comfort_rule", CONFIG, blocking=True)
+        path = Path(__file__).resolve().parents[1] / "blueprints/automation/salus_comfort_rule.yaml"
+        blueprint = Blueprint(yaml_util.load_yaml_dict(str(path)), expected_domain="automation", schema=AUTOMATION_BLUEPRINT_SCHEMA)
+        inputs = BlueprintInputs(blueprint, {"use_blueprint": {"path": str(path), "input": {"floor_entities": ["select.room"], "source": "sensor.outside"}}})
+        config = inputs.async_substitute()
+        script = Script(hass, cv.SCRIPT_SCHEMA(config.get("actions", config.get("action"))), "SALUS trace test", "salus")
+        trace_get(clear=True)
+        result = await script.async_run({"this": {"entity_id": "automation.rule"}}, context=Context())
+        assert result.variables["temperaturgrundlag_c"] == 4
+        assert "fortsætter" in result.variables["forklaring"]
+        assert result.variables["rum_og_timer"]["select.room"]["maximum_stop_at"]
+        assert result.variables["vejrdata"]["status"] == "valid"
+        final_step = trace_get(clear=False)["1"][-1].as_dict()
+        assert "fortsætter" in final_step["changed_variables"]["forklaring"]
+        assert final_step["changed_variables"]["temperaturgrundlag_c"] == 4
+        assert "rum_og_timer" in final_step["changed_variables"]
+        assert len(env["calls"]) == 1
+    finally:
+        controller.close()

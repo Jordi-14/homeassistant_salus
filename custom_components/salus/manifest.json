@@ -19,5 +19,5 @@
   "requirements": [
     "salus-it600-client@https://github.com/MichaelBusackBertelsen/salus-it600-client/releases/download/floor-beta-3/salus_it600_client-0.7.0b2.dev20261025%2Bfloor3-py3-none-any.whl#sha256=f973b54dc773a9176157d3e8748233d32c0715c10289faeabac0961c49bb2d0a"
   ],
-  "version": "0.9.11b9"
+  "version": "0.9.11b10"
 }

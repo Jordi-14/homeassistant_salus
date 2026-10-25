@@ -2,11 +2,12 @@ blueprint:
   name: SALUS – enkel gulvkomfort med slukgrænse og pause
   description: >-
     Én regel: koldt nok → tænd Gulvkomfort → sluk ved varmegrænsen eller maksimal
-    køretid → vent minimumspausen → tillad ny start. Kræver SALUS beta b9 eller
+    køretid → vent minimumspausen → tillad ny start. Kræver SALUS beta b10 eller
     nyere. Timerne gemmes af integrationen og fortsætter efter HA-genstart;
     du skal ikke oprette hjælpere. Fra slukker kun Gulvkomfort, ikke rummets
     normale temperaturstyring. Brug kun én aktiv komfortregel pr. rum.
     Reglen tænder kun rum, der står på Fra; manuelt tændt komfort overtages ikke.
+    I Sporinger viser trinnet Resultat temperaturgrundlag, beslutning og timer.
   domain: automation
   homeassistant:
     min_version: 2024.11.0
@@ -174,7 +175,9 @@ trigger:
   - platform: homeassistant
     event: start
 action:
-  - service: salus.evaluate_comfort_rule
+  - alias: Vurdér temperatur og Gulvkomfort
+    service: salus.evaluate_comfort_rule
+    response_variable: salus_resultat
     data:
       rule_id: "{{ this.entity_id }}"
       source: !input source
@@ -188,3 +191,9 @@ action:
       use_max_runtime: !input use_max_runtime
       max_runtime_hours: !input max_runtime_hours
       cooldown_hours: !input cooldown_hours
+  - alias: Resultat – forklaring, temperatur og timer (se Ændrede variabler)
+    variables:
+      forklaring: "{{ salus_resultat.explanation }}"
+      temperaturgrundlag_c: "{{ salus_resultat.temperature_c }}"
+      vejrdata: "{{ salus_resultat.temperature_data }}"
+      rum_og_timer: "{{ salus_resultat.rooms }}"
