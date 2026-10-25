@@ -9,7 +9,7 @@ from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
-CARD_VERSION = "1.1.0"
+CARD_VERSION = "1.1.1"
 CARD_PATH = "/salus-dashboard/salus-room-card.js"
 CARD_URL = f"{CARD_PATH}?v={CARD_VERSION}"
 _LOCK = "salus_room_card_registration_lock"

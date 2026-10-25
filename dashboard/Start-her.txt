@@ -1,6 +1,6 @@
-SALUS rumkort – indbygget i beta 0.9.11b4
+SALUS rumkort – indbygget i beta 0.9.11b5
 
-Opdatér SALUS-integrationen via HACS til v0.9.11b4 og genstart Home Assistant.
+Opdatér SALUS-integrationen via HACS til v0.9.11b5 og genstart Home Assistant.
 Genindlæs derefter browseren/Home Assistant-appen.
 
 Åbn dit eget dashboard → Rediger → Tilføj kort → søg efter SALUS rumkort.

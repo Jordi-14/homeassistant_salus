@@ -8,7 +8,9 @@ const output=path.join(root,'.dashboard-test-output');fs.mkdirSync(output,{recur
  const page=await browser.newPage({viewport:{width:1024,height:1000},colorScheme:'dark'});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setContent(`<style>body{margin:20px;background:#111416;color:#f1f2f2;font-family:Segoe UI,sans-serif;--primary-text-color:#f1f2f2;--secondary-text-color:#a8b0b5;--ha-card-background:#1c2023;--divider-color:#303639;--secondary-background-color:#252b2e}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:16px}</style><main></main>`);
- await page.addScriptTag({path:path.join(root,'custom_components/salus/frontend/salus-room-card.js')});
+ await page.evaluate(()=>customElements.define('home-assistant',class extends HTMLElement {}));
+ await page.addScriptTag({path:path.join(root,'custom_components/salus/frontend/salus-room-card.js'),type:'module'});
+ await page.waitForFunction(()=>!!customElements.get('salus-room-card'));
  await page.evaluate(()=>{
   window.calls=[];
   window.sample=()=>({language:'da',config:{unit_system:{temperature:'°C'}},states:{

@@ -1,4 +1,8 @@
-/* SALUS Room Card 1.1.0 — MIT License. Bundled with the SALUS integration. */
+/* SALUS Room Card 1.1.1 — MIT License. Bundled with the SALUS integration. */
+async function registerSalusRoomCard() {
+// Extra modules can run before HA installs its scoped custom element registry.
+// Wait before defining classes as well: the polyfill replaces HTMLElement too.
+await customElements.whenDefined("home-assistant");
 function salusComfortForClimate(hass, climateId) {
   const device = hass?.entities?.[climateId]?.device_id;
   if (!device) return "";
@@ -446,3 +450,5 @@ if (!window.customCards.some(card => card.type === "salus-room-card")) {
   window.customCards.push({type:"salus-room-card",name:"SALUS rumkort",description:"Temperatur, luftfugtighed, ønsket temperatur og gulvkomfort.",preview:false,
     documentationURL:"https://github.com/MichaelBusackBertelsen/homeassistant_salus/blob/feature/floor-dashboard/dashboard/Start-her.txt"});
 }
+}
+registerSalusRoomCard();

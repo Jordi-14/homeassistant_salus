@@ -1,10 +1,23 @@
-# SALUS beta 0.9.11b4
+# SALUS beta 0.9.11b5
+
+## Fixed in b5: endless card-picker spinner
+
+The extra frontend module now waits for Home Assistant before defining either
+the card or its editor. HA 2026.10.3 installs a scoped custom element registry
+during startup; registering before that could leave picker metadata visible
+while losing the actual element definitions. The card picker then timed out
+with `Custom element not found: salus-room-card` and kept showing a spinner.
+This was an integration startup race, not a missing thermostat entity.
+
+Browser regression tests use HA's exact scoped registry polyfill (0.0.10)
+and cover either load order and an already-started frontend. Backend thermostat
+logic and the client dependency are unchanged from b4.
 
 ## Update and add your own room cards
 
 1. Keep a full Home Assistant backup and the previous working release.
 2. In HACS, open MichaelBusackBertelsen/homeassistant_salus and download
-   **v0.9.11b4** from the prerelease/version picker. Keep your configured
+   **v0.9.11b5** from the prerelease/version picker. Keep your configured
    Salus integration and existing devices. Restart Home Assistant.
 3. Reload the browser or Home Assistant app so the bundled frontend module loads.
 4. Open your own dashboard, choose Edit -> Add card, and search for
