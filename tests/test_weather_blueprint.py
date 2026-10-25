@@ -46,7 +46,7 @@ def forecast(temperature=2, *, count=24, unit="°C"):
 
 
 @pytest.mark.parametrize("inputs", [{}, {"always_enabled": False, "weather_source": "", "outdoor_sensor": "sensor.outside"}])
-async def test_complete_automation_schema_including_triggers(inputs):
+async def test_complete_automation_schema_including_triggers(rule_env, inputs):
     assert PLATFORM_SCHEMA(configuration(**inputs))
 
 
