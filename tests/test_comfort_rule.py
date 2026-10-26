@@ -347,7 +347,7 @@ async def test_blueprint_has_help_for_every_input_and_valid_actions(env):
     path = Path(__file__).resolve().parents[1] / "blueprints/automation/salus_comfort_rule.yaml"
     blueprint = Blueprint(yaml_util.load_yaml_dict(str(path)), expected_domain="automation", schema=AUTOMATION_BLUEPRINT_SCHEMA)
     assert all(len(item["description"]) > 60 for item in blueprint.inputs.values())
-    inputs = BlueprintInputs(blueprint, {"use_blueprint": {"path": str(path), "input": {"floor_entities": ["select.room"], "source": "sensor.outside"}}})
+    inputs = BlueprintInputs(blueprint, {"use_blueprint": {"path": str(path), "input": {"floor_entities": ["select.room"], "source": "sensor.outside", "source_mode": "current"}}})
     inputs.validate()
     assert PLATFORM_SCHEMA(inputs.async_substitute())
 
@@ -468,18 +468,20 @@ async def test_actual_blueprint_returns_visible_trace_variables_and_old_calls_wo
         await hass.services.async_call("salus", "evaluate_comfort_rule", CONFIG, blocking=True)
         path = Path(__file__).resolve().parents[1] / "blueprints/automation/salus_comfort_rule.yaml"
         blueprint = Blueprint(yaml_util.load_yaml_dict(str(path)), expected_domain="automation", schema=AUTOMATION_BLUEPRINT_SCHEMA)
-        inputs = BlueprintInputs(blueprint, {"use_blueprint": {"path": str(path), "input": {"floor_entities": ["select.room"], "source": "sensor.outside"}}})
+        inputs = BlueprintInputs(blueprint, {"use_blueprint": {"path": str(path), "input": {"floor_entities": ["select.room"], "source": "sensor.outside", "source_mode": "current", "use_max_runtime": False, "max_runtime_hours": 8}}})
         config = inputs.async_substitute()
         script = Script(hass, cv.SCRIPT_SCHEMA(config.get("actions", config.get("action"))), "SALUS trace test", "salus")
         trace_get(clear=True)
         result = await script.async_run({"this": {"entity_id": "automation.rule"}}, context=Context())
-        assert result.variables["temperaturgrundlag_c"] == 4
+        assert result.variables["temperaturgrundlag_c"] is None
+        assert result.variables["slukgrundlag_c"] == 4
         assert "fortsætter" in result.variables["forklaring"]
-        assert result.variables["rum_og_timer"]["select.room"]["maximum_stop_at"]
-        assert result.variables["vejrdata"]["status"] == "valid"
+        assert result.variables["rum_og_timer"]["select.room"]["minimum_until"]
+        assert result.variables["rum_og_timer"]["select.room"]["maximum_stop_at"] is None
+        assert result.variables["vejrdata"]["status"] == "not_needed"
         final_step = trace_get(clear=False)["1"][-1].as_dict()
         assert "fortsætter" in final_step["changed_variables"]["forklaring"]
-        assert final_step["changed_variables"]["temperaturgrundlag_c"] == 4
+        assert final_step["changed_variables"]["temperaturgrundlag_c"] is None
         assert "rum_og_timer" in final_step["changed_variables"]
         assert len(env["calls"]) == 1
     finally:

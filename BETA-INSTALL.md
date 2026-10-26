@@ -1,4 +1,52 @@
-# SALUS beta 0.9.11b11
+# SALUS beta 0.9.11b12
+
+## New in b12: minimum runtime, per-room extensions and manual takeover
+
+After starting, each room runs for a guaranteed minimum period (default four
+hours). A normal start begins its timer when the active level is confirmed;
+manual takeover begins at the qualifying check. Repeated ticks do not restart
+either timer. At the period boundary, current outdoor temperature determines
+stop or extension (default one hour). Forecast changes never affect an active
+cycle. There is no maximum runtime in this mode.
+
+An optional outdoor sensor takes priority at stop checks. Invalid or missing
+sensor data falls back to the selected weather entity's current temperature.
+Neither available means another extension, never a guessed warm stop. Optional
+room-minimum hold reads the SALUS climate entity on the *same registry device*
+as each floor select; rooms are never pooled. It only holds existing cycles,
+never starts a cold room independently. A room below the configured minimum is
+held until minimum plus margin (default 0.5°C). Missing or ambiguous room data
+blocks that room's stop when the option is enabled. Other rooms are unaffected.
+
+**Overtag manuelt aktiveret Gulvkomfort** is off by default. When on, takeover
+requires the same start condition and expired room cooldown. It preserves the
+manual level without a thermostat write. Turning the option off later prevents
+new takeovers, but does not abandon existing owned cycles. A manual level change
+or Off ends ownership and starts that room's cooldown, even during a minimum.
+An external change to the same level cannot be distinguished from no change.
+
+State per room includes owner, selected level, adoption, confirmed start,
+minimum-until, next check, room-hold latch and cooldown. Restart does not reset
+them. A long outage performs one current check, not every missed hourly check.
+Disabling a minimum-mode automation pauses its automatic decisions; time still
+passes, so enabling an overdue rule evaluates it at the next tick. Ordinary
+climate setpoints and HVAC controls are never changed.
+
+Install **v0.9.11b12**, restart HA, re-import the simple blueprint and reload
+automations. Review new minimum/extension and optional fields. Existing room,
+source and threshold inputs remain. Old maximum-runtime inputs are ignored by
+the new blueprint, not silently reinterpreted as minimum runtime. Active runs
+are converted once using the original known start, not restarted. Old imported
+blueprints retain their legacy maximum logic until re-imported. The UI removes
+the old maximum fields; direct legacy service calls remain supported.
+
+See [the Danish guide](blueprints/README.md) for exact steps and trace fields.
+New state contains new schema fields: to roll back to an older beta, restore
+the pre-b12 Home Assistant backup and the corresponding old blueprint. Do not
+delete active journals or replay old thermostat snapshots.
+
+The client stays on floor4 and the dashboard on 1.3.1. New minimum/adoption
+scenarios are simulated; no thermostat test writes were performed for b12.
 
 ## New in b11: comfort-only writes and separate start/stop temperatures
 

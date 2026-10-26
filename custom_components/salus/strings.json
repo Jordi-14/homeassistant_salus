@@ -160,49 +160,69 @@
           "name": "Automation",
           "description": "Automationens entitets-id. Blueprintfunktionen udfylder dette automatisk."
         },
+        "cycle_mode": {
+          "name": "Kørselslogik",
+          "description": "Minimumperioder er den nye regel med garanteret løbetid og forlængelser. Ældre maksimumlogik bevares kun til allerede importerede blueprints. Blueprintet vælger automatisk minimumperioder."
+        },
         "source_mode": {
-          "name": "Temperaturgrundlag",
-          "description": "Målt temperatur bruger udefølerens værdi eller vejrtjenestens aktuelle temperatur. Prognose bruger den laveste forventede temperatur i de næste valgte timer til tænding. Slukgrænsen bruger altid den aktuelle udetemperatur fra samme kilde, aldrig prognosens minimum. Prognose kan derfor tænde, før kulden er kommet, hvis det ikke allerede er varmt nok til at slukke nu."
+          "name": "Temperaturgrundlag ved start",
+          "description": "Prognose starter, hvis en time i de næste X timer er under tændgrænsen.\nMålt temperatur kan bruges uden timeprognose. Denne vurdering bruges kun til at\nstarte eller overtage et rum. Når kørslen er startet, ændrer nye prognoser den ikke."
         },
         "source": {
           "name": "Udeføler eller vejrudsigt",
-          "description": "Vælg din eksisterende udendørs temperaturføler eller vejrtjeneste. Prognose kræver en weather-entitet med timeprognoser. En utilgængelig kilde tænder aldrig komforten. Slukning bruger vejrtjenestens aktuelle temperatur eller følerens værdi nu. Mangler denne værdi, afventer temperaturslukning; maksimal køretid gælder stadig. En fejlet prognose forhindrer ikke slukning ved en gyldig aktuel temperatur. Celsius og Fahrenheit omregnes automatisk."
+          "description": "Vælg din vejrtjeneste (weather) til timeprognose og aktuel temperatur som\nreserve ved stopvurdering. Prognose kræver en weather-entitet. Med Målt temperatur\nkan du også vælge en udeføler. Ved manglende startdata starter ingen rum;\nallerede aktive rum følger deres gemte perioder."
         },
         "forecast_hours": {
           "name": "Se dette antal timer frem (kun prognose)",
-          "description": "Fx 12 timer: kl. 18 undersøges kl. 18–06, og komforten må tænde med det samme, hvis en time forventes under tændgrænsen. Dette er et rullende kig fremad, ikke et fast natligt tidsrum. Feltet ignoreres ved målt temperatur. Værdierne vurderes igen løbende; prognoser hentes højst hvert kvarter."
+          "description": "Fx 8 timer: kl. 18 vurderes kulde frem til kl. 02. En kold time kan starte\nkomforten med det samme, også hvis det er varmt udenfor nu. En ny prognose kan\nikke forkorte eller forlænge en allerede startet kørsel; minimumperioden og de\naktuelle temperaturer ved periodens slutning bestemmer resten."
         },
         "floor_entities": {
           "name": "Rum med Gulvkomfort",
-          "description": "Vælg de Gulvkomfort-entiteter, der skal følge reglen. Hvert rum har sin egen køretid og pause, så et utilgængeligt rum ikke får et andet rums starttid. Sæt manuelt aktiveret komfort til Fra før første brug. Rum uden Gulvkomfort kan ikke vælges."
+          "description": "Vælg rummenes Gulvkomfort-selects. Hvert rum har eget ejerskab, minimumperiode,\nnæste stopvurdering, fastholdelse og pause. Et koldt rum holder aldrig andre rum i gang.\nRum uden Gulvkomfort kan ikke styres. Den almindelige termostatstyring ændres ikke."
         },
         "level": {
           "name": "Komfortniveau ved start",
-          "description": "Niveau 1–3 bruges, når reglen tænder et rum. Rummets ønskede temperatur ændres ikke. Hvis du manuelt ændrer niveau eller slukker under en kørsel, overlader reglen styringen til dig og starter minimumspausen."
+          "description": "Niveau 1–3 anvendes, når reglen tænder et slukket rum. Ved tilladt overtagelse\naf manuelt aktiv komfort bevares det manuelle niveau, og der sendes ingen unødvendig\nskrivekommando. En senere manuel niveauændring afslutter ejerskabet og starter pausen."
         },
         "start_below": {
           "name": "Tænd under",
-          "description": "Komforten må tænde, når temperaturgrundlaget er lavere end denne grænse, rummet står på Fra, og pausen er udløbet. Fx 5 °C: præcis 5 °C tænder ikke; 4,9 °C kan tænde. Er den aktuelle udetemperatur allerede ved slukgrænsen, får slukning prioritet, så reglen ikke tænder og straks slukker igen. Grænsen angives altid i Celsius."
+          "description": "Start eller overtag et rum, når startgrundlaget er strengt under denne grænse,\nog rummets pause er udløbet. Fx 5 °C: 4,9 kan starte; præcis 5 starter ikke.\nVarm udetemperatur nu forhindrer ikke prognosestyret forvarmning. Celsius anvendes."
         },
-        "use_stop_temperature": {
-          "name": "Brug temperaturgrænse til slukning",
-          "description": "Slå til for at slukke ved grænsen nedenfor. Slå fra, hvis komforten kun skal slukkes af maksimal køretid. Mindst én slukbetingelse skal være til. Når begge er til, gælder den, der indtræffer først."
+        "min_runtime_hours": {
+          "name": "Minimumløbetid",
+          "description": "Fx 4 timer: efter bekræftet tænding beskyttes komforten i mindst fire timer.\nVed overtagelse starter perioden ved det tjek, hvor startbetingelsen er opfyldt.\nGentagne tjek og genstart nulstiller ikke tiden. Manuel slukning virker straks.\nDette er en minimumperiode, ikke en maksimal samlet køretid."
+        },
+        "extension_hours": {
+          "name": "Forlængelse pr. vurdering",
+          "description": "Fx 1 time: er det stadig koldt ved periodens slutning, eller kræver dette rum\nfastholdelse, fortsætter det i endnu en hel time før næste stopvurdering.\nBliver det varmt midt i timen, slukkes først ved timens slutning. Ved manglende\ngyldige målinger forlænges også; der gættes ikke, og ingen maksimal køretid gælder."
         },
         "stop_at": {
           "name": "Sluk ved eller over",
-          "description": "Fx tænd under 5 °C og sluk ved 7 °C. Afstanden forebygger gentagne skift ved små udsving. Skal være højere end tændgrænsen. Denne grænse bruger altid udetemperaturen lige nu (vejrtjenestens aktuelle temperatur eller udeføleren), også når tænding bruger de næste X timers prognose. Feltet ignoreres, hvis temperaturslukning er slået fra."
+          "description": "Efter minimumperioden og ved slutningen af hver forlængelse kan rummet slukke,\nnår aktuel udetemperatur er ved eller over denne grænse, og rummets egen temperatur\nikke holder komforten aktiv. Fx 7 °C. Skal være højere end tændgrænsen.\nDer kontrolleres ikke løbende midt i en beskyttet periode."
         },
-        "use_max_runtime": {
-          "name": "Brug maksimal køretid",
-          "description": "Slå til for at sætte Gulvkomfort til Fra efter det valgte antal timer, selv om det stadig er koldt, eller vejrtjenesten er utilgængelig. Slå fra for kun at bruge temperaturbaseret slukning."
+        "outdoor_sensor": {
+          "name": "Udetemperaturføler ved stop (valgfri)",
+          "description": "Har du en fysisk udeføler, vælges den her og bruges først ved stopvurdering.\nEr den tom, utilgængelig eller ugyldig, bruges vejrtjenestens aktuelle temperatur.\nFremtidige prognosetimer bruges aldrig som stopmåling. Mangler begge kilder,\nforlænges perioden, og fejlen vises i sporingen."
         },
-        "max_runtime_hours": {
-          "name": "Maksimal køretid",
-          "description": "Fx 4 timer: et rum, der tændes kl. 18, får slukkommando senest omkring kl. 22, medmindre varmegrænsen nås tidligere. Tiden gemmes ved start og forlænges ikke af gentagne regelkørsler eller genstart. 0,5 time er 30 minutter. Feltet ignoreres, hvis maksimal køretid er slået fra."
+        "use_room_minimum": {
+          "name": "Hold aktiv ved lav rumtemperatur",
+          "description": "Slå til, hvis et koldt rum skal kunne forhindre slukning ved periodens slutning.\nKun allerede automatisk startede eller overtagne rum kan fastholdes; lav rumtemperatur\ntænder aldrig alene. Temperaturen læses fra SALUS-termostaten på samme enhed som\nrummets Gulvkomfort. Manglende eller tvetydig rumtemperatur forlænger kun dette rum."
+        },
+        "room_minimum": {
+          "name": "Minimum rumtemperatur",
+          "description": "Fx 21 °C: kommer et aktivt rum under grænsen, fastholder det komforten i sig selv.\nDen samme grænse kan gælde alle valgte rum, men temperatur, fastholdelse og timer er\naltid pr. rum. Ønsker du forskellige grænser, opret regler for separate rumgrupper.\nFeltet bruges kun, hvis Hold aktiv ved lav rumtemperatur er slået til."
+        },
+        "room_margin": {
+          "name": "Buffer før rumfastholdelse frigives",
+          "description": "Fx minimum 21 °C og buffer 0,5 °C: et rum, der har været under 21, fastholdes indtil\nmindst 21,5 °C. Et rum, der ikke har udløst fastholdelse, behøver ikke nå 21,5.\nNår fastholdelsen frigives, kan der først slukkes ved periodens slutning, og kun\nhvis den aktuelle udetemperatur også når slukgrænsen."
+        },
+        "adopt_manual": {
+          "name": "Overtag manuelt aktiveret Gulvkomfort",
+          "description": "Slå til for at overtage et allerede aktivt rum, når startbetingelsen er opfyldt,\nog rummets pause er udløbet. Bevar det manuelle niveau uden skrivning og start\nminimumperioden ved overtagelsen. Senere tjek nulstiller ikke timeren. Slået fra\nbevarer manuelt aktiv komfort under din egen kontrol uden automatisk slukning."
         },
         "cooldown_hours": {
           "name": "Mindste pause før ny start",
-          "description": "Fx 6 timer: når Fra er bekræftet kl. 22, kan reglen tidligst tænde igen kl. 04, og kun hvis det stadig er koldt nok. Gælder uanset slukårsag. Pausen tælles fra bekræftet slukning, gemmes over genstart, og nul betyder ingen ekstra pause. En manuel niveauændring giver også en pause; reglen starter først automatisk igen, når rummet står på Fra."
+          "description": "Fx 2 timer: efter bekræftet Fra kan dette rum tidligst starte eller overtages\nigen to timer senere, og kun hvis startbetingelsen stadig er opfyldt. Manuel\nslukning eller niveauændring starter også en pause, så automationen ikke straks\novertager igen. Pausen gemmes pr. rum og nulstilles ikke ved genstart."
         }
       }
     },

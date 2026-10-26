@@ -1,12 +1,14 @@
-> **Fork beta 0.9.11b11:** includes the auto-loaded **SALUS rumkort** card,
+> **Fork beta 0.9.11b12:** includes the auto-loaded **SALUS rumkort** card,
 > graphical editor, click-only temperature/heat-demand history, enabled floor
 > entities and reviewed command/backup handling. [Install and use](BETA-INSTALL.md).
 > Counter metadata is device-owned; actual hardware rollover remains unobserved.
 
-> **Simple comfort rule (b9):** [Import and configure one rule](blueprints/README.md)
-> using measured outdoor temperature or the forecast minimum to start, current
-> outdoor temperature to stop, maximum runtime and a minimum restart pause. Timers persist
-> across Home Assistant restarts. Install b9 and restart before importing.
+> **Comfort periods (b12):** [Configure the blueprint](blueprints/README.md).
+> Start from forecast or outdoor temperature, protect a minimum runtime, then
+> extend per room while it is cold or the room needs minimum-temperature hold.
+> Optional manual takeover preserves the level and starts its own timer.
+> Update b12, restart, re-import the blueprint and reload automations.
+
 
 
 
