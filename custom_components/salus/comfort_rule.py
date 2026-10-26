@@ -61,6 +61,8 @@ RULE_SCHEMA = vol.Schema({
     vol.Optional("room_minimum", default=21): vol.All(_number, vol.Range(min=5, max=35)),
     vol.Optional("room_margin", default=.5): vol.All(_number, vol.Range(min=.1, max=5)),
     vol.Optional("adopt_manual", default=False): cv.boolean,
+    vol.Optional("use_room_maximum", default=False): cv.boolean,
+    vol.Optional("room_maximum", default=25): vol.All(_number, vol.Range(min=5, max=40)),
 })
 
 
@@ -78,6 +80,10 @@ def _config(data: dict) -> dict:
         raise ServiceValidationError("Vælg mindst én slukbetingelse: temperatur eller maksimal køretid.")
     if (config["cycle_mode"] == "minimum" or config["use_stop_temperature"]) and config["stop_at"] <= config["start_below"]:
         raise ServiceValidationError("Slukgrænsen skal være højere end tændgrænsen.")
+    if config["use_room_maximum"] and config["use_room_minimum"] and config["room_maximum"] <= config["room_minimum"] + config["room_margin"]:
+        raise ServiceValidationError("Øvre rumgrænse skal være højere end rumminimum plus buffer.")
+    if config["use_room_maximum"] and config["cycle_mode"] != "minimum":
+        raise ServiceValidationError("Øvre rumgrænse kræver minimumperioder i den opdaterede blueprint.")
     config["floor_entities"] = list(dict.fromkeys(config["floor_entities"]))
     return config
 
@@ -147,6 +153,47 @@ class ComfortRules:
         self.load_error: str | None = None
         self._cancel = None
         self._evaluation: dict | None = None
+        self._cancel_room_listener = None
+        self._closed = False
+
+    @callback
+    def watch_room_limits(self) -> None:
+        """Act on new climate readings without waiting for a minute/period tick."""
+        if self._closed or self._cancel_room_listener is not None:
+            return
+
+        @callback
+        def changed(event) -> None:
+            entity = event.data.get("entity_id", "")
+            if not entity.startswith("climate."):
+                return
+            old, new = event.data.get("old_state"), event.data.get("new_state")
+            if new is None:
+                return
+            if old is not None and old.state == new.state and all(old.attributes.get(key) == new.attributes.get(key) for key in ("current_temperature", "temperature_unit")):
+                return
+            if any(self.data["rules"][record["owner"]].get("use_room_maximum") and record.get("cycle_mode") == "minimum" and record["phase"] in ("starting", "running") for record in self.data["devices"].values()):
+                self.hass.async_create_task(self.async_room_limits(entity))
+
+        self._cancel_room_listener = self.hass.bus.async_listen("state_changed", changed)
+
+    async def async_room_limits(self, climate_entity: str) -> None:
+        async with self.lock:
+            if self._closed:
+                return
+            try:
+                for entity, record in list(self.data["devices"].items()):
+                    config = self.data["rules"][record["owner"]]
+                    if record.get("cycle_mode") != "minimum" or not config["use_room_maximum"] or record["phase"] not in ("starting", "running"):
+                        continue
+                    if self._room_temperature(entity)[1] != climate_entity:
+                        continue
+                    try:
+                        await self._advance(entity, record, config, None, allow_start=False)
+                    except HomeAssistantError:
+                        _LOGGER.exception("Immediate room-temperature stop needs attention: %s", entity)
+            finally:
+                self._schedule()
 
     def _time(self, stamp: float | None) -> str | None:
         return dt_util.as_local(datetime.fromtimestamp(stamp, UTC)).isoformat() if stamp is not None else None
@@ -354,7 +401,8 @@ class ComfortRules:
             await self._start(entity, config)
         elif record["phase"] == "cooldown":
             if now < record["restart_after"]:
-                self._explain(entity, "cooldown", "Minimumspausen er ikke udløbet; ny start er blokeret.")
+                prefix = "Rummet blev slukket ved øvre rumgrænse. " if record.get("last_stop_reason") == "room_maximum" else ""
+                self._explain(entity, "cooldown", prefix + "Minimumspausen er ikke udløbet; ny start er blokeret.")
             else:
                 self._waiting(entity, config, current, temperature, allow_start, stop_temperature)
 
@@ -388,6 +436,8 @@ class ComfortRules:
             self._explain(entity, "disabled", "Automationen er deaktiveret. Ingen automatisk stopvurdering; gemte tidspunkter nulstilles ikke.")
             return
         room, _ = self._room_temperature(entity)
+        if await self._stop_at_room_limit(entity, record, config, room):
+            return
         held = record["room_hold"]
         if not config["use_room_minimum"]:
             held = False
@@ -424,6 +474,23 @@ class ComfortRules:
         await self._persist()
         self._explain(entity, "extended", explanations[reason])
 
+    async def _stop_at_room_limit(self, entity: str, record: dict, config: dict, room: float | None) -> bool:
+        if not config["use_room_maximum"] or room is None or room < config["room_maximum"]:
+            return False
+        record.update(phase="stopping", confirmed=False, settle_until=self._now() + 30,
+                      room_hold=False, last_stop_reason="room_maximum")
+        self._explain(entity, "room_limit_stop", "Rummets øvre temperaturgrænse er nået. Gulvkomfort sættes straks til Fra, også under minimumløbetid eller forlængelse.", "off")
+        await self._command(entity, "off", record)
+        if self._floor(entity) == "off":
+            await self._cooldown(entity, record)
+        return True
+
+    def _room_start_blocked(self, entity: str, config: dict, current: str | None) -> bool:
+        if config["cycle_mode"] != "minimum" or not config["use_room_maximum"] or current != "off":
+            return False
+        room, _ = self._room_temperature(entity)
+        return room is None or room >= config["room_maximum"]
+
     def _upgrade_minimum(self, record: dict, config: dict) -> None:
         """Convert an existing run once, without restarting its clock."""
         record.update(cycle_mode="minimum", min_runtime_hours=config["min_runtime_hours"],
@@ -442,6 +509,8 @@ class ComfortRules:
             self._explain(entity, "disabled", "Automationen er deaktiveret; ingen ny start tillades.")
         elif current != "off" and not (config["cycle_mode"] == "minimum" and config["adopt_manual"]):
             self._explain(entity, "manual_level", "Komforten er allerede tændt manuelt og overtages ikke af reglen.")
+        elif self._room_start_blocked(entity, config, current):
+            self._explain(entity, "room_limit_block", "Ny start er blokeret: Rummet er allerede ved øvre temperaturgrænse, eller rumtemperaturen kan ikke læses til grænsekontrollen.")
         elif config["cycle_mode"] != "minimum" and self._warm_now(config, stop_temperature):
             self._explain(entity, "warm_now", "Den aktuelle udetemperatur er ved eller over slukgrænsen; rummet forbliver Fra, selv om prognosen er kold.")
         elif temperature is None:
@@ -454,6 +523,9 @@ class ComfortRules:
         if config["cycle_mode"] == "minimum":
             current = self._floor(entity)
             if not self._startable(config, current):
+                return
+            if self._room_start_blocked(entity, config, current):
+                self._waiting(entity, config, current, None, True)
                 return
             adopted = current != "off"
             record = {"owner": config["rule_id"], "phase": "running" if adopted else "starting", "level": current if adopted else config["level"],
@@ -475,6 +547,8 @@ class ComfortRules:
                     else:
                         self.data["devices"][entity] = previous_record
                     raise
+                if await self._stop_at_room_limit(entity, record, config, self._room_temperature(entity)[0]):
+                    return
                 self._explain(entity, "adopted", "Den opfyldte startbetingelse overtager dette allerede aktive rum. Det manuelle niveau bevares; minimumløbetiden starter nu uden skrivekommando.")
             else:
                 self._explain(entity, "started", "Startbetingelsen er opfyldt. Komforten tændes; minimumløbetiden begynder, når det aktive niveau er bekræftet.", config["level"])
@@ -488,7 +562,8 @@ class ComfortRules:
         await self._command(entity, config["level"], record)
 
     def _needs_start_check(self, entity: str, config: dict) -> bool:
-        if not self._startable(config, self._floor(entity)):
+        current = self._floor(entity)
+        if not self._startable(config, current) or self._room_start_blocked(entity, config, current):
             return False
         record = self.data["devices"].get(entity)
         if record is None:
@@ -573,6 +648,8 @@ class ComfortRules:
                                     room_temperature_c=room_value, room_temperature_source=room_entity, room_hold=record["room_hold"],
                                     room_minimum_enabled=config["use_room_minimum"], last_extension_reason=record.get("last_extension_reason"),
                                     start_trigger_temperature_c=record.get("start_trigger_temperature_c"))
+                        item.update(room_maximum_enabled=config["use_room_maximum"], room_maximum_c=config["room_maximum"] if config["use_room_maximum"] else None,
+                                    last_stop_reason=record.get("last_stop_reason"))
                 result["explanation"] = "Tændgrundlag: " + (f"{temperature:.2f} °C." if temperature is not None else "ingen gyldig temperatur.")
                 if enabled and not need_start:
                     result["explanation"] = "Tændgrundlag ikke vurderet; aktive perioder ændres ikke af nye prognoser."
@@ -588,6 +665,8 @@ class ComfortRules:
         if self._cancel:
             self._cancel()
             self._cancel = None
+        if self._closed:
+            return
         deadlines = [r["deadline"] for r in self.data["devices"].values() if r.get("deadline") is not None and r["phase"] != "cooldown"]
         for record in self.data["devices"].values():
             owner = self.hass.states.get(record["owner"])
@@ -629,6 +708,10 @@ class ComfortRules:
 
     @callback
     def close(self, _event=None) -> None:
+        self._closed = True
+        if self._cancel_room_listener:
+            self._cancel_room_listener()
+            self._cancel_room_listener = None
         if self._cancel:
             self._cancel()
             self._cancel = None
@@ -639,6 +722,7 @@ async def async_setup_comfort_rules(hass: HomeAssistant) -> None:
         return
     controller = hass.data[_KEY] = ComfortRules(hass)
     await controller.async_load()
+    controller.watch_room_limits()
 
     async def evaluate(call: ServiceCall) -> dict:
         return await controller.async_evaluate(dict(call.data))

@@ -1,6 +1,6 @@
 # SALUS: minimumløbetid og forlængelse pr. rum
 
-Kræver **v0.9.11b12** eller nyere. Tag en Home Assistant-backup før opdatering.
+Kræver **v0.9.11b13** eller nyere for den øvre rumgrænse. Tag en Home Assistant-backup før opdatering.
 
 ## Formularens opbygning
 
@@ -10,14 +10,14 @@ Kræver **v0.9.11b12** eller nyere. Tag en Home Assistant-backup før opdatering
 | 2. Rum og komfortniveau | De rum, der styres, og niveauet ved ny tænding. |
 | 3. Tænding og perioder | Prognosehorisont, tændgrænse, minimumløbetid og forlængelse. |
 | 4. Slukning | Grænsen for den aktuelle udetemperatur ved periodens slutning. |
-| 5. Rumtemperatur – valgfrit | Rumminimum og buffer. Foldes ud ved behov. |
+| 5. Rumtemperatur – minimum og øvre grænse | Rumminimum, buffer og øvre rumgrænse. Foldes ud ved behov. |
 | 6. Manuel styring og pause | Overtagelse og minimumspause. Foldes ud ved behov. |
 
 Tænding bruger **altid timeprognosen**. Valget af temperaturgrundlag er fjernet.
 Ved stop bruges udeføleren først; ellers vejrtjenestens aktuelle temperatur.
-Formularændringen virker allerede med b12: **Importér igen** og genindlæs
-automationer. En ny HACS-installation eller genstart er ikke nødvendig for
-denne ændring, hvis du allerede kører b12.
+Den tidligere gruppering virker med b12. Den nye øvre rumgrænse kræver
+**b13 i HACS og genstart**, derefter **Importér igen**, gem og genindlæs
+automationer. Nye temperaturmålinger behandles af selve integrationen.
 
 Kilde- og grænsefelter beholder deres id'er. Det gamle `source_mode` kan ligge
 i gemte input, men ignoreres af den nye skabelon. Har du tidligere valgt en
@@ -26,7 +26,7 @@ og eventuelt flytte sensoren til den valgfrie udeføler, før reglen anvendes.
 
 ## Opdatér en eksisterende regel
 
-1. Opdatér SALUS til **b12** i HACS, og genstart Home Assistant.
+1. Opdatér SALUS til **b13** i HACS, og genstart Home Assistant.
 2. Åbn **Indstillinger → Automatiseringer og scener → Blueprints**.
 3. Ved **SALUS – enkel gulvkomfort med slukgrænse og pause**: vælg **⋮ → Importér
    igen**, og bekræft. Opret ikke en ekstra automation for de samme rum.
@@ -54,11 +54,36 @@ Alle grænser angives i Celsius; Fahrenheit-kilder omregnes.
 | Målinger mangler ved stopvurdering | Forlæng dette rum og vis grunden i sporingen; ukendt er ikke varmt. |
 | Manuel slukning eller niveauændring | Afslut ejerskab og begynd pause, så reglen ikke straks overtager igen. |
 
-Der er **ingen maksimal køretid** i den nye logik. Minimumperiode og forlængelser
+Der er **ingen maksimal køretid** i den nye logik. En aktiveret øvre
+rumtemperatur kan dog afbryde enhver automatisk styret periode straks. Minimumperiode og forlængelser
 er beskyttede perioder: bliver det varmt midt i en forlængelse, sker automatisk
-slukning først ved den næste periodegrænse. Manuel slukning virker straks.
+slukning først ved den næste periodegrænse. Manuel slukning virker straks, og den valgfrie øvre rumgrænse har også prioritet.
 Lav rumtemperatur kan kun holde en eksisterende kørsel aktiv; den tænder aldrig
 komfort alene. Fra påvirker kun Gulvkomfort, ikke rummets normale termostat.
+
+## Øvre rumgrænse: afbryd uden at vente på perioden
+
+I afsnit **5. Rumtemperatur – minimum og øvre grænse** kan du vælge:
+
+- **Sluk straks ved høj rumtemperatur**: Slå funktionen til.
+- **Øvre rumtemperatur – sluk straks ved**: Fx 25°C.
+
+Ved eller over grænsen sender integrationen Fra, når den modtager en ny gyldig
+temperatur fra rummets egen termostat. Det gælder også midt i minimumløbetid
+eller forlængelse, og har prioritet over rumminimum. Andre rum påvirkes ikke.
+Efter bekræftet Fra starter den normale pause, og ny automatisk tænding er
+blokeret, mens rummet er ved/over grænsen. Er grænsekontrol valgt, men temperaturen
+ikke kan måles, starter et slukket rum heller ikke automatisk.
+
+Et manuelt aktivt rum uden automatisk ejerskab slukkes ikke af denne regel.
+Hvis overtagelse er valgt og startbetingelsen opfyldes, kan rummet overtages og
+derefter straks slukkes ved øvre grænse. En deaktiveret automation sender ingen
+kommandoer. Kun Gulvkomfort sættes til Fra; normal termostatstyring ændres ikke.
+
+Har du også rumminimum, skal øvre grænse være højere end minimum plus buffer.
+Eksempel: minimum 21, buffer 0,5 og øvre grænse 25°C. Sidste øvre stop gemmes i
+`rum_og_timer` som `last_stop_reason: room_maximum`. Aktuelle grænsefelter hedder
+`room_maximum_enabled` og `room_maximum_c`. Ingen ny maksimal køretid indføres.
 
 ## Eksempel
 
@@ -147,7 +172,7 @@ minimumperiode. Nye normalstarter venter på bekræftet aktivt niveau.
 
 Gamle maksimum-input kan ligge i automationens gemte data, men bruges ikke af
 den nye skabelon. Gennemgå og gem de nye felter; ingen ekstra automation behøves.
-Ved tilbageførsel til en ældre beta skal HA-backup fra før b12 og den tilsvarende
+Ved tilbageførsel til en ældre beta skal HA-backup fra før den version, du tilbagefører fra og den tilsvarende
 gamle skabelon gendannes. Slet ikke aktive journaler eller genafspil rå snapshots.
 
 Den [gamle vejrskabelon med tidsregel og døgnregel](LEGACY-WEATHER.md) er fortsat

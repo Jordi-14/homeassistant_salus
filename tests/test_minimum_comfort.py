@@ -353,3 +353,134 @@ async def test_minimum_report_is_json_serializable_and_contains_independent_time
     assert room['next_check_at'] == room['minimum_until']
     saved = json.loads(Path(minimum['controller'].path).read_text())
     assert saved['devices']['select.room']['room_hold'] is False
+
+
+async def room_reading(env, value, entity='select.room'):
+    env['rooms'][entity] = value
+    climate = 'climate.' + entity.split('.')[1]
+    env['hass'].states.async_set(climate, 'heat', {'current_temperature': value, 'temperature_unit': '°C'})
+    await env['hass'].async_block_till_done()
+
+
+async def test_room_maximum_reacts_to_measurement_during_minimum_without_tick(minimum):
+    controller = minimum['controller']
+    controller.watch_room_limits()
+    record = await started(minimum, use_room_maximum=True)
+    await room_reading(minimum, 24.9)
+    assert len(minimum['calls']) == 1
+    minimum['clock'].tick(60)
+    await room_reading(minimum, 25)
+    assert minimum['calls'] == [('select.room', 'level_1'), ('select.room', 'off')]
+    assert record['phase'] == 'cooldown'
+    assert record['last_stop_reason'] == 'room_maximum'
+    assert record['restart_after'] == NOW.timestamp() + 60 + 6 * 3600
+    await room_reading(minimum, 26)
+    assert len(minimum['calls']) == 2
+
+
+async def test_room_maximum_interrupts_extension_immediately(minimum):
+    minimum['controller'].watch_room_limits()
+    await started(minimum, use_room_maximum=True)
+    outside(minimum, 2)
+    minimum['clock'].tick(4 * 3600)
+    await run(minimum, use_room_maximum=True)
+    minimum['clock'].tick(10 * 60)
+    await room_reading(minimum, 25)
+    assert minimum['calls'][-1][1] == 'off'
+
+
+async def test_room_maximum_is_strictly_per_room(minimum):
+    hass = minimum['hass']
+    er.async_get(hass).async_get_or_create('select', 'salus', 'second_comfort_warm_floor', suggested_object_id='second')
+    hass.states.async_set('select.second', 'off', {'options': OPTIONS})
+    minimum['controller'].watch_room_limits()
+    await started(minimum, use_room_maximum=True, floor_entities=['select.room', 'select.second'])
+    await room_reading(minimum, 25)
+    assert hass.states.get('select.room').state == 'off'
+    assert hass.states.get('select.second').state == 'level_1'
+    assert ('select.second', 'off') not in minimum['calls']
+
+
+async def test_room_maximum_has_priority_over_a_room_minimum_hold(minimum):
+    minimum['rooms']['select.room'] = 20
+    minimum['controller'].watch_room_limits()
+    record = await started(minimum, use_room_maximum=True, use_room_minimum=True)
+    assert record['room_hold']
+    await room_reading(minimum, 25)
+    assert not record['room_hold']
+    assert minimum['calls'][-1][1] == 'off'
+
+
+@pytest.mark.parametrize('room', [25, 26, None])
+async def test_room_limit_blocks_new_start_when_high_or_not_measurable(minimum, room):
+    minimum['rooms']['select.room'] = room
+    result = await run(minimum, use_room_maximum=True)
+    assert result['rooms']['select.room']['decision'] == 'room_limit_block'
+    assert not minimum['calls']
+
+
+async def test_room_limit_does_not_control_unowned_manual_comfort(minimum):
+    minimum['hass'].states.async_set('select.room', 'level_2', {'options': OPTIONS})
+    minimum['controller'].watch_room_limits()
+    await run(minimum, use_room_maximum=True)
+    await room_reading(minimum, 26)
+    assert not minimum['controller'].data['devices']
+    assert not minimum['calls']
+
+
+async def test_allowed_takeover_can_immediately_stop_an_already_hot_room(minimum):
+    minimum['hass'].states.async_set('select.room', 'level_3', {'options': OPTIONS})
+    minimum['rooms']['select.room'] = 26
+    result = await run(minimum, use_room_maximum=True, adopt_manual=True)
+    assert result['rooms']['select.room']['decision'] == 'room_limit_stop'
+    assert minimum['calls'] == [('select.room', 'off')]
+
+
+async def test_disabled_upper_limit_and_disabled_rule_never_interrupt(minimum):
+    minimum['controller'].watch_room_limits()
+    await started(minimum)
+    await room_reading(minimum, 26)
+    assert len(minimum['calls']) == 1
+    minimum['rooms']['select.room'] = 22
+    await run(minimum, use_room_maximum=True)
+    minimum['hass'].states.async_set('automation.rule', 'off')
+    await room_reading(minimum, 27)
+    assert len(minimum['calls']) == 1
+
+
+async def test_upper_limit_is_enforced_after_restart_without_weather(minimum):
+    await started(minimum, use_room_maximum=True)
+    controller = await restart(minimum)
+    minimum['rooms']['select.room'] = 26
+    minimum['hass'].states.async_set('weather.test', 'unavailable')
+    await controller.async_deadlines()
+    assert minimum['calls'][-1][1] == 'off'
+    assert controller.data['devices']['select.room']['last_stop_reason'] == 'room_maximum'
+
+
+async def test_uncertain_upper_limit_command_is_not_replayed(minimum):
+    minimum['controller'].watch_room_limits()
+    await started(minimum, use_room_maximum=True)
+    minimum['command_error'] = True
+    await room_reading(minimum, 25)
+    assert minimum['controller'].data['devices']['select.room']['phase'] == 'uncertain_stop'
+    await room_reading(minimum, 26)
+    assert minimum['calls'] == [('select.room', 'level_1'), ('select.room', 'off')]
+
+
+async def test_close_removes_room_listener_and_prevents_queued_limit_work(minimum):
+    controller = minimum['controller']
+    controller.watch_room_limits()
+    controller.watch_room_limits()
+    await started(minimum, use_room_maximum=True)
+    controller.close()
+    await room_reading(minimum, 26)
+    await controller.async_room_limits('climate.room')
+    assert len(minimum['calls']) == 1
+
+
+@pytest.mark.parametrize('limit', [21, 21.5])
+async def test_conflicting_room_limits_are_rejected(minimum, limit):
+    with pytest.raises(ServiceValidationError, match='Øvre rumgrænse'):
+        await run(minimum, use_room_minimum=True, use_room_maximum=True, room_maximum=limit)
+    assert not minimum['calls']

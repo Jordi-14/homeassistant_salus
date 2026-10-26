@@ -1,4 +1,39 @@
-# SALUS beta 0.9.11b12
+# SALUS beta 0.9.11b13
+
+## New in b13: immediate upper room-temperature stop
+
+The optional **Sluk straks ved høj rumtemperatur** field is in the existing
+collapsed room-temperature section. At/above the configured upper limit,
+automation-owned floor comfort receives an Off command on a new valid reading,
+without waiting for the minute tick or period boundary. Minimum runtime,
+extension periods and indoor-minimum hold do not override this limit. State
+and the normal post-stop cooldown remain independent per room.
+
+Only the climate entity on the same registry device is used. Above-limit or
+unmeasurable rooms cannot be newly switched on with this option enabled.
+Missing measurements do not fabricate a temperature or shut down unrelated
+rooms. Manual comfort remains untouched unless legitimately adopted under the
+existing start/cooldown conditions. A hot room that is adopted can be stopped
+immediately. Disabling the automation pauses its commands, including this limit.
+This controls floor comfort, not ordinary climate setpoints or HVAC modes.
+
+The listener serializes commands with normal evaluations, never replays an
+uncertain command, and is removed on shutdown. Radio/gateway confirmation still
+takes its normal time; immediate means reacting to the new HA reading rather
+than waiting for the next configured period. The last cutoff is saved as
+`last_stop_reason: room_maximum` and appears in subsequent traces.
+
+If indoor minimum is also enabled, the upper limit must exceed minimum plus
+margin. At a valid cutoff the hold latch clears and the normal cooldown begins
+once Off is reported. Existing cycles are not restarted by configuration.
+
+Update **b13 in HACS and restart**, re-import the blueprint, enable the option
+and choose the desired threshold, save, then reload automations. It defaults
+off; 25°C is only the editable threshold default. Unlike the earlier grouped
+form-only change, this new feature requires the integration update. Back up HA
+before updating; restoring an older controller requires its matching backup.
+No physical test writes were performed for this release. Client floor4 and
+dashboard 1.3.1 remain unchanged.
 
 ## Updated blueprint form: grouped inputs and forecast-only start
 

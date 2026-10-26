@@ -1,4 +1,4 @@
-> **Fork beta 0.9.11b12:** includes the auto-loaded **SALUS rumkort** card,
+> **Fork beta 0.9.11b13:** includes the auto-loaded **SALUS rumkort** card,
 > graphical editor, click-only temperature/heat-demand history, enabled floor
 > entities and reviewed command/backup handling. [Install and use](BETA-INSTALL.md).
 > Counter metadata is device-owned; actual hardware rollover remains unobserved.
@@ -8,7 +8,8 @@
 > extend per room while it is cold or the room needs minimum-temperature hold.
 > Optional manual takeover preserves the level and starts its own timer.
 > Update b12, restart, re-import the blueprint and reload automations.
-> Already on b12? The grouped form only needs a blueprint re-import and automation reload.
+> The optional upper room-temperature limit requires b13 plus blueprint re-import.
+> It can interrupt protected periods immediately on a new reading, per room.
 
 
 

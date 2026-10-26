@@ -1,7 +1,8 @@
 blueprint:
   name: SALUS – enkel gulvkomfort med slukgrænse og pause
   description: Vejrudsigten starter komforten. Efter minimumløbetiden vurderes aktuel udetemperatur ved hver
-    periodegrænse. Rumminimum, overtagelse og timer gælder separat pr. rum. Kræver SALUS b12 eller nyere.
+    periodegrænse. Rumminimum, overtagelse og timer gælder separat pr. rum. Kræver SALUS b13 eller nyere. En
+    valgfri øvre rumgrænse kan afbryde minimumperiode og forlængelser straks.
   domain: automation
   homeassistant:
     min_version: 2024.11.0
@@ -130,8 +131,9 @@ blueprint:
               unit_of_measurement: °C
               mode: box
     indoor:
-      name: 5. Rumtemperatur – valgfrit
-      description: Lad et koldt rum holde sin egen komfort aktiv. Kan foldes ud ved behov.
+      name: 5. Rumtemperatur – minimum og øvre grænse
+      description: Minimum kan holde et rum aktivt. Øvre grænse kan straks slukke det. Begge er valgfrie og
+        gælder separat pr. rum.
       collapsed: true
       input:
         use_room_minimum:
@@ -163,6 +165,26 @@ blueprint:
               min: 0.1
               max: 5
               step: 0.1
+              unit_of_measurement: °C
+              mode: box
+        use_room_maximum:
+          name: Sluk straks ved høj rumtemperatur
+          description: Slå til for at afbryde automatisk styret Gulvkomfort ved den øvre rumgrænse, også midt
+            i minimumperioden. Kun dette rum slukkes; den normale pause starter bagefter. Ny tænding blokeres,
+            hvis rummet er for varmt eller ikke kan måles.
+          default: false
+          selector:
+            boolean: {}
+        room_maximum:
+          name: Øvre rumtemperatur – sluk straks ved
+          description: 'Fx 25 °C: Ved eller over grænsen sendes Fra ved næste gyldige måling fra rummets egen
+            termostat. Har du også rumminimum, skal grænsen være over minimum plus buffer.'
+          default: 25
+          selector:
+            number:
+              min: 5
+              max: 40
+              step: 0.5
               unit_of_measurement: °C
               mode: box
     manual:
@@ -221,6 +243,8 @@ action:
       use_room_minimum: !input use_room_minimum
       room_minimum: !input room_minimum
       room_margin: !input room_margin
+      use_room_maximum: !input use_room_maximum
+      room_maximum: !input room_maximum
       adopt_manual: !input adopt_manual
       cooldown_hours: !input cooldown_hours
   - alias: Resultat – forklaring, temperatur og timer (se Ændrede variabler)

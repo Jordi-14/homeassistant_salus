@@ -212,6 +212,14 @@
           "name": "Buffer før rumfastholdelse frigives",
           "description": "Fx minimum 21 °C og buffer 0,5 °C: Har rummet udløst fastholdelse, frigives den ved 21,5 °C. Stop kan først ske ved næste periodegrænse."
         },
+        "use_room_maximum": {
+          "name": "Sluk straks ved høj rumtemperatur",
+          "description": "Slå til for at afbryde automatisk styret Gulvkomfort ved den øvre rumgrænse, også midt i minimumperioden. Kun dette rum slukkes; den normale pause starter bagefter. Ny tænding blokeres, hvis rummet er for varmt eller ikke kan måles."
+        },
+        "room_maximum": {
+          "name": "Øvre rumtemperatur – sluk straks ved",
+          "description": "Fx 25 °C: Ved eller over grænsen sendes Fra ved næste gyldige måling fra rummets egen termostat. Har du også rumminimum, skal grænsen være over minimum plus buffer."
+        },
         "adopt_manual": {
           "name": "Overtag manuelt aktiveret Gulvkomfort",
           "description": "Når startbetingelsen er opfyldt og pausen udløbet, kan manuelt aktiv komfort overtages. Niveauet bevares; minimumperioden starter ved overtagelsen."

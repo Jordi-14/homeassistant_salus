@@ -170,6 +170,30 @@ evaluate_comfort_rule:
           unit_of_measurement: °C
           mode: box
       required: false
+    use_room_maximum:
+      name: Sluk straks ved høj rumtemperatur
+      description: Slå til for at afbryde automatisk styret Gulvkomfort ved den øvre
+        rumgrænse, også midt i minimumperioden. Kun dette rum slukkes; den normale
+        pause starter bagefter. Ny tænding blokeres, hvis rummet er for varmt eller
+        ikke kan måles.
+      default: false
+      selector:
+        boolean: {}
+      required: false
+    room_maximum:
+      name: Øvre rumtemperatur – sluk straks ved
+      description: 'Fx 25 °C: Ved eller over grænsen sendes Fra ved næste gyldige
+        måling fra rummets egen termostat. Har du også rumminimum, skal grænsen være
+        over minimum plus buffer.'
+      default: 25
+      selector:
+        number:
+          min: 5
+          max: 40
+          step: 0.5
+          unit_of_measurement: °C
+          mode: box
+      required: false
     adopt_manual:
       name: Overtag manuelt aktiveret Gulvkomfort
       description: Når startbetingelsen er opfyldt og pausen udløbet, kan manuelt
