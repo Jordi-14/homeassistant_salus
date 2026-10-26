@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.11 - 2026-10-26
+
+- Promote the tested 0.9.11b1 beta to stable and require client 0.7.0.
+- No runtime changes beyond the stable client version pin.
+
 ## 0.9.11b1 - 2026-10-22
 
 - Test client 0.7.0b1 with combined detail requests, read retries, and preserved
