@@ -1,19 +1,3 @@
-> **Fork beta 0.9.11b13:** includes the auto-loaded **SALUS rumkort** card,
-> graphical editor, click-only temperature/heat-demand history, enabled floor
-> entities and reviewed command/backup handling. [Install and use](BETA-INSTALL.md).
-> Counter metadata is device-owned; actual hardware rollover remains unobserved.
-
-> **Comfort periods (b12):** [Configure the blueprint](blueprints/README.md).
-> Start from the forecast, protect a minimum runtime, then
-> extend per room while it is cold or the room needs minimum-temperature hold.
-> Optional manual takeover preserves the level and starts its own timer.
-> Update b12, restart, re-import the blueprint and reload automations.
-> The optional upper room-temperature limit requires b13 plus blueprint re-import.
-> It can interrupt protected periods immediately on a new reading, per room.
-
-
-
-
 # Salus iT600 for Home Assistant
 
 [![CI](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml)
@@ -101,10 +85,11 @@ copied unchanged from fresh state and updated by the device. The artificial
 255 cutoff has been removed; actual hardware rollover remains unobserved.
 Unknown profiles and pending settings commands remain guarded.
 
-This beta manifest pins the fork client wheel by SHA-256; it installs without
-Git or a compiler. Follow [BETA-INSTALL.md](BETA-INSTALL.md) for installation,
-private pre-write backups, confirmation and return to the previous integration.
-The separate upstream contribution branch still retains its published client pin.
+See [floor-comfort setup and safety](docs/floor-comfort.md), the
+[room card guide](dashboard/Start-her.txt) and [automation blueprint](blueprints/README.md).
+The production client pin is unchanged in this contribution. Floor-comfort
+entities appear only after the matching client is released and the dependency
+is updated; release sequencing is described in the setup guide.
 
 ### HACS (recommended)
 

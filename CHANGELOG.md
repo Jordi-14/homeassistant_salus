@@ -2,10 +2,18 @@
 
 ## Unreleased
 
-- Add an experimental Comfort Warm Floor select with Off/1/2/3 for profiles
-  explicitly enabled by the client. Disabled by default; displays confirmed
-  device state and requests a refresh after commands. Requires the matching
-  unreleased client change; the production dependency pin is unchanged.
+- Add client-verified Comfort Warm Floor selects (Off/1/2/3), enabled by default
+  for supported profiles; preserve explicit user disable choices.
+- Persist a private pre-command backup and unresolved journal; show only
+  confirmed device state and prevent blind replay or rollback.
+- Bundle a responsive room card and visual editor with optional floor controls
+  and temperature/setpoint/heat-demand history fetched only when expanded.
+- Add a forecast-start blueprint with persistent per-room minimum runtime,
+  extensions based on current outdoor temperature, optional indoor hold,
+  immediate upper room-temperature stop, manual adoption and cooldown.
+- Add trace responses and simulated coverage for controller/restart/failure paths.
+  The matching client must be released and the production dependency updated
+  before the new floor-comfort capability can be enabled upstream.
 
 ## 0.9.11b1 - 2026-10-22
 

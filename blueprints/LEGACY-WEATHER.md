@@ -1,6 +1,6 @@
 # Vejrstyret SALUS gulvkomfort
 
-[Importér regelskabelonen i Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FMichaelBusackBertelsen%2Fhomeassistant_salus%2Fblob%2Ffeature%2Ffloor-dashboard%2Fblueprints%2Fautomation%2Fsalus_floor_weather.yaml)
+[Importér regelskabelonen i Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FJordi-14%2Fhomeassistant_salus%2Fblob%2Fmaster%2Fblueprints%2Fautomation%2Fsalus_floor_weather.yaml)
 
 Bruges med SALUS-betaens Gulvkomfort-entiteter og Home Assistants almindelige
 automationer. SALUS b5 behøver ingen ny installation eller genstart for at

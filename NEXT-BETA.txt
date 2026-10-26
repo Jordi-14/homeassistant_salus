@@ -1,5 +1,0 @@
-Included in beta 0.9.11b4:
-- Bundled SALUS room card, automatic frontend loading and graphical setup.
-- Expand-on-click temperature/setpoint and heat-demand history; no eager history fetch.
-- Supported floor-comfort entities enabled by default, with scoped registry migration.
-- Client review fixes, shared command-response handling and uncertain-write guard.

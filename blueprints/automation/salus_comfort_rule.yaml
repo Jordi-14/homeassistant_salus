@@ -1,12 +1,12 @@
 blueprint:
   name: SALUS – enkel gulvkomfort med slukgrænse og pause
   description: Vejrudsigten starter komforten. Efter minimumløbetiden vurderes aktuel udetemperatur ved hver
-    periodegrænse. Rumminimum, overtagelse og timer gælder separat pr. rum. Kræver SALUS b13 eller nyere. En
+    periodegrænse. Rumminimum, overtagelse og timer gælder separat pr. rum. Kræver integrationens nye komfortcontroller. En
     valgfri øvre rumgrænse kan afbryde minimumperiode og forlængelser straks.
   domain: automation
   homeassistant:
     min_version: 2024.11.0
-  source_url: https://github.com/MichaelBusackBertelsen/homeassistant_salus/blob/feature/floor-dashboard/blueprints/automation/salus_comfort_rule.yaml
+  source_url: https://github.com/Jordi-14/homeassistant_salus/blob/master/blueprints/automation/salus_comfort_rule.yaml
   input:
     weather:
       name: 1. Vejrudsigt og udeføler

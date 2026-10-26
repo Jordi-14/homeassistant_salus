@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from homeassistant.util.file import write_utf8_file_atomic
-from salus_it600.comfort_warm_floor import confirmed_comfort_warm_floor_change
 
 
 def persist_floor_backup(path: str, record: dict) -> None:
@@ -25,6 +24,12 @@ def persist_floor_backup(path: str, record: dict) -> None:
             # This journal survives HA restarts, unlike a client's async lock.
             # Resolve an uncertain command from protected fresh read-back; never
             # replay it or overwrite its only backup while still uncertain.
+            # Keep ordinary integration setup compatible with the published
+            # client, which does not yet expose floor-comfort capabilities.
+            try:
+                from salus_it600.comfort_warm_floor import confirmed_comfort_warm_floor_change
+            except ImportError as err:
+                raise OSError("Floor-comfort client unavailable; backup retained") from err
             if not confirmed_comfort_warm_floor_change(previous["before"], record["before"], previous["requested_level"]):
                 raise OSError("Previous floor-comfort command remains unconfirmed; backup retained")
     write_utf8_file_atomic(path, json.dumps(record, ensure_ascii=True), private=True)

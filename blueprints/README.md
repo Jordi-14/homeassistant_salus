@@ -1,6 +1,6 @@
 # SALUS: minimumløbetid og forlængelse pr. rum
 
-Kræver **v0.9.11b13** eller nyere for den øvre rumgrænse. Tag en Home Assistant-backup før opdatering.
+Kræver integrationens nye komfortcontroller og den tilsvarende klientudgivelse. Tag en Home Assistant-backup før opdatering.
 
 ## Formularens opbygning
 
@@ -15,8 +15,7 @@ Kræver **v0.9.11b13** eller nyere for den øvre rumgrænse. Tag en Home Assista
 
 Tænding bruger **altid timeprognosen**. Valget af temperaturgrundlag er fjernet.
 Ved stop bruges udeføleren først; ellers vejrtjenestens aktuelle temperatur.
-Den tidligere gruppering virker med b12. Den nye øvre rumgrænse kræver
-**b13 i HACS og genstart**, derefter **Importér igen**, gem og genindlæs
+Efter opdatering af integrationen: genstart, vælg **Importér igen**, gem og genindlæs
 automationer. Nye temperaturmålinger behandles af selve integrationen.
 
 Kilde- og grænsefelter beholder deres id'er. Det gamle `source_mode` kan ligge
@@ -26,7 +25,7 @@ og eventuelt flytte sensoren til den valgfrie udeføler, før reglen anvendes.
 
 ## Opdatér en eksisterende regel
 
-1. Opdatér SALUS til **b13** i HACS, og genstart Home Assistant.
+1. Opdatér SALUS til en udgivelse med komfortcontrolleren i HACS, og genstart Home Assistant.
 2. Åbn **Indstillinger → Automatiseringer og scener → Blueprints**.
 3. Ved **SALUS – enkel gulvkomfort med slukgrænse og pause**: vælg **⋮ → Importér
    igen**, og bekræft. Opret ikke en ekstra automation for de samme rum.
@@ -35,7 +34,7 @@ og eventuelt flytte sensoren til den valgfrie udeføler, før reglen anvendes.
    den nye minimumløbetid har sin egen standard på fire timer.
 5. Genindlæs **Automatiseringer** under **Indstillinger → Værktøjer → YAML**.
 
-[Importér skabelonen, hvis du ikke allerede har den](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FMichaelBusackBertelsen%2Fhomeassistant_salus%2Fblob%2Ffeature%2Ffloor-dashboard%2Fblueprints%2Fautomation%2Fsalus_comfort_rule.yaml)
+[Importér skabelonen, hvis du ikke allerede har den](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FJordi-14%2Fhomeassistant_salus%2Fblob%2Fmaster%2Fblueprints%2Fautomation%2Fsalus_comfort_rule.yaml)
 
 ## Den samlede regel
 
@@ -176,5 +175,5 @@ Ved tilbageførsel til en ældre beta skal HA-backup fra før den version, du ti
 gamle skabelon gendannes. Slet ikke aktive journaler eller genafspil rå snapshots.
 
 Den [gamle vejrskabelon med tidsregel og døgnregel](LEGACY-WEATHER.md) er fortsat
-bevaret separat. Klienten er stadig floor4 og ændrer kun komfortindstillingen;
+bevaret separat. Klienten ændrer kun komfortindstillingen;
 den kunstige 255-spærring er fjernet, men fysisk tælleroverløb er ikke observeret.

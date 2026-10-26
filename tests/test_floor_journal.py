@@ -2,6 +2,7 @@
 
 import copy
 import json
+import sys
 
 import pytest
 
@@ -32,6 +33,17 @@ def before():
 
 def record(snapshot, level):
     return {"pending": True, "requested_level": level, "before": snapshot}
+
+
+def test_published_client_without_floor_support_retains_pending_backup(tmp_path, monkeypatch):
+    """Older clients may load the integration but cannot resolve journals."""
+    path = str(tmp_path / "backup.json")
+    original = record(before(), 3)
+    persist_floor_backup(path, original)
+    monkeypatch.setitem(sys.modules, "salus_it600.comfort_warm_floor", None)
+    with pytest.raises(OSError, match="client unavailable; backup retained"):
+        persist_floor_backup(path, record(before(), 1))
+    assert json.loads((tmp_path / "backup.json").read_text()) == original
 
 
 def test_restart_uncertainty_blocks_second_write_and_preserves_original_backup(

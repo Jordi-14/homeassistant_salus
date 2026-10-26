@@ -565,7 +565,7 @@ if (!customElements.get("salus-room-card")) customElements.define("salus-room-ca
 window.customCards = window.customCards || [];
 if (!window.customCards.some(card => card.type === "salus-room-card")) {
   window.customCards.push({type:"salus-room-card",name:"SALUS rumkort",description:"Temperatur, luftfugtighed, ønsket temperatur og gulvkomfort.",preview:false,
-    documentationURL:"https://github.com/MichaelBusackBertelsen/homeassistant_salus/blob/feature/floor-dashboard/dashboard/Start-her.txt"});
+    documentationURL:"https://github.com/Jordi-14/homeassistant_salus/blob/master/dashboard/Start-her.txt"});
 }
 }
 registerSalusRoomCard();

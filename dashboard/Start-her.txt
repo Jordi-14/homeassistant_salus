@@ -1,58 +1,27 @@
-SALUS rumkort – indbygget i beta 0.9.11b13
+SALUS rumkort
 
-Gulvkomfort er nu valgfri: vælg Ingen gulvkomfort i kortets editor.
-Temperaturbetjening og historik virker stadig; kun gulvbetjeningen deaktiveres.
+Kortet følger med integrationen og indlæses automatisk.
+Vælg Redigér dashboard → Tilføj kort → søg SALUS rumkort.
+Vælg rummets climate-entitet og eventuelt dets Gulvkomfort-select.
+Uden Gulvkomfort-entitet er gulvbetjeningen deaktiveret; termostaten virker stadig.
+Vælg kompakt eller række i den grafiske editor. Tilføj ét kort pr. rum.
 
-Ny graf: 48 timer som standard, blå/gul trappekurve og varmebehov inde i grafen.
-Historikperioden kan vælges i kortets editor: 6, 12, 24 eller 48 timer.
-Felterne står fast ved nye/manglende værdier og ved afventende ændringer.
-Peg/tryk i grafen viser detaljer uden at ændre kortets højde.
+Kortet viser temperatur, luftfugtighed, ønsket temperatur og Gulvkomfort.
+Temperaturknapper og Gulvkomfort ændrer kun deres egen indstilling.
+Klik på resten af kortet eller pilen for at folde historikken ud.
+Historikken hentes først ved klik og viser som standard de seneste 48 timer.
+Vælg 6, 12, 24 eller 48 timer. Opdater henter historikken igen.
+Blå kurve viser målt temperatur, gul viser ønsket temperatur, og markeringer
+viser termostatens meldte varmebehov. Ukendte perioder vises særskilt.
+Home Assistants Recorder/Historik skal indeholde de ønskede målinger.
 
-Kortets editor har nu Layout: Kompakt eller Rækker.
-Kompakt samler målinger, temperaturknapper og Fra/1/2/3 på et lille kort.
-Rækker viser oplysningerne vandret og bruger en menu til gulvkomfort.
-Valg af layout sætter forslag til halv/fuld bredde med automatisk højde.
-Vælg layout én gang på et gammelt kort for at anvende det nye breddeforslag.
-Grafen er skjult, indtil du klikker på kortet eller pilen.
+Ekstra kortpakker eller manuel registrering af ressourcer er ikke nødvendigt.
+Dashboard-layouts ændres ikke automatisk. Genindlæs browseren efter opdatering.
+Understøttede gulvkomfortenheder aktiveres som standard; brugerfravalg bevares.
 
-Opdatér SALUS-integrationen via HACS til v0.9.11b13 og genstart Home Assistant.
-Genindlæs derefter browseren/Home Assistant-appen.
-
-Åbn dit eget dashboard → Rediger → Tilføj kort → søg efter SALUS rumkort.
-Vælg termostaten i den grafiske opsætning. Gulvkomfort fra samme enhed
-vælges automatisk, når den findes. Du kan vælge den manuelt i feltet.
-Rumtitel og ikon kan tilpasses. Tilføj et nyt rumkort for hvert ønsket rum.
-
-Klik på kortet eller pilen for at folde historikken ud. Den viser de seneste
-seks timers temperatur, ønsket temperatur og termostatens meldte varmebehov.
-Historikken hentes først ved klik og kan opdateres med Opdater. Kortet bruger
-Home Assistants eksisterende Recorder/Historik. Ukendte perioder markeres gråt.
-Knapperne til temperatur og Gulvkomfort folder ikke kortet ud.
-
-Kortet og den grafiske editor følger med integrationen og indlæses automatisk.
-Installation af ekstra kortpakker, kopiering til www og manuel registrering af
-dashboard-ressourcer er ikke nødvendig for denne beta.
-
-Eksisterende kort/enheder og dine dashboard-layouts ændres ikke automatisk.
-Den nye beta aktiverer understøttede Gulvkomfort-entiteter, som integrationen
-selv tidligere deaktiverede. Et bevidst brugerfravalg bliver bevaret.
-
-NY ENKEL KOMFORTREGEL I b9
-Efter HACS-opdatering og genstart: se blueprints/README.md på GitHub.
-Importér SALUS – enkel gulvkomfort med slukgrænse og pause.
-Vælg udetemperatur/prognose, rum, niveau, tændgrænse, slukgrænse eller
-maksimal køretid og en minimumspause. Der er forklaring ved alle felter.
-Deaktivér den gamle vejrregel, hvis den styrer de samme rum.
-
-b11: Tænding bruger de næste X timers prognose; slukning bruger udetemperaturen nu.
-Sporingen viser taendgrundlag_c og slukgrundlag_c hver for sig.
-Importér blueprintet igen og genindlæs automationer efter HACS-opdateringen.
-Tællerfelter kopieres nu urørte; enheden vedligeholder dem selv.
-
-b12: Minimumløbetid og forlængelse pr. rum erstatter maksimum i det nye blueprint.
-Valgfri udeføler, rumminimum og overtagelse af manuelt aktiv komfort.
-Ved overtagelse bevares niveauet, og minimumperioden begynder ved det kolde tjek.
-Importér igen, gennemgå og gem felterne, og genindlæs automationer efter opdatering.
-
-b13: Valgfri øvre rumgrænse i afsnit 5 kan afbryde komfort straks på en ny måling.
-HACS b13 og genstart kræves; importér derefter blueprint igen og vælg grænsen.
+Vejrreglen installeres separat som blueprint; se blueprints/README.md.
+Den starter fra vejrudsigten, beskytter en minimumløbetid og vurderer derefter
+aktuel udetemperatur ved hver periodegrænse. Timer og ejerskab er pr. rum.
+Rumminimum kan holde en aktiv kørsel; øvre rumgrænse kan afbryde straks.
+Alle valg forklares i formularen. Deaktivér regler, der styrer samme rum.
+Den nye klient skal være udgivet og valgt i integrationen før gulvkomfort virker.
