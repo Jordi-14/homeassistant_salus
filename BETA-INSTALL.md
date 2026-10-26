@@ -1,5 +1,20 @@
 # SALUS beta 0.9.11b12
 
+## Updated blueprint form: grouped inputs and forecast-only start
+
+The blueprint form now has six named sections. Weather service and optional
+outdoor stop sensor are together at the top. Start always uses hourly forecast;
+the measured/forecast switch has been removed. Indoor hold and manual/pause
+sections are collapsed by default, and help text is shortened.
+
+Existing b12 installations need only **re-import the blueprint and reload
+automations**. No integration update or restart is needed for this form change.
+The old saved source_mode input is ignored. An old sensor main source must be
+replaced with a weather entity; the sensor can be selected as optional outdoor
+stop sensor. Source/threshold/input identifiers otherwise stay compatible.
+Period, adoption and per-room controller behavior are unchanged. Legacy API
+calls retain their compatibility; this change applies to the blueprint form.
+
 ## New in b12: minimum runtime, per-room extensions and manual takeover
 
 After starting, each room runs for a guaranteed minimum period (default four

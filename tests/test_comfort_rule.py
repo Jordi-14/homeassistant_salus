@@ -347,7 +347,7 @@ async def test_blueprint_has_help_for_every_input_and_valid_actions(env):
     path = Path(__file__).resolve().parents[1] / "blueprints/automation/salus_comfort_rule.yaml"
     blueprint = Blueprint(yaml_util.load_yaml_dict(str(path)), expected_domain="automation", schema=AUTOMATION_BLUEPRINT_SCHEMA)
     assert all(len(item["description"]) > 60 for item in blueprint.inputs.values())
-    inputs = BlueprintInputs(blueprint, {"use_blueprint": {"path": str(path), "input": {"floor_entities": ["select.room"], "source": "sensor.outside", "source_mode": "current"}}})
+    inputs = BlueprintInputs(blueprint, {"use_blueprint": {"path": str(path), "input": {"floor_entities": ["select.room"], "source": "weather.test", "source_mode": "current"}}})
     inputs.validate()
     assert PLATFORM_SCHEMA(inputs.async_substitute())
 
@@ -468,7 +468,7 @@ async def test_actual_blueprint_returns_visible_trace_variables_and_old_calls_wo
         await hass.services.async_call("salus", "evaluate_comfort_rule", CONFIG, blocking=True)
         path = Path(__file__).resolve().parents[1] / "blueprints/automation/salus_comfort_rule.yaml"
         blueprint = Blueprint(yaml_util.load_yaml_dict(str(path)), expected_domain="automation", schema=AUTOMATION_BLUEPRINT_SCHEMA)
-        inputs = BlueprintInputs(blueprint, {"use_blueprint": {"path": str(path), "input": {"floor_entities": ["select.room"], "source": "sensor.outside", "source_mode": "current", "use_max_runtime": False, "max_runtime_hours": 8}}})
+        inputs = BlueprintInputs(blueprint, {"use_blueprint": {"path": str(path), "input": {"floor_entities": ["select.room"], "source": "weather.test", "source_mode": "current", "use_max_runtime": False, "max_runtime_hours": 8}}})
         config = inputs.async_substitute()
         script = Script(hass, cv.SCRIPT_SCHEMA(config.get("actions", config.get("action"))), "SALUS trace test", "salus")
         trace_get(clear=True)
@@ -486,6 +486,24 @@ async def test_actual_blueprint_returns_visible_trace_variables_and_old_calls_wo
         assert len(env["calls"]) == 1
     finally:
         controller.close()
+
+
+async def test_blueprint_groups_sources_and_forces_forecast_even_with_old_saved_mode(env):
+    path = Path(__file__).resolve().parents[1] / "blueprints/automation/salus_comfort_rule.yaml"
+    raw = yaml_util.load_yaml_dict(str(path))
+    sections = raw['blueprint']['input']
+    assert list(sections) == ['weather', 'rooms', 'start', 'stop', 'indoor', 'manual']
+    assert list(sections['weather']['input']) == ['source', 'outdoor_sensor']
+    assert sections['weather']['input']['source']['selector']['entity']['filter'] == [{'domain': 'weather'}]
+    assert sections['indoor']['collapsed'] and sections['manual']['collapsed']
+    blueprint = Blueprint(raw, expected_domain='automation', schema=AUTOMATION_BLUEPRINT_SCHEMA)
+    assert 'source_mode' not in blueprint.inputs
+    assert all('default' in value for key in ('indoor','manual') for value in sections[key]['input'].values())
+    inputs = BlueprintInputs(blueprint, {'use_blueprint': {'path': str(path), 'input': {'source': 'weather.test', 'floor_entities': ['select.room'], 'source_mode': 'current'}}})
+    config = inputs.async_substitute()
+    actions = config.get('actions', config.get('action'))
+    assert actions[0]['data']['source_mode'] == 'forecast'
+    assert actions[0]['data']['source'] == 'weather.test'
 
 
 def hourly_forecast(env, temperature=2):

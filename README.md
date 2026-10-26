@@ -4,10 +4,11 @@
 > Counter metadata is device-owned; actual hardware rollover remains unobserved.
 
 > **Comfort periods (b12):** [Configure the blueprint](blueprints/README.md).
-> Start from forecast or outdoor temperature, protect a minimum runtime, then
+> Start from the forecast, protect a minimum runtime, then
 > extend per room while it is cold or the room needs minimum-temperature hold.
 > Optional manual takeover preserves the level and starts its own timer.
 > Update b12, restart, re-import the blueprint and reload automations.
+> Already on b12? The grouped form only needs a blueprint re-import and automation reload.
 
 
 

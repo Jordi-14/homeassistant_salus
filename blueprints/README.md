@@ -2,14 +2,36 @@
 
 Kræver **v0.9.11b12** eller nyere. Tag en Home Assistant-backup før opdatering.
 
+## Formularens opbygning
+
+| Afsnit | Indhold |
+|---|---|
+| 1. Vejrudsigt og udeføler | Vejrtjenesten og en valgfri fysisk udeføler samlet øverst. |
+| 2. Rum og komfortniveau | De rum, der styres, og niveauet ved ny tænding. |
+| 3. Tænding og perioder | Prognosehorisont, tændgrænse, minimumløbetid og forlængelse. |
+| 4. Slukning | Grænsen for den aktuelle udetemperatur ved periodens slutning. |
+| 5. Rumtemperatur – valgfrit | Rumminimum og buffer. Foldes ud ved behov. |
+| 6. Manuel styring og pause | Overtagelse og minimumspause. Foldes ud ved behov. |
+
+Tænding bruger **altid timeprognosen**. Valget af temperaturgrundlag er fjernet.
+Ved stop bruges udeføleren først; ellers vejrtjenestens aktuelle temperatur.
+Formularændringen virker allerede med b12: **Importér igen** og genindlæs
+automationer. En ny HACS-installation eller genstart er ikke nødvendig for
+denne ændring, hvis du allerede kører b12.
+
+Kilde- og grænsefelter beholder deres id'er. Det gamle `source_mode` kan ligge
+i gemte input, men ignoreres af den nye skabelon. Har du tidligere valgt en
+sensor som hovedkilde, skal du nu vælge en weather-entitet i feltet Vejrudsigt
+og eventuelt flytte sensoren til den valgfrie udeføler, før reglen anvendes.
+
 ## Opdatér en eksisterende regel
 
 1. Opdatér SALUS til **b12** i HACS, og genstart Home Assistant.
 2. Åbn **Indstillinger → Automatiseringer og scener → Blueprints**.
 3. Ved **SALUS – enkel gulvkomfort med slukgrænse og pause**: vælg **⋮ → Importér
    igen**, og bekræft. Opret ikke en ekstra automation for de samme rum.
-4. Åbn din automation, gennemgå de nye felter, og gem. Vælg Prognose, hvis den
-   skal starte efter de næste X timers vejrudsigt. De gamle maksimumfelter udgår;
+4. Åbn din automation, gennemgå felterne, vælg din vejrtjeneste, og gem.
+   Tænding bruger altid timeprognosen. De gamle maksimumfelter udgår;
    den nye minimumløbetid har sin egen standard på fire timer.
 5. Genindlæs **Automatiseringer** under **Indstillinger → Værktøjer → YAML**.
 
@@ -17,9 +39,9 @@ Kræver **v0.9.11b12** eller nyere. Tag en Home Assistant-backup før opdatering
 
 ## Den samlede regel
 
-Prognosen bruges til at starte, ikke til at ændre en aktiv kørsel. Ved målt
-startgrundlag bruges den aktuelle udetemperatur i stedet for prognose. Alle
-grænser angives i Celsius; Fahrenheit-kilder omregnes.
+Prognosen bruges altid til at starte, ikke til at ændre en aktiv kørsel.
+Aktuel udetemperatur bruges kun til stopvurdering ved periodegrænserne.
+Alle grænser angives i Celsius; Fahrenheit-kilder omregnes.
 
 | Hændelse | Beslutning for det enkelte rum |
 |---|---|
@@ -54,8 +76,7 @@ Alle felter har også forklaring og eksempler direkte i formularen.
 
 | Felt | Betydning |
 |---|---|
-| Temperaturgrundlag ved start | Prognosens minimum i X timer eller målt temperatur. Bevarer det eksisterende valg ved opdatering. |
-| Udeføler eller vejrudsigt | Weather-kilden til prognose og aktuel reserveværdi, eller føler ved målt start. |
+| Vejrudsigt | Weather-kilden til timeprognose ved start og aktuel reserveværdi ved stop. |
 | Se dette antal timer frem | Prognosehorisonten ved nye starter. Påvirker ikke aktive perioder. |
 | Rum med Gulvkomfort | En eller flere SALUS-selects. Kun én aktiv regel pr. rum. |
 | Komfortniveau ved start | Niveau ved ny tænding. Overtagelse bevarer det manuelle niveau. |
@@ -63,7 +84,7 @@ Alle felter har også forklaring og eksempler direkte i formularen.
 | Minimumløbetid | Første beskyttede periode, fx fire timer. Erstatter ikke mindst-pausen efter sluk. |
 | Forlængelse pr. vurdering | Fx én ny time, hvis der stadig er behov ved periodegrænsen. |
 | Sluk ved eller over | Aktuel udetemperatur ved periodegrænsen. Skal være højere end tændgrænsen. |
-| Udetemperaturføler ved stop | Valgfri fysisk sensor, som prioriteres over vejrtjenestens aktuelle temperatur. |
+| Udetemperaturføler (valgfri) | Fysisk sensor ved siden af vejrudsigtsvalget øverst. Prioriteres over vejrtjenestens aktuelle temperatur ved stop. |
 | Hold aktiv ved lav rumtemperatur | Valgfrit. Bruger termostaten på samme enhed som det enkelte Gulvkomfort-select. |
 | Minimum rumtemperatur | Fælles grænse for valgte rum, men hvert rum vurderes separat. |
 | Buffer før rumfastholdelse frigives | Minimum 21 og buffer 0,5: et rum, der har været under 21, frigives ved 21,5. |
