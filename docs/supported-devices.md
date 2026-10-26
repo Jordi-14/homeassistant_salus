@@ -15,7 +15,6 @@ entities from normalized `salus-it600-client` models whenever possible.
 | SQ610 / SQ610RF | Quantum thermostat | `climate`, humidity sensor, floor temperature sensor when reported, diagnostic binary sensors, optional `lock` | Target temperature, HVAC mode, preset mode, schedule/manual/away/off, cool mode when reported, child lock when reported | Schedule is exposed as preset `Follow Schedule`, not HVAC `Auto`. `Schedule Override` is shown only while the thermostat reports an active schedule override. |
 | FC600 | Fan-coil controller | `climate`, humidity sensor, diagnostic binary sensors, optional `lock` | Target temperature, HVAC mode, preset mode, fan mode, schedule/manual/eco/off, child lock when reported | Supports fan modes and heat/cool operation when reported by the gateway. `Schedule Override` is shown only while active. |
 | TRV3RF | Thermostatic radiator valve | `climate`, sensors, diagnostic binary sensors | Target temperature and heat/off behavior when reported | Exposed through the climate platform. |
-| it600MINITRV | Thermostatic radiator valve | `climate`, battery sensor, diagnostic binary sensors | Target temperature and heat/off behavior when reported | Low battery is exposed from `TRVError22` when available. |
 | EL600T / Elypso thermostat | Newer Zigbee 3.0-era thermostat | May appear as a generic thermostat | Under investigation | Read support may work when the gateway maps it to known thermostat fields. Write support may need model-specific client handling. |
 
 ## Sensors
@@ -38,6 +37,7 @@ entities from normalized `salus-it600-client` models whenever possible.
 | SmokeSensor-EM | Smoke binary sensor, battery sensor when reported | Smoke alarm state when exposed by the gateway. |
 | TRV10RFM | Diagnostic binary sensor | Receiver or TRV-related diagnostic state when reported by the gateway. |
 | RX10RF | Diagnostic binary sensor | Receiver diagnostic state when reported by the gateway. |
+| it600MINITRV | Heat binary sensor, temperature sensor, RSSI/LQI sensors, low battery and problem binary sensors | A slave TRV with no setpoint of its own: set the temperature on the paired thermostat's climate entity. The heat sensor's attributes name that thermostat. The TRV temperature is decoded from `CommandResponse_d` and keeps its last reading when a poll omits it. Needs a client release with MiniTRV support. |
 | Thermostat error fields | Problem and battery problem binary sensors | Aggregated thermostat error flags are exposed with readable attributes. |
 
 ## Switches, Covers, And Locks

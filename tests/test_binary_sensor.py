@@ -197,3 +197,47 @@ class TestLowBatterySensor:
         coord = _coordinator_with_binary_sensors(device)
         entity = SalusBinarySensor(coord, device.unique_id)
         assert entity.translation_key == "open_window"
+
+
+class TestMiniTrvBinarySensors:
+    """it600MINITRV heat and problem binary sensors from the client."""
+
+    def test_heat_sensor_exposes_paired_thermostat(self):
+        attributes = {
+            "paired_thermostat_short_id": 23917,
+            "paired_thermostat_id": "climate_001",
+            "paired_thermostat_name": "Bedroom Thermostat",
+        }
+        device = make_binary_sensor_device(
+            unique_id="trv_001",
+            name="Bedroom TRV",
+            model="it600MINITRV",
+            is_on=True,
+            device_class="heat",
+            extra_state_attributes=attributes,
+        )
+        coord = _coordinator_with_binary_sensors(device)
+        entity = SalusBinarySensor(coord, device.unique_id)
+
+        assert entity.is_on is True
+        assert entity.device_class == "heat"
+        assert entity.extra_state_attributes == attributes
+
+    def test_problem_sensor_lists_faults(self):
+        device = make_binary_sensor_device(
+            unique_id="trv_001_problem",
+            name="Bedroom TRV Problem",
+            model="it600MINITRV",
+            is_on=True,
+            device_class="problem",
+            parent_unique_id="trv_001",
+            entity_category="diagnostic",
+            extra_state_attributes={"errors": ["Gear issue"]},
+        )
+        coord = _coordinator_with_binary_sensors(device)
+        entity = SalusBinarySensor(coord, device.unique_id)
+
+        assert entity.translation_key == "problem"
+        assert entity.entity_category == EntityCategory.DIAGNOSTIC
+        assert entity.extra_state_attributes == {"errors": ["Gear issue"]}
+        assert (DOMAIN, "trv_001") in entity.device_info["identifiers"]

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- it600MINITRV: document the new temperature, signal strength, link quality
+  and problem entities and the paired-thermostat attributes on the heat sensor
+  (needs a client release with MiniTRV support).
+- Correct the README: the it600MINITRV is a binary sensor device (a slave TRV
+  controlled through its paired thermostat), not a climate device.
+
 ## 0.9.11 - 2026-10-26
 
 - Promote the tested 0.9.11b1 beta to stable and require client 0.7.0.

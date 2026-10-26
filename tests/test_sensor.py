@@ -426,3 +426,46 @@ class TestThermostatTemperatureSensor:
         for call in coord.async_add_listener.call_args_list:
             call.args[0]()
         add_entities.assert_called_once()
+
+
+class TestMiniTrvSensors:
+    """it600MINITRV child sensors from the client."""
+
+    def test_trv_temperature_is_a_child_temperature_sensor(self):
+        device = make_sensor_device(
+            unique_id="trv_001_temperature",
+            name="Bedroom TRV Temperature",
+            model="it600MINITRV",
+            state=20.25,
+            device_class="temperature",
+            parent_unique_id="trv_001",
+            data={"UniID": "trv_001", "Endpoint": 1},
+        )
+        coord = _coordinator_with_sensors(device)
+        entity = SalusSensor(coord, device.unique_id)
+
+        assert entity.native_value == 20.25
+        assert entity.translation_key == "temperature"
+        assert entity.device_class == SensorDeviceClass.TEMPERATURE
+        assert entity.state_class == SensorStateClass.MEASUREMENT
+        assert entity.entity_category is None
+        assert (DOMAIN, "trv_001") in entity.device_info["identifiers"]
+
+    def test_trv_signal_sensors_are_diagnostic(self):
+        rssi = make_sensor_device(
+            unique_id="trv_001_rssi",
+            name="Bedroom TRV Signal strength",
+            model="it600MINITRV",
+            state=-58,
+            unit_of_measurement="dBm",
+            device_class="signal_strength",
+            parent_unique_id="trv_001",
+            entity_category="diagnostic",
+            data={"UniID": "trv_001", "Endpoint": 1},
+        )
+        coord = _coordinator_with_sensors(rssi)
+        entity = SalusSensor(coord, rssi.unique_id)
+
+        assert entity.translation_key == "signal_strength"
+        assert entity.entity_category == EntityCategory.DIAGNOSTIC
+        assert entity.state_class == SensorStateClass.MEASUREMENT
