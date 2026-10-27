@@ -37,7 +37,7 @@ entities from normalized `salus-it600-client` models whenever possible.
 | SmokeSensor-EM | Smoke binary sensor, battery sensor when reported | Smoke alarm state when exposed by the gateway. |
 | TRV10RFM | Diagnostic binary sensor | Receiver or TRV-related diagnostic state when reported by the gateway. |
 | RX10RF | Diagnostic binary sensor | Receiver diagnostic state when reported by the gateway. |
-| it600MINITRV | Heat binary sensor, temperature sensor, RSSI/LQI sensors, low battery and problem binary sensors | A slave TRV with no setpoint of its own: set the temperature on the paired thermostat's climate entity. The heat sensor's attributes name that thermostat. The TRV temperature is decoded from `CommandResponse_d` and keeps its last reading when a poll omits it. Needs a client release with MiniTRV support. |
+| it600MINITRV | Heat binary sensor, temperature sensor, RSSI/LQI sensors, low battery and problem binary sensors, mode select | A slave TRV with no setpoint of its own: set the temperature on the paired thermostat's climate entity. The mode select switches between Auto, Manual on (valve open) and Manual off (valve closed), and shows as unknown while the TRV reports a mode it entered on its own. The heat sensor's attributes name that thermostat. The TRV temperature is decoded from `CommandResponse_d` and keeps its last reading when a poll omits it. Needs a client release with MiniTRV support. |
 | Thermostat error fields | Problem and battery problem binary sensors | Aggregated thermostat error flags are exposed with readable attributes. |
 
 ## Switches, Covers, And Locks
