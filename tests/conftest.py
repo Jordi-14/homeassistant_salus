@@ -58,6 +58,9 @@ class FakeGateway:
     async def set_climate_device_locked(self, device_id: str, locked: bool) -> None:
         self._record("set_climate_locked", device_id, locked)
 
+    async def set_mini_trv_mode(self, device_id: str, mode: int) -> None:
+        self._record("set_mini_trv_mode", device_id, mode)
+
     async def set_climate_device_temperature(
         self, device_id: str, temperature: float
     ) -> None:
@@ -290,6 +293,7 @@ def make_binary_sensor_device(
     entity_category: str | None = None,
     extra_state_attributes: dict | None = None,
     available: bool = True,
+    mini_trv_mode: int | None = None,
 ) -> SimpleNamespace:
     """Create a binary sensor device SimpleNamespace."""
     return _device_base(
@@ -299,6 +303,7 @@ def make_binary_sensor_device(
         parent_unique_id=parent_unique_id,
         entity_category=entity_category,
         extra_state_attributes=extra_state_attributes,
+        mini_trv_mode=mini_trv_mode,
     )
 
 

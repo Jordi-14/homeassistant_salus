@@ -106,6 +106,16 @@
                 "name": "Keypad lock"
             }
         },
+        "select": {
+            "trv_mode": {
+                "name": "Mode",
+                "state": {
+                    "auto": "Auto",
+                    "manual_on": "Manual on (open)",
+                    "manual_off": "Manual off (closed)"
+                }
+            }
+        },
         "sensor": {
             "battery": {
                 "name": "Battery"

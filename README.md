@@ -73,6 +73,12 @@ One switch entity per smart plug or relay (SP600, SPE600, SR600, and RS600 relay
 
 One lock entity per thermostat that supports child lock. Allows **locking/unlocking** the thermostat keypad.
 
+### Selects
+
+| Select | Description |
+|---|---|
+| **Mode** | it600MINITRV mode: **Auto** (follow the paired thermostat), **Manual on (open)**, or **Manual off (closed)**. Shows as unknown while the TRV reports a mode it entered on its own |
+
 ## Installation
 
 Minimum supported Home Assistant version: `2024.11.0`.
@@ -138,6 +144,7 @@ For detailed support status, entity coverage, and known limitations, see
 | **Switches** | SP600, SPE600, SR600, RS600 relay endpoints |
 | **Covers** | RS600 |
 | **Locks** | Any thermostat with child-lock support |
+| **Selects** | it600MINITRV (mode) |
 
 Known unsupported: SB600, CSB600 (button actions only work through the Salus Smart Home app).
 

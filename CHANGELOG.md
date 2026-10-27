@@ -5,6 +5,9 @@
 - it600MINITRV: document the new temperature, signal strength, link quality
   and problem entities and the paired-thermostat attributes on the heat sensor
   (needs a client release with MiniTRV support).
+- it600MINITRV: add a **Mode** select to switch the TRV between Auto,
+  Manual on (valve open) and Manual off (valve closed) (needs a client release
+  with MiniTRV mode support).
 - Correct the README: the it600MINITRV is a binary sensor device (a slave TRV
   controlled through its paired thermostat), not a climate device.
 
