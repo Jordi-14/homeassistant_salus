@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Provide the thermostat temperatures through the `native_*` climate
+  properties, which removes the deprecation warnings logged by Home Assistant
+  2026.11. Older Home Assistant versions keep working through the previous
+  property names.
+
 ## 0.9.11 - 2026-10-26
 
 - Promote the tested 0.9.11b1 beta to stable and require client 0.7.0.

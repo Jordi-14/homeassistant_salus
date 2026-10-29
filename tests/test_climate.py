@@ -5,7 +5,12 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from homeassistant.components.climate import ClimateEntityFeature, HVACAction, HVACMode
+from homeassistant.components.climate import (
+    ClimateEntity,
+    ClimateEntityFeature,
+    HVACAction,
+    HVACMode,
+)
 from homeassistant.const import UnitOfTemperature
 from homeassistant.exceptions import HomeAssistantError
 from salus_it600.const import (
@@ -178,13 +183,13 @@ class TestSQ610Properties:
         device = make_climate_device(current_temperature=21.5)
         coord = _coordinator_with_climate(device)
         entity = SalusThermostat(coord, device.unique_id)
-        assert entity.current_temperature == 21.5
+        assert entity.native_current_temperature == 21.5
 
     def test_target_temperature(self):
         device = make_climate_device(target_temperature=22.0)
         coord = _coordinator_with_climate(device)
         entity = SalusThermostat(coord, device.unique_id)
-        assert entity.target_temperature == 22.0
+        assert entity.native_target_temperature == 22.0
 
     def test_min_max_temp(self):
         device = make_climate_device(min_temp=5.0, max_temp=35.0)
@@ -229,7 +234,26 @@ class TestSQ610Properties:
         device = make_climate_device(temperature_unit="°C")
         coord = _coordinator_with_climate(device)
         entity = SalusThermostat(coord, device.unique_id)
+        assert entity.native_temperature_unit == UnitOfTemperature.CELSIUS
+
+    def test_legacy_temperature_names_only_on_older_home_assistant(self):
+        """Old names are aliases before HA 2026.11 and absent from 2026.11 on."""
+        legacy_names = ("temperature_unit", "current_temperature", "target_temperature")
+        members = vars(SalusThermostat)
+        if hasattr(ClimateEntity, "native_temperature_unit"):
+            # Defining them on 2026.11+ triggers the deprecation warning.
+            assert not any(name in members for name in legacy_names)
+        else:
+            for name in legacy_names:
+                assert members[name] is members[f"native_{name}"]
+
+        device = make_climate_device(
+            temperature_unit="°C", current_temperature=21.5, target_temperature=22.0
+        )
+        entity = SalusThermostat(_coordinator_with_climate(device), device.unique_id)
         assert entity.temperature_unit == UnitOfTemperature.CELSIUS
+        assert entity.current_temperature == 21.5
+        assert entity.target_temperature == 22.0
 
     def test_supported_features_no_fan(self):
         device = make_climate_device(fan_mode=None, fan_modes=None)
@@ -450,7 +474,7 @@ class TestSQ610Commands:
         task = asyncio.create_task(entity.async_set_temperature(temperature=23.5))
         await asyncio.sleep(0)
 
-        assert entity.target_temperature == 23.5
+        assert entity.native_target_temperature == 23.5
         assert coord.gateway.calls == []
 
         await task
@@ -476,7 +500,7 @@ class TestSQ610Commands:
             _gateway_call("set_climate_temperature", device, 21.0),
         )
         assert coord.refresh_requests == 1
-        assert entity.target_temperature == 21.0
+        assert entity.native_target_temperature == 21.0
 
     async def test_pending_temperature_ignores_stale_poll_until_confirmation(
         self,
@@ -491,13 +515,13 @@ class TestSQ610Commands:
         await entity.async_set_temperature(temperature=23.5)
 
         device.target_temperature = 22.0
-        assert entity.target_temperature == 23.5
+        assert entity.native_target_temperature == 23.5
 
         device.target_temperature = 23.5
-        assert entity.target_temperature == 23.5
+        assert entity.native_target_temperature == 23.5
 
         device.target_temperature = 19.0
-        assert entity.target_temperature == 19.0
+        assert entity.native_target_temperature == 19.0
 
     async def test_set_temperature_no_value_is_noop(self):
         _, coord, entity = _thermostat()
@@ -939,7 +963,7 @@ class TestFC600Commands:
         await asyncio.sleep(0)
         await entity.async_set_fan_mode("high")
 
-        assert entity.target_temperature == 23.5
+        assert entity.native_target_temperature == 23.5
         _assert_gateway_calls(
             coord,
             _gateway_call("set_climate_fan_mode", device, "High"),

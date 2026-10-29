@@ -54,6 +54,9 @@ _LOGGER = logging.getLogger(__name__)
 PARALLEL_UPDATES = 1
 TARGET_TEMPERATURE_CONFIRMATION_EPSILON = 0.01
 
+# Home Assistant 2026.11 renamed the climate temperature properties to native_*.
+_HA_HAS_NATIVE_CLIMATE_TEMPERATURES = hasattr(ClimateEntity, "native_temperature_unit")
+
 SQ610_RESUME_PRESET_TO_RAW = {
     PRESET_FOLLOW_SCHEDULE: RAW_PRESET_FOLLOW_SCHEDULE,
     PRESET_PERMANENT_HOLD: RAW_PRESET_PERMANENT_HOLD,
@@ -184,8 +187,8 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         return self._view.supported_features
 
     @property
-    def temperature_unit(self) -> str | None:
-        """Return the unit of measurement."""
+    def native_temperature_unit(self) -> str | None:
+        """Return the unit the thermostat reports temperatures in."""
         return self._device_attr("temperature_unit")
 
     @property
@@ -194,7 +197,7 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         return self._device_attr("precision")
 
     @property
-    def current_temperature(self) -> float | None:
+    def native_current_temperature(self) -> float | None:
         """Return the current temperature."""
         return self._view.current_temperature
 
@@ -219,13 +222,20 @@ class SalusThermostat(SalusEntity, ClimateEntity):
         return self._view.hvac_action
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """Return the temperature the thermostat tries to reach."""
         return self._pending_or_reported(
             "target_temperature",
             self._view.target_temperature,
             equivalent=self._temperatures_match,
         )
+
+    if not _HA_HAS_NATIVE_CLIMATE_TEMPERATURES:
+        # Home Assistant before 2026.11 only reads the old names. Newer versions
+        # warn when a subclass defines them, so they are only added here.
+        temperature_unit = native_temperature_unit
+        current_temperature = native_current_temperature
+        target_temperature = native_target_temperature
 
     @property
     def max_temp(self) -> float | None:
