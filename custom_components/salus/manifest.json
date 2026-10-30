@@ -1,15 +1,28 @@
 {
   "domain": "salus",
   "name": "Salus iT600",
-  "codeowners": ["@Jordi-14", "@leonardpitzu"],
+  "after_dependencies": [
+    "logbook"
+  ],
+  "codeowners": [
+    "@Jordi-14",
+    "@leonardpitzu"
+  ],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": [
+    "frontend",
+    "http"
+  ],
   "documentation": "https://github.com/Jordi-14/homeassistant_salus",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/Jordi-14/homeassistant_salus/issues",
-  "loggers": ["salus_it600"],
+  "loggers": [
+    "salus_it600"
+  ],
   "quality_scale": "silver",
-  "requirements": ["salus-it600-client==0.7.0"],
+  "requirements": [
+    "salus-it600-client==0.7.0"
+  ],
   "version": "0.9.11"
 }

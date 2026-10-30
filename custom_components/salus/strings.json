@@ -65,6 +65,10 @@
     "gateway_unavailable": {
       "title": "Salus Gateway is unavailable",
       "description": "Home Assistant could not reach the Salus Gateway at {host}. Check that the gateway is powered on, the IP address is still correct, and Local WiFi Mode is enabled in the Salus app. If the EUID printed on the gateway does not work, try 0000000000000000."
+    },
+    "comfort_command_uncertain": {
+      "title": "Floor-comfort command needs confirmation",
+      "description": "The comfort command for {entity} could not be confirmed. Automatic replay is blocked. Check the actual level, set floor comfort to Off, then use the reset comfort rule action. Normal room-temperature control is unchanged."
     }
   },
   "entity": {
@@ -101,6 +105,17 @@
         }
       }
     },
+    "select": {
+      "comfort_warm_floor": {
+        "name": "Comfort warm floor",
+        "state": {
+          "off": "Off",
+          "level_1": "Level 1",
+          "level_2": "Level 2",
+          "level_3": "Level 3"
+        }
+      }
+    },
     "lock": {
       "keypad_lock": {
         "name": "Keypad lock"
@@ -133,6 +148,96 @@
       },
       "temperature_calibration": {
         "name": "Temperature calibration"
+      }
+    }
+  },
+  "services": {
+    "evaluate_comfort_rule": {
+      "name": "Vurdér Gulvkomfort-regel",
+      "description": "Vurderer én samlet komfortregel med gemt køretid og pause. Brug normalt blueprintfunktionen til opsætning.",
+      "fields": {
+        "rule_id": {
+          "name": "Automation",
+          "description": "Automationens entitets-id. Blueprintfunktionen udfylder dette automatisk."
+        },
+        "cycle_mode": {
+          "name": "Kørselslogik",
+          "description": "Minimumperioder er den nye regel med garanteret løbetid og forlængelser. Ældre maksimumlogik bevares kun til allerede importerede blueprints. Blueprintet vælger automatisk minimumperioder."
+        },
+        "source": {
+          "name": "Vejrudsigt",
+          "description": "Vælg vejrtjenesten med timeprognoser. Den bruges altid til tænding og leverer også temperaturen nu, hvis der ikke er en gyldig udeføler."
+        },
+        "outdoor_sensor": {
+          "name": "Udetemperaturføler (valgfri)",
+          "description": "Valgfri fysisk udeføler til stopvurdering. Uden en gyldig måling bruges vejrtjenestens aktuelle temperatur — aldrig en fremtidig prognosetime."
+        },
+        "floor_entities": {
+          "name": "Rum med Gulvkomfort",
+          "description": "Vælg de rum, reglen skal styre. Hvert rum har egne timer og egen fastholdelse; et koldt rum holder ikke andre rum i gang."
+        },
+        "level": {
+          "name": "Komfortniveau ved start",
+          "description": "Niveau ved automatisk tænding af et slukket rum. Ved overtagelse af allerede aktiv komfort bevares det manuelt valgte niveau."
+        },
+        "forecast_hours": {
+          "name": "Se dette antal timer frem",
+          "description": "Hvor langt frem skal vejrudsigten undersøges? Fx 8 timer. Prognosen bruges kun til start og ændrer ikke en aktiv kørsel."
+        },
+        "start_below": {
+          "name": "Tænd under",
+          "description": "Tænd, hvis mindst én time i prognosen er under denne grænse, og rummets pause er udløbet. Fx 4,9 °C kan starte ved grænse 5 °C."
+        },
+        "min_runtime_hours": {
+          "name": "Minimumløbetid",
+          "description": "Første beskyttede periode, fx 4 timer. Starter ved bekræftet tænding eller ved overtagelse. Nye tjek og genstart nulstiller ikke tiden."
+        },
+        "extension_hours": {
+          "name": "Forlængelse pr. vurdering",
+          "description": "Er der stadig behov ved periodens slutning, forlænges fx 1 time. Der foretages først en ny stopvurdering ved den nye periodes slutning."
+        },
+        "stop_at": {
+          "name": "Sluk ved eller over",
+          "description": "Ved periodens slutning: Sluk, hvis temperaturen udenfor nu er ved eller over grænsen, og rummet ikke fastholdes. Skal være højere end tændgrænsen."
+        },
+        "use_room_minimum": {
+          "name": "Hold aktiv ved lav rumtemperatur",
+          "description": "Kun et allerede aktivt rum kan fastholdes af sin egen temperatur. Termostaten på samme enhed læses automatisk; rumminimum tænder aldrig alene."
+        },
+        "room_minimum": {
+          "name": "Minimum rumtemperatur",
+          "description": "Fx 21 °C: Kommer et aktivt rum under grænsen, kan det holde komforten aktiv. Hvert rum vurderes separat, selv om grænsen er fælles."
+        },
+        "room_margin": {
+          "name": "Buffer før rumfastholdelse frigives",
+          "description": "Fx minimum 21 °C og buffer 0,5 °C: Har rummet udløst fastholdelse, frigives den ved 21,5 °C. Stop kan først ske ved næste periodegrænse."
+        },
+        "use_room_maximum": {
+          "name": "Sluk straks ved høj rumtemperatur",
+          "description": "Slå til for at afbryde automatisk styret Gulvkomfort ved den øvre rumgrænse, også midt i minimumperioden. Kun dette rum slukkes; den normale pause starter bagefter. Ny tænding blokeres, hvis rummet er for varmt eller ikke kan måles."
+        },
+        "room_maximum": {
+          "name": "Øvre rumtemperatur – sluk straks ved",
+          "description": "Fx 25 °C: Ved eller over grænsen sendes Fra ved næste gyldige måling fra rummets egen termostat. Har du også rumminimum, skal grænsen være over minimum plus buffer."
+        },
+        "adopt_manual": {
+          "name": "Overtag manuelt aktiveret Gulvkomfort",
+          "description": "Når startbetingelsen er opfyldt og pausen udløbet, kan manuelt aktiv komfort overtages. Niveauet bevares; minimumperioden starter ved overtagelsen."
+        },
+        "cooldown_hours": {
+          "name": "Mindste pause før ny start",
+          "description": "Mindste pause efter bekræftet slukning eller manuel ændring. Gælder både ny tænding og overtagelse. Pausen gemmes separat for hvert rum."
+        }
+      }
+    },
+    "reset_comfort_rule": {
+      "name": "Nulstil blokeret Gulvkomfort-regel",
+      "description": "Kræver bekræftet Fra på alle regelstyrede rum. Fjerner usikker kommandostatus og begynder en ny minimumspause uden at skrive til termostaterne.",
+      "fields": {
+        "rule_id": {
+          "name": "Automation",
+          "description": "Automationens entitets-id. Blueprintfunktionen udfylder dette automatisk."
+        }
       }
     }
   }

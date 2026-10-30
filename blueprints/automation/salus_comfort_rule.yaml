@@ -1,0 +1,258 @@
+blueprint:
+  name: SALUS – enkel gulvkomfort med slukgrænse og pause
+  description: Vejrudsigten starter komforten. Efter minimumløbetiden vurderes aktuel udetemperatur ved hver
+    periodegrænse. Rumminimum, overtagelse og timer gælder separat pr. rum. Kræver integrationens nye komfortcontroller. En
+    valgfri øvre rumgrænse kan afbryde minimumperiode og forlængelser straks.
+  domain: automation
+  homeassistant:
+    min_version: 2024.11.0
+  source_url: https://github.com/Jordi-14/homeassistant_salus/blob/master/blueprints/automation/salus_comfort_rule.yaml
+  input:
+    weather:
+      name: 1. Vejrudsigt og udeføler
+      description: Vælg kilderne her. Tænding bruger altid prognosen; stop bruger temperaturen nu.
+      collapsed: false
+      input:
+        source:
+          name: Vejrudsigt
+          description: Vælg vejrtjenesten med timeprognoser. Den bruges altid til tænding og leverer også temperaturen
+            nu, hvis der ikke er en gyldig udeføler.
+          selector:
+            entity:
+              filter:
+              - domain: weather
+        outdoor_sensor:
+          name: Udetemperaturføler (valgfri)
+          description: Valgfri fysisk udeføler til stopvurdering. Uden en gyldig måling bruges vejrtjenestens
+            aktuelle temperatur — aldrig en fremtidig prognosetime.
+          default: ''
+          selector:
+            entity:
+              filter:
+              - domain: sensor
+                device_class: temperature
+    rooms:
+      name: 2. Rum og komfortniveau
+      description: Vælg rum og det niveau, der anvendes ved en ny tænding.
+      collapsed: false
+      input:
+        floor_entities:
+          name: Rum med Gulvkomfort
+          description: Vælg de rum, reglen skal styre. Hvert rum har egne timer og egen fastholdelse; et koldt
+            rum holder ikke andre rum i gang.
+          selector:
+            entity:
+              multiple: true
+              filter:
+              - domain: select
+                integration: salus
+        level:
+          name: Komfortniveau ved start
+          description: Niveau ved automatisk tænding af et slukket rum. Ved overtagelse af allerede aktiv komfort
+            bevares det manuelt valgte niveau.
+          default: level_1
+          selector:
+            select:
+              options:
+              - label: Niveau 1
+                value: level_1
+              - label: Niveau 2
+                value: level_2
+              - label: Niveau 3
+                value: level_3
+    start:
+      name: 3. Tænding og perioder
+      description: Hvornår skal der startes, og hvor længe skal hver periode vare?
+      collapsed: false
+      input:
+        forecast_hours:
+          name: Se dette antal timer frem
+          description: Hvor langt frem skal vejrudsigten undersøges? Fx 8 timer. Prognosen bruges kun til start
+            og ændrer ikke en aktiv kørsel.
+          default: 12
+          selector:
+            number:
+              min: 1
+              max: 48
+              step: 1
+              unit_of_measurement: timer
+              mode: box
+        start_below:
+          name: Tænd under
+          description: Tænd, hvis mindst én time i prognosen er under denne grænse, og rummets pause er udløbet.
+            Fx 4,9 °C kan starte ved grænse 5 °C.
+          default: 5
+          selector:
+            number:
+              min: -50
+              max: 50
+              step: 0.5
+              unit_of_measurement: °C
+              mode: box
+        min_runtime_hours:
+          name: Minimumløbetid
+          description: Første beskyttede periode, fx 4 timer. Starter ved bekræftet tænding eller ved overtagelse.
+            Nye tjek og genstart nulstiller ikke tiden.
+          default: 4
+          selector:
+            number:
+              min: 0.25
+              max: 168
+              step: 0.25
+              unit_of_measurement: timer
+              mode: box
+        extension_hours:
+          name: Forlængelse pr. vurdering
+          description: Er der stadig behov ved periodens slutning, forlænges fx 1 time. Der foretages først
+            en ny stopvurdering ved den nye periodes slutning.
+          default: 1
+          selector:
+            number:
+              min: 0.25
+              max: 24
+              step: 0.25
+              unit_of_measurement: timer
+              mode: box
+    stop:
+      name: 4. Slukning
+      description: Vurderes først, når minimumperioden eller en forlængelse udløber.
+      collapsed: false
+      input:
+        stop_at:
+          name: Sluk ved eller over
+          description: 'Ved periodens slutning: Sluk, hvis temperaturen udenfor nu er ved eller over grænsen,
+            og rummet ikke fastholdes. Skal være højere end tændgrænsen.'
+          default: 7
+          selector:
+            number:
+              min: -50
+              max: 60
+              step: 0.5
+              unit_of_measurement: °C
+              mode: box
+    indoor:
+      name: 5. Rumtemperatur – minimum og øvre grænse
+      description: Minimum kan holde et rum aktivt. Øvre grænse kan straks slukke det. Begge er valgfrie og
+        gælder separat pr. rum.
+      collapsed: true
+      input:
+        use_room_minimum:
+          name: Hold aktiv ved lav rumtemperatur
+          description: Kun et allerede aktivt rum kan fastholdes af sin egen temperatur. Termostaten på samme
+            enhed læses automatisk; rumminimum tænder aldrig alene.
+          default: false
+          selector:
+            boolean: {}
+        room_minimum:
+          name: Minimum rumtemperatur
+          description: 'Fx 21 °C: Kommer et aktivt rum under grænsen, kan det holde komforten aktiv. Hvert
+            rum vurderes separat, selv om grænsen er fælles.'
+          default: 21
+          selector:
+            number:
+              min: 5
+              max: 35
+              step: 0.5
+              unit_of_measurement: °C
+              mode: box
+        room_margin:
+          name: Buffer før rumfastholdelse frigives
+          description: 'Fx minimum 21 °C og buffer 0,5 °C: Har rummet udløst fastholdelse, frigives den ved
+            21,5 °C. Stop kan først ske ved næste periodegrænse.'
+          default: 0.5
+          selector:
+            number:
+              min: 0.1
+              max: 5
+              step: 0.1
+              unit_of_measurement: °C
+              mode: box
+        use_room_maximum:
+          name: Sluk straks ved høj rumtemperatur
+          description: Slå til for at afbryde automatisk styret Gulvkomfort ved den øvre rumgrænse, også midt
+            i minimumperioden. Kun dette rum slukkes; den normale pause starter bagefter. Ny tænding blokeres,
+            hvis rummet er for varmt eller ikke kan måles.
+          default: false
+          selector:
+            boolean: {}
+        room_maximum:
+          name: Øvre rumtemperatur – sluk straks ved
+          description: 'Fx 25 °C: Ved eller over grænsen sendes Fra ved næste gyldige måling fra rummets egen
+            termostat. Har du også rumminimum, skal grænsen være over minimum plus buffer.'
+          default: 25
+          selector:
+            number:
+              min: 5
+              max: 40
+              step: 0.5
+              unit_of_measurement: °C
+              mode: box
+    manual:
+      name: 6. Manuel styring og pause
+      description: Vælg overtagelse og pause mellem kørsler. Kan foldes ud ved behov.
+      collapsed: true
+      input:
+        adopt_manual:
+          name: Overtag manuelt aktiveret Gulvkomfort
+          description: Når startbetingelsen er opfyldt og pausen udløbet, kan manuelt aktiv komfort overtages.
+            Niveauet bevares; minimumperioden starter ved overtagelsen.
+          default: false
+          selector:
+            boolean: {}
+        cooldown_hours:
+          name: Mindste pause før ny start
+          description: Mindste pause efter bekræftet slukning eller manuel ændring. Gælder både ny tænding
+            og overtagelse. Pausen gemmes separat for hvert rum.
+          default: 6
+          selector:
+            number:
+              min: 0
+              max: 168
+              step: 0.25
+              unit_of_measurement: timer
+              mode: box
+
+mode: single
+max_exceeded: silent
+trigger:
+  - platform: time_pattern
+    minutes: /1
+  - platform: state
+    entity_id: !input source
+  - platform: state
+    entity_id: !input floor_entities
+  - platform: homeassistant
+    event: start
+action:
+  - alias: Vurdér startbetingelse og rummenes perioder
+    service: salus.evaluate_comfort_rule
+    response_variable: salus_resultat
+    data:
+      rule_id: "{{ this.entity_id }}"
+      cycle_mode: minimum
+      source_mode: forecast
+      source: !input source
+      forecast_hours: !input forecast_hours
+      floor_entities: !input floor_entities
+      level: !input level
+      start_below: !input start_below
+      min_runtime_hours: !input min_runtime_hours
+      extension_hours: !input extension_hours
+      stop_at: !input stop_at
+      outdoor_sensor: !input outdoor_sensor
+      use_room_minimum: !input use_room_minimum
+      room_minimum: !input room_minimum
+      room_margin: !input room_margin
+      use_room_maximum: !input use_room_maximum
+      room_maximum: !input room_maximum
+      adopt_manual: !input adopt_manual
+      cooldown_hours: !input cooldown_hours
+  - alias: Resultat – forklaring, temperatur og timer (se Ændrede variabler)
+    variables:
+      forklaring: "{{ salus_resultat.explanation }}"
+      temperaturgrundlag_c: "{{ salus_resultat.temperature_c }}"
+      taendgrundlag_c: "{{ salus_resultat.temperature_c }}"
+      slukgrundlag_c: "{{ salus_resultat.stop_temperature_c }}"
+      vejrdata: "{{ salus_resultat.temperature_data }}"
+      slukdata: "{{ salus_resultat.current_temperature_data }}"
+      rum_og_timer: "{{ salus_resultat.rooms }}"

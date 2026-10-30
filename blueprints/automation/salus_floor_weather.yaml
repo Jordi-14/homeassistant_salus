@@ -1,0 +1,242 @@
+blueprint:
+  name: SALUS – vejrstyret gulvkomfort
+  description: >-
+    Vælg Gulvkomfort-entiteter og en eksisterende vejrudsigt og/eller udeføler.
+    Døgnreglen har førsteprioritet: er ALLE timeprognoser de næste 24 timer
+    under grænsen, bruges døgnniveauet. Ellers bruges tidsreglen ved kulde i
+    tidsrummet, og Fra udenfor. Regler kan slås fra hver for sig.
+    Temperaturgrænser er i °C; °F omregnes automatisk.
+    Kontrol hvert kvarter, ved tidsgrænser og ved HA-start. En aktiv døgnregel
+    med ufuldstændig vejrudsigt bevarer seneste indstilling. Der skrives kun ved
+    en faktisk niveauændring via SALUS-integrationens normale sikkerhedstjek.
+    Lav én automation pr. rumgruppe; lad kun én aktiv regel styre hver entitet.
+    Slå automationen fra for manuel styring; det ændrer ikke det aktuelle niveau.
+  domain: automation
+  homeassistant:
+    min_version: 2024.11.0
+  source_url: https://github.com/Jordi-14/homeassistant_salus/blob/master/blueprints/automation/salus_floor_weather.yaml
+  input:
+    floor_entities:
+      name: Rum med gulvkomfort
+      description: Vælg et eller flere rum, som skal følge samme regel.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: select
+              integration: salus
+    weather_source:
+      name: Vejrudsigt
+      description: >-
+        Påkrævet for døgnreglen. Skal understøtte timeprognoser mindst 24 timer
+        frem. Kan også levere den aktuelle udetemperatur til tidsreglen.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: weather
+    outdoor_sensor:
+      name: Udetemperatur fra egen føler (valgfri)
+      description: >-
+        Bruges til tidsreglen i stedet for vejrtjenestens aktuelle temperatur.
+        En valgt føler, der er utilgængelig, erstattes ikke af en anden kilde.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: temperature
+    schedule_enabled:
+      name: Brug tidsregel
+      default: true
+      selector:
+        boolean:
+    schedule_threshold:
+      name: Tidsregel – tænd under
+      default: 12
+      selector:
+        number:
+          min: -30
+          max: 30
+          step: 0.5
+          unit_of_measurement: °C
+          mode: box
+    start_time:
+      name: Tidsregel – fra klokken
+      default: "06:00:00"
+      selector:
+        time:
+    end_time:
+      name: Tidsregel – til klokken
+      description: >-
+        Sluttidspunktet er ikke med i tidsrummet. Tider over midnat understøttes.
+        Samme start- og sluttid betyder hele døgnet.
+      default: "22:00:00"
+      selector:
+        time:
+    schedule_level:
+      name: Tidsregel – komfortniveau
+      default: level_1
+      selector:
+        select:
+          options:
+            - label: Niveau 1
+              value: level_1
+            - label: Niveau 2
+              value: level_2
+            - label: Niveau 3
+              value: level_3
+    always_enabled:
+      name: Brug døgnregel med vejrudsigt
+      default: true
+      selector:
+        boolean:
+    always_threshold:
+      name: Døgnregel – alle de næste 24 timer under
+      default: 5
+      selector:
+        number:
+          min: -30
+          max: 30
+          step: 0.5
+          unit_of_measurement: °C
+          mode: box
+    always_level:
+      name: Døgnregel – komfortniveau
+      default: level_1
+      selector:
+        select:
+          options:
+            - label: Niveau 1
+              value: level_1
+            - label: Niveau 2
+              value: level_2
+            - label: Niveau 3
+              value: level_3
+    hysteresis:
+      name: Temperaturbuffer før komfort slukkes
+      description: >-
+        Fx 1 °C: en grænse på 12 °C tænder under 12 °C, men et allerede
+        aktivt rum holdes varmt indtil 13 °C. Tidsrummets sluttid respekteres.
+        Døgnreglens buffer gælder prognosens højeste temperatur.
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 5
+          step: 0.5
+          unit_of_measurement: °C
+          mode: box
+
+mode: single
+max_exceeded: silent
+variables:
+  floor_entities: !input floor_entities
+  weather_source: !input weather_source
+  outdoor_sensor: !input outdoor_sensor
+  schedule_enabled: !input schedule_enabled
+  schedule_threshold: !input schedule_threshold
+  start_time: !input start_time
+  end_time: !input end_time
+  schedule_level: !input schedule_level
+  always_enabled: !input always_enabled
+  always_threshold: !input always_threshold
+  always_level: !input always_level
+  hysteresis: !input hysteresis
+trigger:
+  - platform: time_pattern
+    minutes: /15
+  - platform: time
+    at: !input start_time
+  - platform: time
+    at: !input end_time
+  - platform: homeassistant
+    event: start
+action:
+  - condition: template
+    value_template: "{{ schedule_enabled or always_enabled }}"
+  - variables:
+      forecast_response: {}
+      evaluation_time: "{{ as_timestamp(now()) }}"
+      current_temperature: >-
+        {% set raw = states(outdoor_sensor) if outdoor_sensor else state_attr(weather_source, 'temperature') %}
+        {% set unit = state_attr(outdoor_sensor, 'unit_of_measurement') if outdoor_sensor else state_attr(weather_source, 'temperature_unit') %}
+        {% if has_value(outdoor_sensor or weather_source) and is_number(raw) and unit in ['°C', '°F'] %}
+          {{ ((raw | float - 32) * 5 / 9) if unit == '°F' else raw | float }}
+        {% else %}{{ none }}{% endif %}
+      in_window: >-
+        {% set start = as_timestamp(today_at(start_time)) %}
+        {% set end = as_timestamp(today_at(end_time)) %}
+        {{ start == end or (start <= evaluation_time < end if start < end
+            else evaluation_time >= start or evaluation_time < end) }}
+  - if: "{{ always_enabled }}"
+    then:
+      - condition: template
+        value_template: "{{ weather_source and has_value(weather_source) }}"
+      - service: weather.get_forecasts
+        target:
+          entity_id: "{{ weather_source }}"
+        data:
+          type: hourly
+        response_variable: forecast_response
+  - variables:
+      forecast_check: >-
+        {% set result = forecast_response.get(weather_source, {}) if forecast_response is mapping else {} %}
+        {% set rows = result.get('forecast', []) if result is mapping else [] %}
+        {% set unit = state_attr(weather_source, 'temperature_unit') %}
+        {% set ns = namespace(points=[], valid=(unit in ['°C', '°F'])) %}
+        {% for row in rows if row is mapping %}
+          {% set t = as_timestamp(row.get('datetime'), none) %}
+          {% if t is none %}{% set ns.valid = false %}
+          {% elif evaluation_time <= t <= evaluation_time + 86400 %}
+            {% set raw = row.get('temperature') %}
+            {% if is_number(raw) %}
+              {% set value = ((raw | float - 32) * 5 / 9) if unit == '°F' else raw | float %}
+              {% set ns.points = ns.points + [dict(time=t, value=value)] %}
+            {% else %}{% set ns.valid = false %}{% endif %}
+          {% endif %}
+        {% endfor %}
+        {% set points = ns.points | sort(attribute='time') %}
+        {% if points | map(attribute='time') | unique | list | count != points | count %}
+          {% set ns.valid = false %}
+        {% endif %}
+        {% if points | count < 24 %}{% set ns.valid = false %}
+        {% else %}
+          {% if points[0].time > evaluation_time + 3600 or points[-1].time < evaluation_time + 82800 %}
+            {% set ns.valid = false %}
+          {% endif %}
+          {% for p in points %}
+            {% if not loop.first and p.time - points[loop.index0 - 1].time > 3600 %}
+              {% set ns.valid = false %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ dict(valid=ns.valid, maximum=(points | map(attribute='value') | max if points else none)) }}
+  - if: "{{ always_enabled and not forecast_check.valid }}"
+    then:
+      - stop: Vejrudsigten dækker ikke 24 timer med gyldige timeværdier; ingen ændring.
+  - repeat:
+      for_each: "{{ floor_entities }}"
+      sequence:
+        - variables:
+            current_level: "{{ states(repeat.item) }}"
+            desired_level: >-
+              {% set buffer = hysteresis if current_level in ['level_1', 'level_2', 'level_3'] else 0 %}
+              {% if always_enabled and forecast_check.maximum < always_threshold + buffer %}
+                {{ always_level }}
+              {% elif schedule_enabled and in_window %}
+                {% if current_temperature is none %}{{ none }}
+                {% elif current_temperature < schedule_threshold + buffer %}{{ schedule_level }}
+                {% else %}off{% endif %}
+              {% else %}off{% endif %}
+        - if: >-
+            {{ current_level in ['off', 'level_1', 'level_2', 'level_3']
+               and desired_level in ['off', 'level_1', 'level_2', 'level_3']
+               and current_level != desired_level
+               and ['off', 'level_1', 'level_2', 'level_3'] | reject('in', state_attr(repeat.item, 'options') or []) | list | count == 0 }}
+          then:
+            - service: select.select_option
+              target:
+                entity_id: "{{ repeat.item }}"
+              data:
+                option: "{{ desired_level }}"

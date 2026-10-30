@@ -2,10 +2,27 @@
 
 ## Unreleased
 
-- Provide the thermostat temperatures through the `native_*` climate
-  properties, which removes the deprecation warnings logged by Home Assistant
-  2026.11. Older Home Assistant versions keep working through the previous
-  property names.
+- Expose persistent per-room observation/start/next-check times and saved start
+  evidence on existing selects. Show diagnostics only in expanded room cards.
+- Add entity Activity explanations for requested/observed starts, adoption,
+  confirmation, extensions, stops and cooldown; retain the native Activity link.
+  Include forecast value/time/fetch time, thresholds and outdoor-at-start value.
+- Preserve unknown actor/start-time distinctions and report disabled automation
+  as paused. Activity retention follows Recorder settings; no old events are
+  reconstructed and no controller thresholds or runtime rules change.
+
+- Add client-verified Comfort Warm Floor selects (Off/1/2/3), enabled by default
+  for supported profiles; preserve explicit user disable choices.
+- Persist a private pre-command backup and unresolved journal; show only
+  confirmed device state and prevent blind replay or rollback.
+- Bundle a responsive room card and visual editor with optional floor controls
+  and temperature/setpoint/heat-demand history fetched only when expanded.
+- Add a forecast-start blueprint with persistent per-room minimum runtime,
+  extensions based on current outdoor temperature, optional indoor hold,
+  immediate upper room-temperature stop, manual adoption and cooldown.
+- Add trace responses and simulated coverage for controller/restart/failure paths.
+  The matching client must be released and the production dependency updated
+  before the new floor-comfort capability can be enabled upstream.
 
 ## 0.9.11 - 2026-10-26
 

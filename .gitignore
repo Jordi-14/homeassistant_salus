@@ -26,3 +26,7 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Dashboard browser test tools/output
+node_modules/
+.dashboard-test-output/

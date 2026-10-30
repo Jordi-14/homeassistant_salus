@@ -28,5 +28,24 @@ def test_hacs_archive_preserves_mit_license_and_notices(tmp_path):
         assert archive.testzip() is None
         assert archive.read("LICENSE") == (ROOT / "LICENSE").read_bytes()
         assert archive.read("NOTICE") == (ROOT / "NOTICE").read_bytes()
-        assert "Copyright (c) 2020 Konrad Banachowicz" in archive.read("LICENSE").decode()
-        assert json.loads(archive.read("manifest.json"))["version"] == project["version"]
+        assert (
+            "Copyright (c) 2020 Konrad Banachowicz" in archive.read("LICENSE").decode()
+        )
+        assert (
+            json.loads(archive.read("manifest.json"))["version"] == project["version"]
+        )
+
+
+def test_hacs_archive_includes_the_bundled_card_and_visual_editor(tmp_path):
+    output = tmp_path / "salus.zip"
+    subprocess.run(
+        [sys.executable, "scripts/package_hacs_release.py", "--output", str(output)],
+        cwd=ROOT,
+        check=True,
+    )
+    with zipfile.ZipFile(output) as archive:
+        content = archive.read("frontend/salus-room-card.js").decode("utf-8")
+        assert "getConfigElement" in content
+        assert "salus-room-card-editor" in content
+        assert "SALUS rumkort" in content
+        assert json.loads(archive.read("manifest.json"))["dependencies"] == ["frontend", "http"]
