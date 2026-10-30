@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add an experimental, disabled-by-default Comfort Warm Floor select for
+  client-verified SQ610RFNH firmware 00000054 profiles. Return on gateway ack;
+  expose the requested level as assumed until a poll confirms it, for at most
+  120 seconds. Do not hold the shared gateway lock while waiting for the device.
+
 - Provide the thermostat temperatures through the `native_*` climate
   properties, which removes the deprecation warnings logged by Home Assistant
   2026.11. Older Home Assistant versions keep working through the previous

@@ -68,6 +68,17 @@
         }
     },
     "entity": {
+        "select": {
+            "comfort_warm_floor": {
+                "name": "Confort del terra",
+                "state": {
+                    "off": "Desactivat",
+                    "level_1": "Nivell 1",
+                    "level_2": "Nivell 2",
+                    "level_3": "Nivell 3"
+                }
+            }
+        },
         "binary_sensor": {
             "battery": {
                 "name": "Bateria"

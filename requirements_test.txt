@@ -4,4 +4,4 @@ pytest-asyncio>=0.23
 pytest-cov>=4.0
 pytest-homeassistant-custom-component>=0.13.0
 ruff>=0.11
-salus-it600-client==0.7.0
+salus-it600-client @ git+https://github.com/MichaelBusackBertelsen/salus-it600-client.git@3892180239fbab9115c29fb993e2c073031d4f57

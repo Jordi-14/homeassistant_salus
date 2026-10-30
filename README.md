@@ -33,6 +33,20 @@ cooling, schedules, and hold states:
   when the device reports Eco support; `Schedule Override` is shown only while
   active. Fan modes are `auto`, `high`, `medium`, `low`, and `off`.
 
+### Experimental Comfort Warm Floor
+
+For client-verified SQ610RFNH firmware `00000054` profiles, an optional select
+controls Off / 1 / 2 / 3. It is disabled by default while more hardware feedback
+is collected. The client feature must be released and the production dependency
+updated before this capability appears with the published integration.
+
+The command returns on gateway acknowledgement. The requested level is shown
+with Home Assistant's standard `assumed_state` flag until a normal poll confirms
+it or the 120-second pending window expires. Automations should check that this
+flag is false before treating a level as device-confirmed. Gateway polling and
+other commands remain available during that window. No persistent write journal,
+room card or weather controller is installed by this feature.
+
 ### Sensors
 
 | Sensor | Description |
