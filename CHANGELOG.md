@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an experimental Comfort Warm Floor select (Off / 1 / 2 / 3) for SQ610RFNH
+  firmware 00000054, disabled by default.
 - Provide the thermostat temperatures through the `native_*` climate
   properties, which removes the deprecation warnings logged by Home Assistant
   2026.11. Older Home Assistant versions keep working through the previous
