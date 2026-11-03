@@ -27,6 +27,8 @@ jobs:
     name: Tests (HA ${{ matrix.homeassistant }})
     runs-on: ubuntu-latest
     strategy:
+      # Report every Home Assistant version, even when another one fails.
+      fail-fast: false
       matrix:
         include:
           # Oldest version declared in hacs.json. josepy and pycares are pinned
