@@ -1,6 +1,6 @@
 [project]
 name = "homeassistant-salus"
-version = "0.9.11"
+version = "0.9.12"
 requires-python = ">=3.13"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
@@ -18,6 +18,10 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# The official HA plugin installs its httpx alias before importing respx.
+addopts = "-p no:respx"
+pythonpath = ["."]
 
 [tool.coverage.run]
 branch = true

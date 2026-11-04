@@ -49,6 +49,14 @@ from custom_components.salus.const import DOMAIN
 from custom_components.salus.coordinator import SalusData
 from tests.conftest import FakeCoordinator, make_climate_device, make_fc600_device
 
+# Home Assistant 2026.11 renamed these climate properties to native_*.
+HA_HAS_NATIVE_CLIMATE_TEMPERATURES = hasattr(ClimateEntity, "native_temperature_unit")
+LEGACY_TEMPERATURE_NAMES = (
+    "temperature_unit",
+    "current_temperature",
+    "target_temperature",
+)
+
 
 def _normalized_sq610_device(device, fields):
     """Return a fake SQ610 device with normalized client fields applied."""
@@ -236,16 +244,24 @@ class TestSQ610Properties:
         entity = SalusThermostat(coord, device.unique_id)
         assert entity.native_temperature_unit == UnitOfTemperature.CELSIUS
 
-    def test_legacy_temperature_names_only_on_older_home_assistant(self):
-        """Old names are aliases before HA 2026.11 and absent from 2026.11 on."""
-        legacy_names = ("temperature_unit", "current_temperature", "target_temperature")
+    @pytest.mark.skipif(
+        not HA_HAS_NATIVE_CLIMATE_TEMPERATURES,
+        reason="Home Assistant before 2026.11 only reads the old names",
+    )
+    def test_no_legacy_temperature_names(self):
+        """HA 2026.11+ warns when a subclass defines the old names."""
         members = vars(SalusThermostat)
-        if hasattr(ClimateEntity, "native_temperature_unit"):
-            # Defining them on 2026.11+ triggers the deprecation warning.
-            assert not any(name in members for name in legacy_names)
-        else:
-            for name in legacy_names:
-                assert members[name] is members[f"native_{name}"]
+        assert not any(name in members for name in LEGACY_TEMPERATURE_NAMES)
+
+    @pytest.mark.skipif(
+        HA_HAS_NATIVE_CLIMATE_TEMPERATURES,
+        reason="Home Assistant 2026.11+ warns when the old names are read",
+    )
+    def test_legacy_temperature_aliases(self):
+        """Before HA 2026.11 the old names alias the native properties."""
+        members = vars(SalusThermostat)
+        for name in LEGACY_TEMPERATURE_NAMES:
+            assert members[name] is members[f"native_{name}"]
 
         device = make_climate_device(
             temperature_unit="°C", current_temperature=21.5, target_temperature=22.0
