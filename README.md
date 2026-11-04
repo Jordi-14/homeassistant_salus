@@ -37,13 +37,13 @@ cooling, schedules, and hold states:
 
 | Sensor | Description |
 |---|---|
-| **Temperature** | Current temperature reading (°C), including a separate sensor for each thermostat and the it600MINITRV's own reading |
+| **Temperature** | Current temperature reading (°C), including a separate sensor for each thermostat and TRV |
 | **Humidity** | Relative humidity (%) |
 | **Battery** | Battery level for wireless thermostats and standalone sensors (%) |
 | **Power** | Instantaneous power draw from smart plugs (W) |
 | **Energy** | Cumulative energy consumption from smart plugs (kWh) |
-| **Signal strength** | Last reported RSSI for supported thermostats, it600MINITRV, and wiring centres (dBm, diagnostic) |
-| **Link quality** | Last reported LQI for supported thermostats, it600MINITRV, and wiring centres (0-255, diagnostic) |
+| **Signal strength** | Last reported RSSI for supported thermostats, TRVs, and wiring centres (dBm, diagnostic) |
+| **Link quality** | Last reported LQI for supported thermostats, TRVs, and wiring centres (0-255, diagnostic) |
 | **Temperature calibration** | SQ610 temperature offset from the thermostat's Advanced Settings (°C, diagnostic, read-only) |
 
 ### Binary sensors
@@ -139,12 +139,12 @@ For detailed support status, entity coverage, and known limitations, see
 | Category | Devices |
 |---|---|
 | **Climate** | HTRP-RF(50), TS600, VS10WRF/VS10BRF, VS20WRF/VS20BRF, SQ610, SQ610RF, FC600, TRV3RF |
-| **Binary sensors** | SW600, WLS600, OS600, SD600, TRV10RFM, RX10RF, SmokeSensor-EM, it600MINITRV (paired TRV, controlled through its thermostat) |
-| **Temperature sensors** | PS600 |
+| **Binary sensors** | SW600, WLS600, OS600, SD600, RX10RF, SmokeSensor-EM, TRV10RFM (reported as it600MINITRV) |
+| **Temperature sensors** | PS600, TRV10RFM (cached reading, see [Sensors](#sensors)) |
 | **Switches** | SP600, SPE600, SR600, RS600 relay endpoints |
 | **Covers** | RS600 |
 | **Locks** | Any thermostat with child-lock support |
-| **Selects** | it600MINITRV (mode) |
+| **Selects** | TRV10RFM / it600MINITRV (mode) |
 
 Known unsupported: SB600, CSB600 (button actions only work through the Salus Smart Home app).
 

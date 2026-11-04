@@ -4,7 +4,8 @@
 
 - it600MINITRV: document the new temperature, signal strength, link quality
   and problem entities and the paired-thermostat attributes on the heat sensor
-  (needs a client release with MiniTRV support).
+  (needs a client release with MiniTRV support). The docs state that the TRV
+  temperature is a cached reading that can be several hours old.
 - it600MINITRV: add a **Mode** select to switch the TRV between Auto,
   Manual on (valve open) and Manual off (valve closed) (needs a client release
   with MiniTRV mode support).
