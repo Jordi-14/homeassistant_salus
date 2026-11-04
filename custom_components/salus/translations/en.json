@@ -68,6 +68,17 @@
         }
     },
     "entity": {
+        "select": {
+            "comfort_warm_floor": {
+                "name": "Comfort warm floor",
+                "state": {
+                    "off": "Off",
+                    "level_1": "Level 1",
+                    "level_2": "Level 2",
+                    "level_3": "Level 3"
+                }
+            }
+        },
         "binary_sensor": {
             "battery": {
                 "name": "Battery"

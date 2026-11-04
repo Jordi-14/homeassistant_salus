@@ -350,9 +350,10 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
         pending_state: Mapping[str, Any],
         *,
         debounce_seconds: float = 0.0,
+        pending_timeout: float = PENDING_STATE_TIMEOUT_SECONDS,
     ) -> None:
         """Run a gateway command with optimistic Home Assistant-facing state."""
-        request_id, keys = self._set_pending_state(pending_state)
+        request_id, keys = self._set_pending_state(pending_state, timeout=pending_timeout)
 
         if debounce_seconds > 0:
             await asyncio.sleep(debounce_seconds)
