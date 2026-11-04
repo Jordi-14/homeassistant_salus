@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 from homeassistant.helpers import device_registry as dr
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 import custom_components.salus.entity as entity_module
 from custom_components.salus.climate import SalusThermostat
@@ -12,6 +11,7 @@ from custom_components.salus.const import DOMAIN
 from custom_components.salus.coordinator import SalusData
 from custom_components.salus.lock import SalusThermostatLock
 from tests.conftest import FakeCoordinator, make_climate_device
+from tests.ha_helpers import MockConfigEntry
 
 
 def _coordinator():

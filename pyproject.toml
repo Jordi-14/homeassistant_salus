@@ -18,6 +18,10 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# The official HA plugin installs its httpx alias before importing respx.
+addopts = "-p no:respx"
+pythonpath = ["."]
 
 [tool.coverage.run]
 branch = true

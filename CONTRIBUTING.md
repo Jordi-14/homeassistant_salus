@@ -40,6 +40,14 @@ notices remain preserved in that file, with project attribution in [NOTICE](NOTI
 
 ## Local Checks
 
+For Home Assistant through 2026.10, `requirements_test.txt` installs the legacy
+test plugin. Home Assistant 2026.11 uses the official `pytest-homeassistant`
+package. In a separate Python 3.14.2+ environment, install
+`requirements_test_base.txt`, Home Assistant 2026.11.0, and the official helpers
+from the same stable HA release. The CI matrix pins the exact source commit
+while the matching stable wheel is unavailable. Install only one test plugin
+in each environment; see the [official migration guide](https://github.com/home-assistant/core/tree/2026.11.0/packages/pytest-homeassistant).
+
 Run these before opening a pull request:
 
 ```bash
