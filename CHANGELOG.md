@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.12 - 2026-11-08
+
+- Promote 0.9.12b1 to stable and require stable client 0.8.0.
+- Includes MiniTRV mode, temperature and diagnostic support, gateway startup
+  recovery and Home Assistant 2026.11 climate compatibility.
+- No integration runtime changes from the beta.
+
 ## 0.9.12b1 - 2026-11-08
 
 - Require `salus-it600-client` 0.8.0b3, which adds MiniTRV temperature,
