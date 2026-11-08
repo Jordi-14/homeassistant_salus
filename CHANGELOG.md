@@ -1,10 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.9.12b1 - 2026-11-08
 
-- Require `salus-it600-client` 0.8.0b2, which adds MiniTRV temperature,
+- Require `salus-it600-client` 0.8.0b3, which adds MiniTRV temperature,
   signal, problem and mode support. This is a beta client for real gateway
   testing.
+- Keep slow gateway startup and reconnection failures retryable instead of
+  reporting an invalid EUID when the web server answers before the device API
+  is ready (#66).
 - it600MINITRV: document the new temperature, signal strength, link quality
   and problem entities and the paired-thermostat attributes on the heat sensor.
   The README and docs state that the TRV temperature is a cached reading that
@@ -13,16 +16,12 @@
   Manual on (valve open) and Manual off (valve closed).
 - Correct the README: the it600MINITRV is a binary sensor device (a slave TRV
   controlled through its paired thermostat), not a climate device.
-
-## 0.9.12 - 2026-11-03
-
 - Provide the thermostat temperatures through the `native_*` climate
   properties, which removes the deprecation warnings logged by Home Assistant
   2026.11. Older Home Assistant versions keep working through the previous
   property names.
 - Run the test suite against Home Assistant 2026.11.0 in CI, and make each CI
   job install the exact Home Assistant version it is named after.
-- No client change: still requires `salus-it600-client` 0.7.0.
 
 ## 0.9.11 - 2026-10-26
 
