@@ -10,8 +10,6 @@
   "issue_tracker": "https://github.com/Jordi-14/homeassistant_salus/issues",
   "loggers": ["salus_it600"],
   "quality_scale": "silver",
-  "requirements": [
-    "salus-it600-client @ git+https://github.com/j5bart/salus-it600-client.git@feature/mini-trv-entities"
-  ],
-  "version": "0.9.11"
+  "requirements": ["salus-it600-client==0.7.0"],
+  "version": "0.9.12"
 }

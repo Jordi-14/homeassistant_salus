@@ -12,6 +12,16 @@
 - Correct the README: the it600MINITRV is a binary sensor device (a slave TRV
   controlled through its paired thermostat), not a climate device.
 
+## 0.9.12 - 2026-11-03
+
+- Provide the thermostat temperatures through the `native_*` climate
+  properties, which removes the deprecation warnings logged by Home Assistant
+  2026.11. Older Home Assistant versions keep working through the previous
+  property names.
+- Run the test suite against Home Assistant 2026.11.0 in CI, and make each CI
+  job install the exact Home Assistant version it is named after.
+- No client change: still requires `salus-it600-client` 0.7.0.
+
 ## 0.9.11 - 2026-10-26
 
 - Promote the tested 0.9.11b1 beta to stable and require client 0.7.0.

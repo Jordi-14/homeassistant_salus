@@ -27,20 +27,30 @@ jobs:
     name: Tests (HA ${{ matrix.homeassistant }})
     runs-on: ubuntu-latest
     strategy:
+      # Report every Home Assistant version, even when another one fails.
+      fail-fast: false
       matrix:
         include:
           # Oldest version declared in hacs.json. josepy and pycares are pinned
           # because their current releases break this older Home Assistant.
           - homeassistant: "2024.11.0"
-            test_plugin: "0.13.181"
+            test_plugin: "pytest-homeassistant-custom-component==0.13.181"
             python: "3.12"
             extra_requirements: "'josepy<2' 'pycares==4.4.0'"
           - homeassistant: "2026.5.4"
-            test_plugin: "0.13.333"
+            test_plugin: "pytest-homeassistant-custom-component==0.13.333"
             python: "3.14"
             extra_requirements: ""
           - homeassistant: "2026.9.4"
-            test_plugin: "0.13.367"
+            test_plugin: "pytest-homeassistant-custom-component==0.13.367"
+            python: "3.14"
+            extra_requirements: ""
+          # First version with the native_* climate temperature properties.
+          # Use the official fixtures from this exact stable HA release until
+          # pytest-homeassistant publishes its matching stable wheel.
+          - homeassistant: "2026.11.0"
+            test_plugin: "./.ci/homeassistant/packages/pytest-homeassistant"
+            test_plugin_source: "74cf5a49c63ed8d4d87717844bf14f79c28c9cea"
             python: "3.14"
             extra_requirements: ""
     steps:
@@ -48,8 +58,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - name: Check out matching official test fixtures
+        if: matrix.test_plugin_source
+        uses: actions/checkout@v4
+        with:
+          repository: home-assistant/core
+          ref: ${{ matrix.test_plugin_source }}
+          path: .ci/homeassistant
+          sparse-checkout: packages/pytest-homeassistant
+          persist-credentials: false
       - name: Install test dependencies
-        run: python -m pip install -r requirements_test.txt "pytest-homeassistant-custom-component==${{ matrix.test_plugin }}" ${{ matrix.extra_requirements }}
+        # Each job installs one test plugin and its exact Home Assistant version.
+        run: >-
+          python -m pip install -r requirements_test_base.txt
+          "homeassistant==${{ matrix.homeassistant }}"
+          "${{ matrix.test_plugin }}"
+          ${{ matrix.extra_requirements }}
       - name: Validate translation and manifest JSON
         run: |
           python -m json.tool custom_components/salus/manifest.json > /dev/null
