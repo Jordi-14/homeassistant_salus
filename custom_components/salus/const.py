@@ -13,6 +13,7 @@ PLATFORMS: tuple[Platform, ...] = (
     Platform.COVER,
     Platform.SENSOR,
     Platform.LOCK,
+    Platform.SELECT,
 )
 
 CONF_SCAN_INTERVAL = "scan_interval"

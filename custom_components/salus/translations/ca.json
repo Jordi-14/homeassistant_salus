@@ -106,6 +106,16 @@
                 "name": "Bloqueig del teclat"
             }
         },
+        "select": {
+            "trv_mode": {
+                "name": "Mode",
+                "state": {
+                    "auto": "Automàtic",
+                    "manual_on": "Manual obert",
+                    "manual_off": "Manual tancat"
+                }
+            }
+        },
         "sensor": {
             "battery": {
                 "name": "Bateria"

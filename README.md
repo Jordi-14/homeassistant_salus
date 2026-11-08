@@ -37,14 +37,17 @@ cooling, schedules, and hold states:
 
 | Sensor | Description |
 |---|---|
-| **Temperature** | Current temperature reading (°C), including a separate sensor for each thermostat |
+| **Temperature** | Current temperature reading (°C), including a separate sensor for each thermostat and TRV |
 | **Humidity** | Relative humidity (%) |
 | **Battery** | Battery level for wireless thermostats and standalone sensors (%) |
 | **Power** | Instantaneous power draw from smart plugs (W) |
 | **Energy** | Cumulative energy consumption from smart plugs (kWh) |
-| **Signal strength** | Last reported RSSI for supported thermostats and wiring centres (dBm, diagnostic) |
-| **Link quality** | Last reported LQI for supported thermostats and wiring centres (0-255, diagnostic) |
+| **Signal strength** | Last reported RSSI for supported thermostats, TRVs, and wiring centres (dBm, diagnostic) |
+| **Link quality** | Last reported LQI for supported thermostats, TRVs, and wiring centres (0-255, diagnostic) |
 | **Temperature calibration** | SQ610 temperature offset from the thermostat's Advanced Settings (°C, diagnostic, read-only) |
+
+> [!NOTE]
+> The TRV10RFM (`it600MINITRV`) temperature is a cached reading: the integration keeps the last value the TRV reported until it sends a new one. The TRV reports irregularly, and gaps of 4 to 8 hours have been seen on real hardware, so the regular Home Assistant poll does not guarantee a fresh TRV temperature. Sending a command to the TRV (for example changing its mode) usually triggers a new report. See [supported devices](docs/supported-devices.md) for details.
 
 ### Binary sensors
 
@@ -53,7 +56,9 @@ cooling, schedules, and hold states:
 | **Window / Door** | Open/closed state (SW600, OS600) |
 | **Water leak** | Moisture detection (WLS600) |
 | **Smoke** | Smoke alarm (SmokeSensor-EM) |
+| **TRV heat** | Whether an it600MINITRV is asked to heat, with the paired thermostat as attributes |
 | **Low battery** | Battery warning for wireless sensors and TRVs (it600MINITRV via TRVError22) |
+| **TRV problem** | it600MINITRV fault flags (hardware, gear, adaptation, unpaired TRV) with descriptions as attributes (diagnostic) |
 | **Thermostat problem** | Aggregated thermostat error flags with human-readable descriptions as attributes |
 | **Battery problem** | Battery-specific thermostat error indicator |
 | **Wiring centre connectivity** | Online state reported for it600WC (diagnostic) |
@@ -70,6 +75,12 @@ One switch entity per smart plug or relay (SP600, SPE600, SR600, and RS600 relay
 ### Locks
 
 One lock entity per thermostat that supports child lock. Allows **locking/unlocking** the thermostat keypad.
+
+### Selects
+
+| Select | Description |
+|---|---|
+| **Mode** | it600MINITRV mode: **Auto** (follow the paired thermostat), **Manual on (open)**, or **Manual off (closed)**. Shows as unknown while the TRV reports a mode it entered on its own |
 
 ## Installation
 
@@ -130,12 +141,13 @@ For detailed support status, entity coverage, and known limitations, see
 
 | Category | Devices |
 |---|---|
-| **Climate** | HTRP-RF(50), TS600, VS10WRF/VS10BRF, VS20WRF/VS20BRF, SQ610, SQ610RF, FC600, TRV3RF, it600MINITRV |
-| **Binary sensors** | SW600, WLS600, OS600, SD600, TRV10RFM, RX10RF, SmokeSensor-EM |
-| **Temperature sensors** | PS600 |
+| **Climate** | HTRP-RF(50), TS600, VS10WRF/VS10BRF, VS20WRF/VS20BRF, SQ610, SQ610RF, FC600, TRV3RF |
+| **Binary sensors** | SW600, WLS600, OS600, SD600, RX10RF, SmokeSensor-EM, TRV10RFM (reported as it600MINITRV) |
+| **Temperature sensors** | PS600, TRV10RFM (cached reading, see [Sensors](#sensors)) |
 | **Switches** | SP600, SPE600, SR600, RS600 relay endpoints |
 | **Covers** | RS600 |
 | **Locks** | Any thermostat with child-lock support |
+| **Selects** | TRV10RFM / it600MINITRV (mode) |
 
 Known unsupported: SB600, CSB600 (button actions only work through the Salus Smart Home app).
 
