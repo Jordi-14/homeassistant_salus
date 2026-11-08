@@ -2,13 +2,15 @@
 
 ## Unreleased
 
+- Require `salus-it600-client` 0.8.0b2, which adds MiniTRV temperature,
+  signal, problem and mode support. This is a beta client for real gateway
+  testing.
 - it600MINITRV: document the new temperature, signal strength, link quality
-  and problem entities and the paired-thermostat attributes on the heat sensor
-  (needs a client release with MiniTRV support). The docs state that the TRV
-  temperature is a cached reading that can be several hours old.
+  and problem entities and the paired-thermostat attributes on the heat sensor.
+  The README and docs state that the TRV temperature is a cached reading that
+  can be several hours old.
 - it600MINITRV: add a **Mode** select to switch the TRV between Auto,
-  Manual on (valve open) and Manual off (valve closed) (needs a client release
-  with MiniTRV mode support).
+  Manual on (valve open) and Manual off (valve closed).
 - Correct the README: the it600MINITRV is a binary sensor device (a slave TRV
   controlled through its paired thermostat), not a climate device.
 

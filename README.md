@@ -46,6 +46,9 @@ cooling, schedules, and hold states:
 | **Link quality** | Last reported LQI for supported thermostats, TRVs, and wiring centres (0-255, diagnostic) |
 | **Temperature calibration** | SQ610 temperature offset from the thermostat's Advanced Settings (°C, diagnostic, read-only) |
 
+> [!NOTE]
+> The TRV10RFM (`it600MINITRV`) temperature is a cached reading: the integration keeps the last value the TRV reported until it sends a new one. The TRV reports irregularly, and gaps of 4 to 8 hours have been seen on real hardware, so the regular Home Assistant poll does not guarantee a fresh TRV temperature. Sending a command to the TRV (for example changing its mode) usually triggers a new report. See [supported devices](docs/supported-devices.md) for details.
+
 ### Binary sensors
 
 | Binary sensor | Description |
