@@ -1,7 +1,7 @@
 # Release Process
 
 This repository publishes a Home Assistant custom integration through GitHub
-Releases and HACS. The integration depends on the separate
+Releases and the Marketplace (HACS on older HA versions). The integration depends on the separate
 `salus-it600-client` Python package.
 
 ## Policy
@@ -15,7 +15,7 @@ version must already be available on PyPI.
 
 The practical invariant is:
 
-- the latest HACS release must correspond to a `vX.Y.Z` tag on `master`;
+- the latest Marketplace release must correspond to a `vX.Y.Z` tag on `master`;
 - `custom_components/salus/manifest.json` contains the released integration
   version;
 - the manifest pins a published `salus-it600-client` version;
@@ -62,7 +62,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-Create the GitHub Release from the tag. HACS uses the GitHub Release and the
+Create the GitHub Release from the tag. The Marketplace and older HACS installations use the GitHub Release and the
 integration version in `manifest.json` to offer updates.
 
 ## Release Checklist
@@ -77,7 +77,7 @@ integration version in `manifest.json` to offer updates.
    version.
 5. Run the Home Assistant integration compile and test checks.
 6. Tag and release `homeassistant_salus`.
-7. Install or update the released integration through HACS on a real Home
+7. Install or update the released integration through the Marketplace (or HACS on older HA) on a real Home
    Assistant instance.
 8. Reload the config entry and verify one gateway poll plus one safe command on
    a real Salus gateway.
