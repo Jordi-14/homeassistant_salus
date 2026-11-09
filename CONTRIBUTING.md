@@ -110,7 +110,7 @@ Use `async_add_salus_entities()` from `entity.py` so discovery behavior stays co
 
 ## Testing Feature Branches Before Release
 
-Feature branches can be tested in Home Assistant before creating a GitHub Release, creating a HACS release, or publishing a client package.
+Feature branches can be tested in Home Assistant before creating a GitHub Release, publishing a release for the Marketplace or older HACS installations, or publishing a client package.
 
 General rules:
 

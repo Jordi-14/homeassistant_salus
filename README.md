@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Jordi-14/homeassistant_salus?display_name=tag)](https://github.com/Jordi-14/homeassistant_salus/releases)
-[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/default/pull/9741)
+[![Marketplace Catalog](https://img.shields.io/badge/Marketplace-Catalog-41BDF5.svg)](https://github.com/hacs/default/pull/9741)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.11%2B-41BDF5?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/github/license/Jordi-14/homeassistant_salus)](#license)
 
@@ -86,9 +86,11 @@ One lock entity per thermostat that supports child lock. Allows **locking/unlock
 
 Minimum supported Home Assistant version: `2024.11.0`.
 
-### HACS (recommended)
+### Marketplace / HACS (recommended)
 
-Salus iT600 is included in the default HACS catalog. Choose the path that
+Home Assistant 2026.11 and later include the **Marketplace** under **Settings > Marketplace**. It replaces HACS and carries over existing installations automatically. On older supported Home Assistant versions, continue using HACS. See the [Marketplace documentation](https://www.home-assistant.io/integrations/marketplace/).
+
+Salus iT600 is included in the Marketplace catalog. Choose the path that
 matches your installation:
 
 | Your starting point | What to do |
@@ -99,15 +101,16 @@ matches your installation:
 
 #### New installation
 
-1. Open HACS and search for **Salus iT600**. Clear any downloaded-only filter
+1. On HA 2026.11+, open **Settings > Marketplace** and search for **Salus iT600**.
+   On older HA versions, open HACS instead. Clear any downloaded-only filter
    if it is active.
 2. Open the result and confirm its repository is
    `Jordi-14/homeassistant_salus`.
-3. Download the latest stable release.
+3. Select **Install** to install the latest stable release (**Download** in older HACS).
 4. Restart Home Assistant.
 5. Follow [Configuration](#configuration) to add your gateway.
 
-If the listing does not appear, allow HACS to refresh its catalog and try again.
+If the listing does not appear, allow the Marketplace or HACS to refresh its catalog and try again.
 You do not need to add a custom repository.
 
 ### Manual
@@ -270,7 +273,7 @@ Release publishing is documented in [RELEASE.md](RELEASE.md).
 
 ## Migration from `pyit600`
 
-This integration uses `salus-it600-client`, a maintained successor of the original `pyit600` library. Existing Home Assistant config entries keep the same `salus` integration domain, so normal HACS updates only require a restart.
+This integration uses `salus-it600-client`, a maintained successor of the original `pyit600` library. Existing Home Assistant config entries keep the same `salus` integration domain, so normal Marketplace or HACS updates only require a restart.
 
 The exact client version is pinned in `custom_components/salus/manifest.json`.
 

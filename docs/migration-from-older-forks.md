@@ -1,7 +1,9 @@
-# Installation and Migration Through HACS
+# Installation and Migration Through Marketplace / HACS
 
-`Jordi-14/homeassistant_salus` is now included in the default HACS catalog.
-The repository URL determines whether you need to migrate, even if HACS shows
+Home Assistant 2026.11 and later include the **Marketplace** under **Settings > Marketplace**. It replaces HACS and carries over existing installations automatically. On older supported Home Assistant versions, continue using HACS. See the [Marketplace documentation](https://www.home-assistant.io/integrations/marketplace/).
+
+`Jordi-14/homeassistant_salus` is now included in the Marketplace catalog (also used by older HACS installations).
+The repository URL determines whether you need to migrate, even if the Marketplace or HACS shows
 both repositories under the same **Salus iT600** name.
 
 | Starting point | Path |
@@ -19,19 +21,34 @@ needed.
 ## Before Migrating
 
 1. Back up your Home Assistant configuration.
-2. Open the installed Salus repository in HACS and check its GitHub URL.
+2. Open the installed Salus repository in the Marketplace or HACS and check its GitHub URL.
 3. Note the installed version.
 4. Download diagnostics from **Settings** > **Devices & Services** >
    **Salus iT600**, if your installed version supports diagnostics.
 
 The integration domain remains `salus`. Keep the existing entry in
 **Settings** > **Devices & Services** so the gateway configuration and existing
-entity registry records can be reused. Changing the HACS download source is
+entity registry records can be reused. Changing the download source is
 separate from deleting that Home Assistant entry.
 
 ## From the Old HACS Default (epoplavskis)
 
-These steps also apply if you added `epoplavskis/homeassistant_salus` or another
+### Home Assistant 2026.11 and later
+
+The Marketplace migrates the existing HACS installation automatically, but that
+does not itself switch an old Salus fork to this repository. Check the installed
+repository URL first.
+
+The Marketplace blocks uninstalling a configured integration unless its setup is
+also removed. **Delete and uninstall** removes devices and entities too, so do
+not use it as a way to preserve the old Salus configuration during a fork switch.
+Back up Home Assistant and open a Support / Bug issue with the old repository URL,
+integration version and HA version before changing the download source, so the
+migration can be checked for your installation.
+
+### Home Assistant 2026.10 and earlier: HACS
+
+These legacy HACS steps also apply if you added `epoplavskis/homeassistant_salus` or another
 older fork as a custom repository.
 
 1. In HACS, open the installed Salus repository and confirm its URL is the old
@@ -62,10 +79,10 @@ If the installed repository URL is already `Jordi-14/homeassistant_salus`, you
 already have the correct integration. Inclusion in the default catalog does
 not require a reinstall or a new gateway setup.
 
-1. Keep the existing HACS download and Home Assistant integration entry.
-2. Continue installing updates from the same repository in HACS and restart
+1. Keep the existing Marketplace or HACS download and Home Assistant integration entry.
+2. Continue installing updates from the same repository in the Marketplace or HACS and restart
    Home Assistant after an integration update, as usual.
-3. Allow HACS to refresh its catalog. The repository can then be recognized as
+3. Allow the Marketplace or HACS to refresh its catalog. The repository can then be recognized as
    a default entry rather than a custom one.
 
 You do not need to remove the custom repository registration manually. Do not
@@ -104,6 +121,7 @@ and include:
 
 ## Rollback
 
-If you need to roll back, reinstall the previous fork from HACS and restart
+Restore the full Home Assistant backup to roll back a Marketplace migration.
+For the legacy HACS procedure, you can reinstall the previous fork and restart
 Home Assistant. Restore your Home Assistant backup if the migration changed
 entity registry data in a way you cannot easily undo from the UI.
