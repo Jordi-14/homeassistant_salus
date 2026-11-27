@@ -77,9 +77,9 @@ class TestSalusBinarySensorProperties:
         coord = _coordinator_with_binary_sensors(device)
         entity = SalusBinarySensor(coord, "binary_001")
         info = entity.device_info
-        assert info["manufacturer"] == "SALUS"
-        assert info["model"] == "SW600"
-        assert (DOMAIN, "binary_001") in info["identifiers"]
+        assert info.manufacturer == "SALUS"
+        assert info.model == "SW600"
+        assert (DOMAIN, "binary_001") in info.identifiers
 
     def test_available_true(self):
         device = make_binary_sensor_device(available=True)
@@ -114,9 +114,9 @@ class TestSalusBinarySensorParentDevice:
         coord = _coordinator_with_binary_sensors(device)
         entity = SalusBinarySensor(coord, device.unique_id)
         info = entity.device_info
-        assert (DOMAIN, "climate_001") in info["identifiers"]
+        assert (DOMAIN, "climate_001") in info.identifiers
         # Should only provide identifiers, not override parent device name
-        assert "name" not in info
+        assert "name" not in info.as_dict()
 
     def test_device_class_problem(self):
         device = self._error_device()
@@ -240,4 +240,4 @@ class TestMiniTrvBinarySensors:
         assert entity.translation_key == "problem"
         assert entity.entity_category == EntityCategory.DIAGNOSTIC
         assert entity.extra_state_attributes == {"errors": ["Gear issue"]}
-        assert (DOMAIN, "trv_001") in entity.device_info["identifiers"]
+        assert (DOMAIN, "trv_001") in entity.device_info.identifiers

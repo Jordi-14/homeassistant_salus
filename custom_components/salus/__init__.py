@@ -13,7 +13,6 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.config_validation import config_entry_only_config_schema
-
 from salus_it600.exceptions import (
     IT600AuthenticationError,
     IT600ConnectionError,

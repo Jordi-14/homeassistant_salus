@@ -7,13 +7,11 @@ import string
 from collections.abc import Mapping
 from typing import Any
 
-import voluptuous as vol
-
+import probatio as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_TOKEN
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-
 from salus_it600.exceptions import (
     IT600AuthenticationError,
     IT600ConnectionError,

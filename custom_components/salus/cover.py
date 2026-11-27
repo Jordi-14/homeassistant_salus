@@ -6,7 +6,7 @@ from typing import Any
 
 from homeassistant.components.cover import ATTR_POSITION, CoverEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import COVER_POSITION_DEBOUNCE_SECONDS
 from .coordinator import SalusConfigEntry
@@ -22,7 +22,7 @@ COVER_DEVICE_CLASS_BY_MODEL = {
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: SalusConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Salus cover devices from a config entry."""
     async_setup_salus_platform_entities(

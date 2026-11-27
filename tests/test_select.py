@@ -79,7 +79,7 @@ class TestSalusMiniTrvModeSelectProperties:
         assert entity.unique_id == "trv-1_mode"
         assert entity.translation_key == "trv_mode"
         assert entity.options == ["auto", "manual_on", "manual_off"]
-        assert (DOMAIN, "trv-1") in entity.device_info["identifiers"]
+        assert (DOMAIN, "trv-1") in entity.device_info.identifiers
 
     @pytest.mark.parametrize(
         ("mode", "option"),

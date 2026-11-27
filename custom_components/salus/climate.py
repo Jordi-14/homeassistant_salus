@@ -13,31 +13,31 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from salus_it600.const import HoldType
 from salus_it600.device_models import (
     SQ610_HOLD_AUTO,
+    SQ610_HOLD_AWAY,
     SQ610_HOLD_PERMANENT,
     SQ610_HOLD_STANDBY,
-    SQ610_HOLD_AWAY,
     SQ610_MODE_COOL,
 )
 from salus_it600.models import running_state_is_cooling
 
 from ._climate_state import (
     HA_TO_RAW_FAN_MODE,
+    PRESET_AWAY,
     PRESET_ECO,
     PRESET_FOLLOW_SCHEDULE,
     PRESET_PERMANENT_HOLD,
-    PRESET_STANDBY,
-    PRESET_AWAY,
     PRESET_SCHEDULE_OVERRIDE,
+    PRESET_STANDBY,
+    RAW_PRESET_AWAY,
     RAW_PRESET_ECO,
     RAW_PRESET_FOLLOW_SCHEDULE,
     RAW_PRESET_OFF,
     RAW_PRESET_PERMANENT_HOLD,
     RAW_PRESET_SCHEDULE_OVERRIDE,
-    RAW_PRESET_AWAY,
     ClimateCapabilities,
     ClimateViewState,
     build_climate_capabilities,
@@ -105,7 +105,7 @@ RAW_TO_HA_PRESET = {
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: SalusConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Salus thermostats from a config entry."""
     async_setup_salus_platform_entities(
@@ -119,7 +119,6 @@ async def async_setup_entry(
 class SalusThermostat(SalusEntity, ClimateEntity):
     """Representation of a Salus thermostat."""
 
-    _enable_turn_on_off_backwards_compatibility = False
     _attr_name = None
     _attr_translation_key = "thermostat"
     _data_collection = "climate_devices"

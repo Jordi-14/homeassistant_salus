@@ -63,7 +63,7 @@ class TestSalusThermostatLockProperties:
         coord = _coordinator_with_lockable_climate(device)
         entity = SalusThermostatLock(coord, "climate_001")
         info = entity.device_info
-        assert (DOMAIN, "climate_001") in info["identifiers"]
+        assert (DOMAIN, "climate_001") in info.identifiers
 
 
 class TestSalusThermostatLockCommands:

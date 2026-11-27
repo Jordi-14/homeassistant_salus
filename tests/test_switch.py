@@ -59,9 +59,9 @@ class TestSalusSwitchProperties:
         coord = _coordinator_with_switches(device)
         entity = SalusSwitch(coord, "switch_001")
         info = entity.device_info
-        assert info["manufacturer"] == "SALUS"
-        assert info["model"] == "SP600"
-        assert (DOMAIN, "switch_001") in info["identifiers"]
+        assert info.manufacturer == "SALUS"
+        assert info.model == "SP600"
+        assert (DOMAIN, "switch_001") in info.identifiers
 
     def test_rs600_device_info_uses_base_uni_id(self):
         device = make_switch_device(
@@ -72,7 +72,7 @@ class TestSalusSwitchProperties:
         coord = _coordinator_with_switches(device)
         entity = SalusSwitch(coord, "rs600_001_1")
         info = entity.device_info
-        assert (DOMAIN, "rs600_001") in info["identifiers"]
+        assert (DOMAIN, "rs600_001") in info.identifiers
 
     def test_switch_endpoint_with_matching_cover_uses_base_uni_id(self):
         cover = make_cover_device(unique_id="rs600_001", model="RS600")
@@ -84,7 +84,7 @@ class TestSalusSwitchProperties:
         coord = _coordinator_with_switches(device, cover_devices=(cover,))
         entity = SalusSwitch(coord, "rs600_001_1")
         info = entity.device_info
-        assert (DOMAIN, "rs600_001") in info["identifiers"]
+        assert (DOMAIN, "rs600_001") in info.identifiers
 
     def test_sr600_device_info_uses_base_uni_id(self):
         device = make_switch_device(
@@ -95,7 +95,7 @@ class TestSalusSwitchProperties:
         coord = _coordinator_with_switches(device)
         entity = SalusSwitch(coord, "sr600_001_1")
         info = entity.device_info
-        assert (DOMAIN, "sr600_001") in info["identifiers"]
+        assert (DOMAIN, "sr600_001") in info.identifiers
 
     def test_available_true(self):
         device = make_switch_device(available=True)

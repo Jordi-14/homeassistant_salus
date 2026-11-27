@@ -12,10 +12,12 @@ from homeassistant.components.climate.const import (
     FAN_LOW,
     FAN_MEDIUM,
     FAN_OFF,
-    PRESET_ECO as HA_PRESET_ECO,
     ClimateEntityFeature,
     HVACAction,
     HVACMode,
+)
+from homeassistant.components.climate.const import (
+    PRESET_ECO as HA_PRESET_ECO,
 )
 from salus_it600.device_models import (
     SQ610_HOLD_STANDBY,

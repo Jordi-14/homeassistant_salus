@@ -93,7 +93,7 @@ class TestSalusSensorProperties:
         coord = _coordinator_with_sensors(device)
         entity = SalusSensor(coord, device.unique_id)
         info = entity.device_info
-        assert (DOMAIN, "sensor_001") in info["identifiers"]
+        assert (DOMAIN, "sensor_001") in info.identifiers
 
     def test_available_true(self):
         device = make_sensor_device(available=True)
@@ -149,7 +149,7 @@ class TestSalusBatterySensor:
         entity = SalusSensor(coord, "climate_001_battery")
         info = entity.device_info
         # Parent device grouping via parent_unique_id
-        assert (DOMAIN, "climate_001") in info["identifiers"]
+        assert (DOMAIN, "climate_001") in info.identifiers
 
     def test_child_entity_translation_key(self):
         coord = _coordinator_with_sensors(self._battery())
@@ -177,7 +177,7 @@ class TestSalusSignalSensors:
         assert entity.native_unit_of_measurement == "dBm"
         assert entity.state_class == SensorStateClass.MEASUREMENT
         assert entity.entity_category == EntityCategory.DIAGNOSTIC
-        assert entity.device_info["identifiers"] == {(DOMAIN, "climate_001")}
+        assert entity.device_info.identifiers == {(DOMAIN, "climate_001")}
 
     def test_link_quality_is_a_unitless_translated_measurement(self):
         device = make_sensor_device(
@@ -196,7 +196,7 @@ class TestSalusSignalSensors:
         assert entity.native_unit_of_measurement is None
         assert entity.state_class == SensorStateClass.MEASUREMENT
         assert entity.entity_category == EntityCategory.DIAGNOSTIC
-        assert entity.device_info["identifiers"] == {(DOMAIN, "climate_001")}
+        assert entity.device_info.identifiers == {(DOMAIN, "climate_001")}
 
 
 class TestSalusHumiditySensor:
@@ -301,7 +301,7 @@ class TestThermostatCalibrationSensor:
         entity = SalusThermostatCalibrationSensor(coord, device.unique_id)
 
         assert entity.unique_id == f"{device.unique_id}_temperature_calibration"
-        assert entity.device_info["identifiers"] == {(DOMAIN, device.unique_id)}
+        assert entity.device_info.identifiers == {(DOMAIN, device.unique_id)}
         assert entity.translation_key == "temperature_calibration"
         assert entity.entity_category == EntityCategory.DIAGNOSTIC
         assert entity.native_unit_of_measurement == "°C"
@@ -365,7 +365,7 @@ class TestThermostatTemperatureSensor:
         coord.data.climate_devices[device.unique_id] = device
         entity = SalusThermostatTemperatureSensor(coord, device.unique_id)
         assert entity.unique_id == f"{device.unique_id}_temperature"
-        assert entity.device_info["identifiers"] == {(DOMAIN, device.unique_id)}
+        assert entity.device_info.identifiers == {(DOMAIN, device.unique_id)}
         assert entity.translation_key == "temperature"
         assert entity.native_unit_of_measurement == "°C"
         assert entity.device_class == SensorDeviceClass.TEMPERATURE
@@ -449,7 +449,7 @@ class TestMiniTrvSensors:
         assert entity.device_class == SensorDeviceClass.TEMPERATURE
         assert entity.state_class == SensorStateClass.MEASUREMENT
         assert entity.entity_category is None
-        assert (DOMAIN, "trv_001") in entity.device_info["identifiers"]
+        assert (DOMAIN, "trv_001") in entity.device_info.identifiers
 
     def test_trv_signal_sensors_are_diagnostic(self):
         rssi = make_sensor_device(
