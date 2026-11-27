@@ -7,7 +7,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import SalusConfigEntry, SalusDataUpdateCoordinator
 from .entity import SalusEntity, async_setup_salus_platform_entities
@@ -43,7 +43,7 @@ def sensor_device_registry_unique_id(device: Any) -> str | None:
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: SalusConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Salus sensors from a config entry."""
     async_setup_salus_platform_entities(

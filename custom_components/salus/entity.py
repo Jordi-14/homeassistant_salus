@@ -5,19 +5,17 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from salus_it600.exceptions import IT600CommandError, IT600ConnectionError
 
 from .const import DOMAIN, GATEWAY_COMMAND_TIMEOUT_SECONDS
 from .coordinator import SalusConfigEntry, SalusData, SalusDataUpdateCoordinator
-
-_SUPPORTS_VIA_DEVICE_ID = "via_device_id" in DeviceInfo.__annotations__
 
 CHILD_ENTITY_TRANSLATION_KEY_BY_DEVICE_CLASS = {
     "battery": "battery",
@@ -392,34 +390,33 @@ class SalusEntity(CoordinatorEntity[SalusDataUpdateCoordinator]):
 
         parent_unique_id = getattr(device, "parent_unique_id", None)
         if parent_unique_id:
-            return {"identifiers": {(DOMAIN, parent_unique_id)}}
+            return DeviceInfo(identifiers={(DOMAIN, parent_unique_id)})
 
         unique_id = self._device_info_unique_id(device)
-        device_info: DeviceInfo = {
-            "identifiers": {(DOMAIN, unique_id)},
-            "name": getattr(device, "name", unique_id),
-            "manufacturer": getattr(device, "manufacturer", "SALUS"),
-            "model": getattr(device, "model", None),
-            "sw_version": getattr(device, "sw_version", None),
-        }
-
-        if self.coordinator.gateway_id and self.coordinator.gateway_id != unique_id:
-            if _SUPPORTS_VIA_DEVICE_ID:
-                if self.coordinator.gateway_device_id:
-                    device_info["via_device_id"] = self.coordinator.gateway_device_id
-            else:
-                device_info = cast(
-                    DeviceInfo,
-                    {**device_info, "via_device": (DOMAIN, self.coordinator.gateway_id)},
-                )
-
-        return device_info
+        # The gateway's registry id only exists once its device is registered;
+        # until then the link is left out rather than pointed at nothing.
+        via: dict[str, str] = {}
+        if (
+            self.coordinator.gateway_id
+            and self.coordinator.gateway_id != unique_id
+            and self.coordinator.gateway_device_id
+        ):
+            via["via_device_id"] = self.coordinator.gateway_device_id
+        # Built in one call: DeviceInfo is a dataclass since Home Assistant 2026.12.
+        return DeviceInfo(
+            identifiers={(DOMAIN, unique_id)},
+            name=getattr(device, "name", unique_id),
+            manufacturer=getattr(device, "manufacturer", "SALUS"),
+            model=getattr(device, "model", None),
+            sw_version=getattr(device, "sw_version", None),
+            **via,
+        )
 
 
 def async_add_salus_entities(
     config_entry: SalusConfigEntry,
     coordinator: SalusDataUpdateCoordinator,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
     entity_factory: Callable[[str], SalusEntity],
     devices_getter: Callable[[SalusData], Mapping[str, Any]],
 ) -> None:
@@ -449,7 +446,7 @@ def async_add_salus_entities(
 
 def async_setup_salus_platform_entities(
     config_entry: SalusConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
     entity_factory: Callable[[SalusDataUpdateCoordinator, str], SalusEntity],
     devices_getter: Callable[[SalusData], Mapping[str, Any]],
 ) -> None:

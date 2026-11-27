@@ -1,25 +1,33 @@
 [project]
 name = "homeassistant-salus"
-version = "0.9.12"
-requires-python = ">=3.13"
+version = "0.10.0"
+requires-python = ">=3.14"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
+line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B"]
-ignore = ["E501"]
-
-[tool.ruff.lint.per-file-ignores]
-"custom_components/**" = ["I001", "UP035"]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (undefined names, unused imports)
+    "W",   # pycodestyle warnings
+    "B",   # flake8-bugbear (common bug patterns)
+    "I",   # isort (import ordering)
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long - handled by line-length
+    "W293",  # blank line contains whitespace
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-# The official HA plugin installs its httpx alias before importing respx.
+# Let Home Assistant install its httpx alias before respx is imported
 addopts = "-p no:respx"
 pythonpath = ["."]
 

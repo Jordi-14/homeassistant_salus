@@ -3,7 +3,7 @@
 [![CI](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Jordi-14/homeassistant_salus/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Jordi-14/homeassistant_salus?display_name=tag)](https://github.com/Jordi-14/homeassistant_salus/releases)
 [![Marketplace Catalog](https://img.shields.io/badge/Marketplace-Catalog-41BDF5.svg)](https://github.com/hacs/default/pull/9741)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.11%2B-41BDF5?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.11%2B-41BDF5?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/github/license/Jordi-14/homeassistant_salus)](#license)
 
 A custom [Home Assistant](https://www.home-assistant.io/) integration that lets you control and monitor your [Salus iT600](https://salus-controls.com/) smart home devices **locally** through the UGE600 or UG800 gateway — thermostats, smart plugs, roller shutters, sensors, and more, all without cloud dependency.
@@ -84,7 +84,7 @@ One lock entity per thermostat that supports child lock. Allows **locking/unlock
 
 ## Installation
 
-Minimum supported Home Assistant version: `2024.11.0`.
+Minimum supported Home Assistant version: `2026.11.0`.
 
 ### Marketplace / HACS (recommended)
 

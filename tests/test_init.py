@@ -12,6 +12,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from pytest_homeassistant.common import MockConfigEntry
 
 import custom_components.salus as salus_init
 from custom_components.salus import (
@@ -28,7 +29,6 @@ from tests.conftest import (
     make_sensor_device,
     make_switch_device,
 )
-from tests.ha_helpers import MockConfigEntry
 
 
 class FakeGateway:

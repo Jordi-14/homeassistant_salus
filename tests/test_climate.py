@@ -328,13 +328,10 @@ class TestSQ610Properties:
         coord = _coordinator_with_climate(device)
         entity = SalusThermostat(coord, "climate_001")
         info = entity.device_info
-        assert info["manufacturer"] == "SALUS"
-        assert info["model"] == "SQ610RF"
-        assert (DOMAIN, "climate_001") in info["identifiers"]
-        if "via_device_id" in info:
-            assert info["via_device_id"] == "gateway-device-1"
-        else:
-            assert info["via_device"] == (DOMAIN, "gateway-1")
+        assert info.manufacturer == "SALUS"
+        assert info.model == "SQ610RF"
+        assert (DOMAIN, "climate_001") in info.identifiers
+        assert info.via_device_id == "gateway-device-1"
 
     def test_available_true(self):
         device = make_climate_device(available=True)

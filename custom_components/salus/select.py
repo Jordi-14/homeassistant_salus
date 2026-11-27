@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from salus_it600.const import MiniTrvMode
 from salus_it600.device_models import MODEL_MINI_TRV
 
@@ -28,7 +28,7 @@ TRV_MODE_TO_OPTION = {mode: option for option, mode in OPTION_TO_TRV_MODE.items(
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: SalusConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Salus TRV mode selects from a config entry."""
     async_setup_salus_platform_entities(

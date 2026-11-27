@@ -94,9 +94,9 @@ class TestSalusCoverProperties:
         coord = _coordinator_with_covers(device)
         entity = SalusCover(coord, "cover_001")
         info = entity.device_info
-        assert info["manufacturer"] == "SALUS"
-        assert info["model"] == "RS600"
-        assert (DOMAIN, "cover_001") in info["identifiers"]
+        assert info.manufacturer == "SALUS"
+        assert info.model == "RS600"
+        assert (DOMAIN, "cover_001") in info.identifiers
 
     def test_available_true(self):
         device = make_cover_device(available=True)

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.10.0
+
+- Require Home Assistant 2026.11.0 or later (was 2024.11.0) and test on
+  2026.12.0 through Home Assistant core's `pytest-homeassistant` plugin, which
+  replaces the unmaintained `pytest-homeassistant-custom-component`. CI runs
+  one test job on Python 3.14 instead of the version matrix.
+- Build the device info as a `DeviceInfo` in one call. Home Assistant 2026.12
+  turns device infos into dataclasses and deprecates dict-style use; the
+  plain dict and the `via_device` fallback for older versions are gone, and
+  the gateway link always uses `via_device_id`.
+- Drop the climate turn on/off compatibility flag older Home Assistant
+  versions read, and type platform setups with
+  `AddConfigEntryEntitiesCallback`.
+- Import probatio, Home Assistant's validation library since 2026.11, instead
+  of the voluptuous alias; ruff targets Python 3.14.
+
 ## 0.9.12 - 2026-11-08
 
 - Promote 0.9.12b1 to stable and require stable client 0.8.0.
